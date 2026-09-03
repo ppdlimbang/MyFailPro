@@ -222,6 +222,57 @@ function formatDate(value, withTime = false) {
 const validDateRange = (start, end) => !start || !end || end >= start;
 const markReady = () => document.body.classList.add("auth-ready");
 
+function initRevealAnimations() {
+  const selector = [
+    ".login-brand",
+    ".login-intro",
+    ".login-card",
+    ".page-head",
+    ".stats > .panel",
+    "main > .panel",
+    ".settings-grid > .panel",
+    ".notice",
+    "tbody tr",
+    ".item-list > .item"
+  ].join(",");
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canObserve = "IntersectionObserver" in window && !reducedMotion;
+  const observed = new WeakSet();
+  let initialOrder = 0;
+
+  const observer = canObserve ? new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-visible");
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -36px 0px" }) : null;
+
+  function register(element, dynamic = false) {
+    if (!(element instanceof Element) || observed.has(element)) return;
+    observed.add(element);
+    if (!canObserve) return;
+    const siblingIndex = Array.from(element.parentElement?.children || []).indexOf(element);
+    const order = dynamic ? Math.max(0, siblingIndex) : initialOrder++;
+    element.style.setProperty("--reveal-delay", `${Math.min(order % 5, 4) * 70}ms`);
+    element.classList.add("reveal-item");
+    observer.observe(element);
+  }
+
+  function scan(root, dynamic = false) {
+    if (root instanceof Element && root.matches(selector)) register(root, dynamic);
+    root.querySelectorAll?.(selector).forEach(element => register(element, dynamic));
+  }
+
+  if (canObserve) document.documentElement.classList.add("reveal-enabled");
+  scan(document);
+
+  const mutationObserver = new MutationObserver(mutations => {
+    mutations.forEach(mutation => mutation.addedNodes.forEach(node => scan(node, true)));
+  });
+  mutationObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 function mapSettings(row) {
   return {
     fungsi: [...(row?.functions || defaults.fungsi)],
@@ -632,6 +683,7 @@ function showFatal(error) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   renderCachedShell();
+  initRevealAnimations();
   document.querySelectorAll(".modal").forEach(wireModal);
   try {
     await loadConfig();
