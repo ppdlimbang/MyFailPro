@@ -11,16 +11,39 @@
 </head>
 <body data-page="login">
   <main class="login-page">
-    <section class="panel login-card" aria-labelledby="loginTitle">
-      <img class="brand-mark" src="file.png" alt="Logo MyFailPro">
-      <h1 id="loginTitle">Log Masuk Sistem</h1>
-      <p>Pengurusan Pergerakan Fail PPD Limbang</p>
-      <form id="formLogin">
-        <div class="field"><label for="loginEmail">Emel pengguna</label><input class="input" type="email" id="loginEmail" autocomplete="username" required placeholder="admin@moe.gov.my"></div>
-        <div class="field"><label for="loginPassword">Katalaluan</label><input class="input" type="password" id="loginPassword" autocomplete="current-password" required placeholder="Masukkan katalaluan"></div>
-        <button class="button" type="submit">Log Masuk</button>
-      </form>
-      <p class="login-note">Log masuk selamat menggunakan Supabase. Setiap agensi hanya boleh mengakses datanya sendiri.</p>
+    <section class="login-visual" aria-labelledby="productTitle">
+      <div class="login-brand">
+        <img class="brand-mark" src="file.png" alt="">
+        <div><strong>MyFailPro</strong><small>PPD Limbang</small></div>
+      </div>
+      <div class="login-intro">
+        <span class="eyebrow">Pengurusan rekod digital</span>
+        <h1 id="productTitle">Fail terurus.<br>Kerja lebih teratur.</h1>
+        <p>Platform berpusat untuk pendaftaran, pemantauan dan pergerakan fail fizikal dengan akses selamat bagi setiap agensi.</p>
+        <div class="login-points" aria-label="Ciri sistem"><span>Akses berasaskan peranan</span><span>Data agensi terasing</span><span>Rekod pergerakan</span></div>
+      </div>
+      <p class="login-footer">Sistem Pengurusan Pergerakan Fail &middot; Pejabat Pendidikan Daerah Limbang</p>
+    </section>
+    <section class="login-form-side">
+      <section class="panel login-card" aria-labelledby="loginTitle">
+        <div class="login-card-head">
+          <span class="eyebrow">Portal pengguna</span>
+          <h2 id="loginTitle">Selamat kembali</h2>
+          <p>Log masuk untuk meneruskan ke ruang kerja anda.</p>
+        </div>
+        <form id="formLogin">
+          <div class="field">
+            <label for="loginEmail">Emel pengguna</label>
+            <input class="input" type="email" id="loginEmail" autocomplete="username" required placeholder="nama@moe.gov.my">
+          </div>
+          <div class="field">
+            <label for="loginPassword">Katalaluan</label>
+            <input class="input" type="password" id="loginPassword" autocomplete="current-password" required placeholder="Masukkan katalaluan">
+          </div>
+          <button class="button" type="submit">Log Masuk</button>
+        </form>
+        <p class="login-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2"/><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M12 14v2"/></svg><span>Sambungan selamat melalui Supabase. Setiap agensi hanya boleh mengakses data miliknya.</span></p>
+      </section>
     </section>
   </main>
 </body>

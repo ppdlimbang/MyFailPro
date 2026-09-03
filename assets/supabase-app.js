@@ -156,8 +156,12 @@ function renderShell(user) {
   document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
   const name = document.querySelector("[data-user-name]");
   const role = document.querySelector("[data-user-role]");
-  if (name) name.textContent = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
+  const displayName = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
+  if (name) name.textContent = displayName;
   if (role) role.textContent = user.role === "admin" ? "Admin PPD" : (user.data?.jenis || "Agensi");
+  document.querySelectorAll("[data-user-avatar]").forEach(el => {
+    el.textContent = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "MP";
+  });
   const date = document.querySelector("[data-current-date]");
   if (date) date.textContent = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full" }).format(new Date());
 }
