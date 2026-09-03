@@ -1,0 +1,14 @@
+# Local secrets and provider state
+.env
+.env.*
+!.env.example
+.netlify/
+.supabase/
+
+# Dependencies and operating-system files
+node_modules/
+.DS_Store
+
+# Local backups are not deployed or committed
+MyFailPro.original.html
+assets/runtime-config.js
