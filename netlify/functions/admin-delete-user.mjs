@@ -20,7 +20,7 @@ export default async (request) => {
   const caller = await userResponse.json();
 
   const profileResponse = await fetch(`${url}/rest/v1/profiles?id=eq.${encodeURIComponent(caller.id)}&select=role`, {
-    headers: { apikey: secretKey, authorization: `Bearer ${secretKey}` }
+    headers: { apikey: secretKey }
   });
   const profiles = profileResponse.ok ? await profileResponse.json() : [];
   if (profiles[0]?.role !== "admin") return json({ error: "Admin access required." }, 403);
@@ -34,7 +34,7 @@ export default async (request) => {
 
   const deleteResponse = await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { apikey: secretKey, authorization: `Bearer ${secretKey}` }
+    headers: { apikey: secretKey }
   });
   if (!deleteResponse.ok) {
     let result = {};

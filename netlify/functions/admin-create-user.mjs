@@ -20,7 +20,7 @@ export default async (request) => {
   const caller = await userResponse.json();
 
   const profileResponse = await fetch(`${url}/rest/v1/profiles?id=eq.${encodeURIComponent(caller.id)}&select=role`, {
-    headers: { apikey: secretKey, authorization: `Bearer ${secretKey}` }
+    headers: { apikey: secretKey }
   });
   const profiles = profileResponse.ok ? await profileResponse.json() : [];
   if (profiles[0]?.role !== "admin") return json({ error: "Admin access required." }, 403);
@@ -36,7 +36,7 @@ export default async (request) => {
 
   const createResponse = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
-    headers: { apikey: secretKey, authorization: `Bearer ${secretKey}`, "content-type": "application/json" },
+    headers: { apikey: secretKey, "content-type": "application/json" },
     body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { name, agency_type: agencyType } })
   });
   const result = await createResponse.json();
