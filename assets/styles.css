@@ -323,14 +323,9 @@ tbody tr:hover { background: rgba(237, 233, 254, .48); }
 .login-submit::after { content: "→"; font-size: 1.28em; font-weight: 500; line-height: 1; }
 .login-text-action { display: block; margin: 20px auto 17px; padding: 4px; border: 0; color: #5744ec; background: transparent; cursor: pointer; font: inherit; font-size: .82rem; font-weight: 700; }
 .login-text-action:hover { color: #7c3aed; }
-.login-divider { display: flex; align-items: center; gap: 14px; margin-bottom: 17px; color: #9ca2ae; font-size: .76rem; font-weight: 800; }
-.login-divider::before, .login-divider::after { content: ""; height: 1px; flex: 1; background: #e0e2e8; }
-.login-provider, .login-register-action { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 11px; border-radius: 14px; cursor: pointer; font: inherit; font-size: .95rem; font-weight: 700; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-.login-provider { border: 1px solid #ced3dc; color: #364052; background: #ffffff; box-shadow: 0 3px 6px rgba(15, 23, 42, .07); }
-.login-provider .google-mark { width: 22px; height: 22px; }
-.login-register-action { margin-top: 14px; border: 1px solid #dff7ed; color: #078363; background: #eafff6; }
+.login-register-action { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid #dff7ed; border-radius: 14px; color: #078363; background: #eafff6; cursor: pointer; font: inherit; font-size: .95rem; font-weight: 700; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
 .login-register-action svg { width: 21px; height: 21px; }
-.login-provider:hover, .login-register-action:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, .10); }
+.login-register-action:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, .10); }
 .login-note { display: flex; align-items: center; gap: 14px; margin: 16px 0 0; padding: 17px 18px; border: 1px solid #dfe5ff; border-radius: 14px; color: #555d6e; background: linear-gradient(135deg, #f4f5ff, #eef2ff); font-size: .76rem; font-weight: 600; line-height: 1.42; }
 .login-note strong { color: #4b3ed4; font-weight: 800; }
 .login-shield { width: 34px; height: 34px; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #d9e0ff; border-radius: 50%; color: #6d63ff; background: #ffffff; box-shadow: 0 4px 9px rgba(79, 70, 229, .08); }
@@ -433,7 +428,7 @@ tbody tr:hover { background: rgba(237, 233, 254, .48); }
   .login-card h2 { font-size: 1.55rem; }
   .login-card-head p { font-size: .78rem; }
   .login-card .input, .login-card .button { min-height: 56px; }
-  .login-provider, .login-register-action { min-height: 54px; font-size: .82rem; }
+  .login-register-action { min-height: 54px; font-size: .82rem; }
   .login-note { gap: 10px; padding: 14px; font-size: .68rem; }
 }
 

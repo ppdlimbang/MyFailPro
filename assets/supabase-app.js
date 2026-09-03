@@ -420,11 +420,6 @@ async function initLogin() {
     }
   });
 
-  document.querySelector("#googleLogin")?.addEventListener("click", () => {
-    const redirect = encodeURIComponent(`${location.origin}/myfailpro`);
-    location.assign(`${config.url}/auth/v1/authorize?provider=google&redirect_to=${redirect}`);
-  });
-
   document.querySelector("#requestAccount")?.addEventListener("click", () => {
     toast("Pendaftaran akaun", "Sila hubungi pentadbir PPD Limbang untuk mendapatkan akaun baharu.");
   });
