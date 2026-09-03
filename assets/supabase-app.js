@@ -190,6 +190,7 @@ function formatDate(value, withTime = false) {
 }
 
 const validDateRange = (start, end) => !start || !end || end >= start;
+const markReady = () => document.body.classList.add("auth-ready");
 
 function mapSettings(row) {
   return {
@@ -327,6 +328,7 @@ async function initDashboard() {
   search.addEventListener("input", render);
   filter.addEventListener("change", render);
   render();
+  markReady();
 }
 
 function showModal(id) { document.querySelector(id).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
@@ -454,6 +456,7 @@ async function initRegister() {
       toast(duplicate ? "Rekod telah wujud" : "Pendaftaran gagal", duplicate ? `Fail ${data.transaksi}, Jilid ${data.jilid} telah didaftarkan.` : error.message, "error");
     } finally { setBusy(button, false); }
   });
+  markReady();
 }
 
 const labels = { fungsi: "Fungsi", aktiviti: "Aktiviti", subAktiviti: "Sub-Aktiviti", transaksi: "Transaksi Fail" };
@@ -528,6 +531,7 @@ async function initSettings() {
   });
   render();
   renderStaff();
+  markReady();
 }
 
 async function callAdminFunction(name, payload, retry = true) {
@@ -583,10 +587,12 @@ async function initAdmin() {
     finally { setBusy(button, false); }
   });
   render();
+  markReady();
 }
 
 function showFatal(error) {
   console.error(error);
+  markReady();
   if (document.body.dataset.page === "login") toast("Supabase belum bersambung", error.message, "error");
   else {
     const main = document.querySelector("main");
