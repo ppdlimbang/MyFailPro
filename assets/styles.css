@@ -412,6 +412,304 @@ tbody tr:hover { background: rgba(237, 233, 254, .48); }
   .login-form-side { padding: 0 0 16px; }
 }
 
+/* Authenticated workspace: polished portal layout */
+body:not([data-page="login"]) {
+  background:
+    radial-gradient(circle at 8% 24%, rgba(59, 130, 246, .08), transparent 28rem),
+    linear-gradient(180deg, #f7f9fd 0%, #f2f6fb 100%);
+}
+body:not([data-page="login"]) .app-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+body:not([data-page="login"]) .app-shell::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 82px;
+  right: 0;
+  left: 0;
+  height: 286px;
+  background:
+    radial-gradient(circle at 86% 16%, rgba(34, 211, 238, .48), transparent 25rem),
+    linear-gradient(118deg, #173c91 0%, #2c45c7 44%, #6d3bea 76%, #13a7c7 112%);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .18);
+}
+body:not([data-page="login"]) .topbar {
+  border-bottom: 1px solid rgba(203, 213, 225, .72);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 5px 20px rgba(15, 23, 42, .07);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+body:not([data-page="login"]) .topbar-inner { min-height: 82px; }
+body:not([data-page="login"]) .brand-mark {
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  border: 1px solid rgba(109, 74, 255, .16);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #eef2ff, #ffffff);
+  filter: drop-shadow(0 6px 10px rgba(79, 70, 229, .14));
+}
+body:not([data-page="login"]) .brand-copy strong { color: #27243f; font-size: 1.12rem; }
+body:not([data-page="login"]) .brand-copy small { color: #7b8192; }
+body:not([data-page="login"]) .nav {
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid rgba(203, 213, 225, .66);
+  border-radius: 999px;
+  background: #f4f6fb;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .03);
+}
+body:not([data-page="login"]) .nav a {
+  padding: 9px 17px;
+  border-radius: 999px;
+  color: #62697a;
+  font-size: .78rem;
+  letter-spacing: .01em;
+}
+body:not([data-page="login"]) .nav a:hover { color: #4f46e5; background: #ffffff; }
+body:not([data-page="login"]) .nav a[aria-current="page"] {
+  color: #ffffff;
+  background: linear-gradient(135deg, #3568e8, #7047ec);
+  box-shadow: 0 7px 18px rgba(79, 70, 229, .24);
+}
+body:not([data-page="login"]) .user-box {
+  padding-left: 18px;
+  border-left: 1px solid #e7eaf0;
+}
+body:not([data-page="login"]) .user-avatar {
+  border-color: rgba(79, 70, 229, .16);
+  color: #4f46e5;
+  background: #eef2ff;
+}
+body:not([data-page="login"]) .logout-button {
+  min-height: 40px;
+  padding-inline: 15px;
+  border-color: #f1d6da;
+  border-radius: 999px;
+  color: #d9364a;
+  background: #fffafb;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .05);
+}
+body:not([data-page="login"]) .logout-button:hover {
+  color: #b42335;
+  border-color: #efb8c0;
+  background: #fff1f3;
+}
+body:not([data-page="login"]) .main {
+  position: relative;
+  z-index: 1;
+  padding-block: 66px 88px;
+}
+body:not([data-page="login"]) .page-head {
+  position: relative;
+  min-height: 206px;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 38px 44px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .88);
+  border-radius: 28px;
+  color: #17172b;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 22px 50px rgba(15, 23, 42, .18);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+body:not([data-page="login"]) .page-head::before,
+body:not([data-page="login"]) .page-head::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+body:not([data-page="login"]) .page-head::before {
+  width: 220px;
+  height: 220px;
+  right: 62px;
+  bottom: -142px;
+  border: 28px solid rgba(109, 74, 255, .045);
+}
+body:not([data-page="login"]) .page-head::after {
+  width: 96px;
+  height: 96px;
+  right: 22px;
+  top: -32px;
+  background: rgba(34, 211, 238, .055);
+}
+body:not([data-page="login"]) .page-head-copy,
+body:not([data-page="login"]) .page-head .date-chip { position: relative; z-index: 1; }
+body:not([data-page="login"]) .page-head-copy { max-width: 800px; }
+body:not([data-page="login"]) .page-head .eyebrow {
+  margin-bottom: 10px;
+  color: #5b4ee5;
+  font-size: .68rem;
+  letter-spacing: .16em;
+}
+body:not([data-page="login"]) .page-head h1 {
+  color: #111827;
+  font-size: clamp(2.05rem, 3vw, 2.8rem);
+  font-weight: 850;
+}
+body:not([data-page="login"]) .page-head p {
+  max-width: 680px;
+  margin-top: 10px;
+  color: #697184;
+  font-size: .96rem;
+}
+body:not([data-page="login"]) .date-chip {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-color: #dfe4f2;
+  color: #4c5262;
+  background: #f7f8fc;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, .05);
+}
+body:not([data-page="login"]) .date-chip::before {
+  background: #4f7df3;
+  box-shadow: 0 0 0 4px rgba(79, 125, 243, .13);
+}
+body[data-page="dashboard"] .page-head { margin-bottom: 0; padding-bottom: 62px; }
+body[data-page="dashboard"] .page-head + .stats {
+  position: relative;
+  z-index: 2;
+  margin-top: -42px;
+  padding-inline: 30px;
+}
+body:not([data-page="login"]) .panel {
+  border: 1px solid #dce6f3;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 16px 38px rgba(38, 55, 86, .10);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+body:not([data-page="login"]) .panel-head {
+  min-height: 82px;
+  padding: 20px 26px;
+  border-bottom-color: #e7ecf3;
+  background: linear-gradient(180deg, #ffffff, #fbfcff);
+}
+body:not([data-page="login"]) .panel-head h2,
+body:not([data-page="login"]) .panel-title h2 { color: #202438; font-size: 1.08rem; }
+body:not([data-page="login"]) .panel-head p,
+body:not([data-page="login"]) .panel-title p { color: #7a8293; }
+body:not([data-page="login"]) .panel-body { padding: 30px; }
+body:not([data-page="login"]) .stats { gap: 16px; margin-bottom: 28px; }
+body:not([data-page="login"]) .stat {
+  min-height: 124px;
+  gap: 17px;
+  padding: 22px;
+  border-radius: 20px;
+  box-shadow: 0 14px 30px rgba(29, 46, 79, .12);
+}
+body:not([data-page="login"]) .stat::before {
+  inset: 0 0 auto;
+  width: auto;
+  height: 4px;
+  background: linear-gradient(90deg, #2f6fea, #6548ed);
+}
+body:not([data-page="login"]) .stat-icon {
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 16px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #326ce9, #5d4bea);
+  box-shadow: 0 10px 20px rgba(50, 108, 233, .24);
+}
+body:not([data-page="login"]) .stat:nth-child(2) .stat-icon {
+  color: #ffffff;
+  background: linear-gradient(145deg, #12b8c8, #2789e8);
+  box-shadow: 0 10px 20px rgba(18, 184, 200, .23);
+}
+body:not([data-page="login"]) .stat:nth-child(3) .stat-icon {
+  color: #ffffff;
+  background: linear-gradient(145deg, #8a3fec, #6548ed);
+  box-shadow: 0 10px 20px rgba(101, 72, 237, .24);
+}
+body:not([data-page="login"]) .stat small { color: #7d8494; }
+body:not([data-page="login"]) .stat strong { color: #161a2d; font-size: 2.15rem; }
+body:not([data-page="login"]) .input {
+  min-height: 48px;
+  border-color: #d8e0eb;
+  border-radius: 12px;
+  background: #fbfcff;
+}
+body:not([data-page="login"]) .input:hover { border-color: #aab9df; }
+body:not([data-page="login"]) .input:focus {
+  border-color: #5b63e8;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(91, 99, 232, .11);
+}
+body:not([data-page="login"]) .button {
+  min-height: 44px;
+  padding-inline: 19px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #326ce9, #7440ed);
+  box-shadow: 0 9px 20px rgba(79, 70, 229, .22);
+}
+body:not([data-page="login"]) .button.secondary {
+  border-color: #dce3ed;
+  color: #4e5667;
+  background: #f8f9fc;
+  box-shadow: none;
+}
+body:not([data-page="login"]) th {
+  padding-block: 14px;
+  color: #737b8d;
+  background: #f5f7fb;
+}
+body:not([data-page="login"]) td { border-top-color: #e8edf4; }
+body:not([data-page="login"]) tbody tr:hover { background: #f7f8ff; }
+body:not([data-page="login"]) .notice {
+  border: 1px solid #dce4f6;
+  border-left: 4px solid #5662e9;
+  border-radius: 12px;
+  color: #596175;
+  background: rgba(246, 247, 255, .96);
+  box-shadow: 0 8px 22px rgba(38, 55, 86, .06);
+}
+body:not([data-page="login"]) .settings-grid .panel {
+  position: relative;
+  border-top: 3px solid #6157e8;
+  box-shadow: 0 12px 28px rgba(38, 55, 86, .08);
+}
+body:not([data-page="login"]) .item { border-color: #e1e7f0; background: #f8f9fc; }
+
+@media (max-width: 980px) {
+  body:not([data-page="login"]) .app-shell::before { top: 132px; height: 290px; }
+  body:not([data-page="login"]) .topbar-inner { min-height: 0; }
+  body:not([data-page="login"]) .nav { border-radius: 16px; }
+  body:not([data-page="login"]) .user-box { padding-left: 12px; }
+  body:not([data-page="login"]) .main { padding-block: 48px 68px; }
+  body:not([data-page="login"]) .page-head { min-height: 190px; padding: 32px; }
+  body[data-page="dashboard"] .page-head + .stats { margin-top: -34px; padding-inline: 20px; }
+}
+
+@media (max-width: 720px) {
+  body:not([data-page="login"]) .app-shell::before { top: 126px; height: 260px; }
+  body:not([data-page="login"]) .main { padding-block: 36px 54px; }
+  body:not([data-page="login"]) .page-head { min-height: 0; padding: 28px 25px; }
+  body[data-page="dashboard"] .page-head { padding-bottom: 28px; }
+  body[data-page="dashboard"] .page-head + .stats { margin-top: 18px; padding-inline: 0; }
+  body:not([data-page="login"]) .panel-body { padding: 24px; }
+}
+
+@media (max-width: 480px) {
+  body:not([data-page="login"]) .app-shell::before { top: 120px; height: 230px; }
+  body:not([data-page="login"]) .brand-mark { width: 38px; height: 38px; }
+  body:not([data-page="login"]) .user-box { padding-left: 0; border-left: 0; }
+  body:not([data-page="login"]) .nav { padding: 4px; }
+  body:not([data-page="login"]) .nav a { padding: 8px 12px; }
+  body:not([data-page="login"]) .page-head { border-radius: 21px; }
+  body:not([data-page="login"]) .page-head::before { display: none; }
+  body:not([data-page="login"]) .panel { border-radius: 18px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
   .reveal-enabled .reveal-item { opacity: 1; transform: none; filter: none; }
