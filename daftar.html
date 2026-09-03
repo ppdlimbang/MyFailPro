@@ -1,20 +1,19 @@
 <!doctype html>
 <html lang="ms">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Pendaftaran rekod fail MyFailPro"><title>Daftar Fail · MyFailPro</title><link rel="icon" type="image/png" href="file.png"><link rel="stylesheet" href="assets/styles.css?v=20260903-7"><script src="assets/supabase-app.js?v=20260903-7" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Pendaftaran rekod fail MyFailPro"><title>Daftar Fail · MyFailPro</title><link rel="icon" type="image/png" href="file.png"><link rel="stylesheet" href="assets/styles.css?v=20260903-8"><script src="assets/supabase-app.js?v=20260903-8" defer></script></head>
 <body data-page="register">
 <div class="app-shell">
   <header class="topbar"><div class="container topbar-inner"><a class="brand" href="dashboard.html" aria-label="MyFailPro, laman utama"><img class="brand-mark" src="file.png" alt=""><span class="brand-copy"><strong>MyFailPro</strong><small>PPD Limbang</small></span></a><nav class="nav" aria-label="Navigasi utama"><a href="dashboard.html">Utama</a><a href="daftar.html" aria-current="page">Daftar Fail</a><a href="tetapan.html">Tetapan</a><a class="hidden" href="admin.html" data-admin>Admin</a></nav><div class="user-box"><span class="user-avatar" data-user-avatar aria-hidden="true">MP</span><div class="user-copy"><strong data-user-name></strong><span data-user-role></span></div><button class="logout-button" type="button" data-logout aria-label="Log keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/></svg><span>Log keluar</span></button></div></div></header>
   <main class="main container">
     <div class="page-head"><div class="page-head-copy"><span class="eyebrow">Rekod baharu</span><h1>Daftar Fail</h1><p>Lengkapkan klasifikasi dan tempoh fail untuk mewujudkan rekod rasmi.</p></div><span class="date-chip" data-current-date></span></div>
     <section class="panel"><div class="panel-head"><div class="panel-title"><h2>Maklumat Klasifikasi Fail</h2><p>Semua medan bertanda wajib perlu dilengkapkan sebelum rekod disimpan.</p></div></div><form class="panel-body form-grid" id="registerFile">
-      <div class="field"><label for="fungsi">Fungsi</label><select class="input" id="fungsi" name="fungsi" required></select></div>
-      <div class="field"><label for="aktiviti">Aktiviti</label><select class="input" id="aktiviti" name="aktiviti" required></select></div>
-      <div class="field"><label for="subAktiviti">Sub-Aktiviti</label><select class="input" id="subAktiviti" name="subAktiviti" required></select></div>
-      <div class="field"><label for="transaksi">Transaksi Fail</label><select class="input" id="transaksi" name="transaksi" required></select></div>
-      <div class="field"><label for="jilid">Nombor jilid</label><input class="input" id="jilid" name="jilid" type="number" min="1" value="1" inputmode="numeric" required><span class="field-hint">Gunakan nombor bermula daripada 1.</span></div>
-      <div></div>
-      <div class="field"><label for="tarikhBuka">Tarikh buka</label><input class="input" id="tarikhBuka" name="tarikhBuka" type="date" required></div>
-      <div class="field"><label for="tarikhTutup">Tarikh tutup <span class="field-hint">(pilihan)</span></label><input class="input" id="tarikhTutup" name="tarikhTutup" type="date"></div>
+      <div class="field register-half"><label for="fungsi">Fungsi</label><select class="input" id="fungsi" name="fungsi" required></select></div>
+      <div class="field register-half"><label for="aktiviti">Aktiviti</label><select class="input" id="aktiviti" name="aktiviti" required></select></div>
+      <div class="field register-half"><label for="subAktiviti">Sub-Aktiviti</label><select class="input" id="subAktiviti" name="subAktiviti" required></select></div>
+      <div class="field register-half"><label for="transaksi">Transaksi Fail</label><select class="input" id="transaksi" name="transaksi" required></select></div>
+      <div class="field register-third"><label for="jilid">Nombor jilid</label><input class="input" id="jilid" name="jilid" type="number" min="1" value="1" inputmode="numeric" required><span class="field-hint">Gunakan nombor bermula daripada 1.</span></div>
+      <div class="field register-third"><label for="tarikhBuka">Tarikh buka</label><input class="input" id="tarikhBuka" name="tarikhBuka" type="date" required></div>
+      <div class="field register-third"><label for="tarikhTutup">Tarikh tutup <span class="field-hint">(pilihan)</span></label><input class="input" id="tarikhTutup" name="tarikhTutup" type="date"></div>
       <div class="form-actions span-2"><button class="button secondary" type="reset">Tetap Semula</button><button class="button" type="submit">Simpan Rekod Fail</button></div>
     </form></section>
   </main>

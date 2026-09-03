@@ -237,6 +237,9 @@ function initRevealAnimations() {
   ].join(",");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const canObserve = "IntersectionObserver" in window && !reducedMotion;
+  const loginPage = document.body.dataset.page === "login";
+  const delayStep = loginPage ? 70 : 35;
+  const delaySlots = loginPage ? 5 : 4;
   const observed = new WeakSet();
   let initialOrder = 0;
 
@@ -254,7 +257,7 @@ function initRevealAnimations() {
     if (!canObserve) return;
     const siblingIndex = Array.from(element.parentElement?.children || []).indexOf(element);
     const order = dynamic ? Math.max(0, siblingIndex) : initialOrder++;
-    element.style.setProperty("--reveal-delay", `${Math.min(order % 5, 4) * 70}ms`);
+    element.style.setProperty("--reveal-delay", `${Math.min(order % delaySlots, delaySlots - 1) * delayStep}ms`);
     element.classList.add("reveal-item");
     observer.observe(element);
   }
