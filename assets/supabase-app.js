@@ -185,6 +185,29 @@ async function restoreAuth() {
   }
 }
 
+async function consumeAuthRedirect() {
+  if (!location.hash) return null;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken) return null;
+  const response = await fetch(`${config.url}/auth/v1/user`, {
+    headers: { apikey: config.publishableKey, authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) throw await responseError(response, "Sesi log masuk tidak dapat disahkan.");
+  const user = await response.json();
+  saveSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    token_type: params.get("token_type") || "bearer",
+    expires_in: Number(params.get("expires_in") || 3600),
+    expires_at: Number(params.get("expires_at") || 0),
+    user
+  });
+  history.replaceState(null, "", location.pathname);
+  return { type: params.get("type"), user };
+}
+
 async function requireAuth(adminOnly = false) {
   const user = currentUser || await restoreAuth();
   if (!user || (adminOnly && user.role !== "admin")) {
@@ -350,24 +373,96 @@ async function loadAgencies() {
 }
 
 async function initLogin() {
-  if (await restoreAuth()) { location.replace("dashboard.html"); return; }
+  const authRedirect = await consumeAuthRedirect();
+  const recoveryMode = authRedirect?.type === "recovery";
+  if (authRedirect && !recoveryMode) {
+    await loadProfile(authRedirect.user.id);
+    location.replace("dashboard.html");
+    return;
+  }
+  if (!authRedirect && await restoreAuth()) { location.replace("dashboard.html"); return; }
   const form = document.querySelector("#formLogin");
+  const emailField = document.querySelector("#loginEmail").closest(".field");
+  const emailInput = document.querySelector("#loginEmail");
+  const passwordInput = document.querySelector("#loginPassword");
+  const passwordField = document.querySelector("#passwordField");
+  const submitButton = form.querySelector("button[type=submit]");
+  const submitLabel = submitButton.querySelector("[data-login-button-label]");
+  let passwordStep = recoveryMode;
+
+  if (recoveryMode) {
+    emailField.classList.add("hidden");
+    passwordField.classList.remove("hidden");
+    passwordInput.required = true;
+    passwordInput.placeholder = "Kata laluan baharu";
+    document.querySelector("#loginTitle").textContent = "Tetapkan Kata Laluan";
+    document.querySelector(".login-card-head p").textContent = "Masukkan kata laluan baharu untuk akaun anda.";
+    submitLabel.textContent = "Simpan Kata Laluan";
+    passwordInput.focus();
+  }
+
+  document.querySelector("#forgotPassword")?.addEventListener("click", async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !emailInput.checkValidity()) {
+      emailInput.reportValidity();
+      emailInput.focus();
+      return;
+    }
+    try {
+      const response = await authRequest("recover", {
+        method: "POST",
+        body: JSON.stringify({ email, redirect_to: `${location.origin}/myfailpro` })
+      });
+      if (!response.ok) throw await responseError(response, "Permintaan tetapan semula gagal.");
+      toast("E-mel dihantar", "Semak peti masuk anda untuk menetapkan semula kata laluan.");
+    } catch (error) {
+      toast("Tidak dapat menghantar e-mel", error.message, "error");
+    }
+  });
+
+  document.querySelector("#googleLogin")?.addEventListener("click", () => {
+    const redirect = encodeURIComponent(`${location.origin}/myfailpro`);
+    location.assign(`${config.url}/auth/v1/authorize?provider=google&redirect_to=${redirect}`);
+  });
+
+  document.querySelector("#requestAccount")?.addEventListener("click", () => {
+    toast("Pendaftaran akaun", "Sila hubungi pentadbir PPD Limbang untuk mendapatkan akaun baharu.");
+  });
+
   form.addEventListener("submit", async event => {
     event.preventDefault();
-    const button = form.querySelector("button[type=submit]");
-    setBusy(button, true, "Log masuk…");
+    if (!passwordStep) {
+      if (!emailInput.checkValidity()) { emailInput.reportValidity(); return; }
+      passwordStep = true;
+      passwordField.classList.remove("hidden");
+      passwordInput.required = true;
+      submitLabel.textContent = "Log Masuk";
+      passwordInput.focus();
+      return;
+    }
+    setBusy(submitButton, true, recoveryMode ? "Menyimpan…" : "Log masuk…");
     try {
-      const email = document.querySelector("#loginEmail").value.trim().toLowerCase();
-      const password = document.querySelector("#loginPassword").value;
+      if (recoveryMode) {
+        const response = await supabaseFetch("/auth/v1/user", {
+          method: "PUT",
+          body: JSON.stringify({ password: passwordInput.value })
+        });
+        if (!response.ok) throw await responseError(response, "Kata laluan baharu tidak dapat disimpan.");
+        await loadProfile(session.user.id);
+        location.assign("dashboard.html");
+        return;
+      }
+      const email = emailInput.value.trim().toLowerCase();
+      const password = passwordInput.value;
       const response = await authRequest("token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
       if (!response.ok) throw await responseError(response, "Emel atau katalaluan salah.");
       saveSession(await response.json());
       await loadProfile(session.user.id);
       location.assign("dashboard.html");
     } catch (error) {
-      saveSession(null);
-      toast("Log masuk gagal", error.message, "error");
-      setBusy(button, false);
+      if (!recoveryMode) saveSession(null);
+      toast(recoveryMode ? "Kata laluan tidak dapat disimpan" : "Log masuk gagal", error.message, "error");
+      setBusy(submitButton, false);
     }
   });
 }
