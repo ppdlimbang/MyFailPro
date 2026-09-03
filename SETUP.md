@@ -1,6 +1,6 @@
 # MyFailPro deployment setup
 
-The repository is prepared for GitHub, Netlify, and Supabase. The current user interface still uses browser storage until the Supabase project values are connected and the data adapter is switched on.
+The repository is prepared for GitHub, Netlify, and Supabase. The user interface now uses Supabase Auth and tenant-isolated database tables instead of browser storage.
 
 ## 1. Create the Supabase project
 
@@ -51,6 +51,6 @@ git push -u origin main
 - The publishable key may be used by browser code because RLS enforces access.
 - The secret key bypasses RLS and is only available in the `admin-create-user` Netlify Function.
 
-## Remaining connection step
+## Runtime connection
 
-Provide the Supabase project URL and publishable key, plus your GitHub repository URL. Do not send the Supabase secret key in chat; add it directly in Netlify's environment-variable UI.
+The browser retrieves the public Project URL and publishable key from the `runtime-config` Netlify Function. Admin account creation and deletion run through server-only Netlify Functions. Do not send the Supabase secret key in chat; add it directly in Netlify's environment-variable UI.
