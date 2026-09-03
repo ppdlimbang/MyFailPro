@@ -5,7 +5,11 @@ The repository is prepared for GitHub, Netlify, and Supabase. The user interface
 ## 1. Create the Supabase project
 
 1. Create a project at <https://supabase.com/dashboard>.
-2. Open **SQL Editor**, paste `supabase/migrations/20260903000000_initial_schema.sql`, and run it once.
+2. Open **SQL Editor** and run these files in order:
+   - `supabase/migrations/20260903000000_initial_schema.sql`
+   - `supabase/migrations/20260903010000_optimize_database.sql`
+
+   The second migration is an additive upgrade: it adds query indexes, stronger ownership integrity, optimized RLS policies, and atomic file operations without deleting existing application data.
 3. In **Authentication > Users**, create your first admin account.
 4. Run this statement in SQL Editor with your real admin email:
 

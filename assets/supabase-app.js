@@ -13,7 +13,7 @@ const defaults = {
 let config;
 let session;
 let currentUser;
-const state = { files: [], movements: [], agencies: [], settings: null };
+const state = { files: [], agencies: [], settings: null };
 
 function create(tag, options = {}, children = []) {
   const node = document.createElement(tag);
@@ -115,6 +115,15 @@ async function rest(table, query = "", options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function rpc(functionName, parameters) {
+  const response = await supabaseFetch(`/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    body: JSON.stringify(parameters)
+  });
+  if (!response.ok) throw await responseError(response, "Operasi pangkalan data gagal.");
+  return response.json();
+}
+
 async function loadProfile(userId) {
   const rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
   if (!rows?.length) throw new Error("Profil pengguna tidak ditemui. Jalankan migrasi Supabase dan cipta semula pengguna ini.");
@@ -203,7 +212,7 @@ function settingsPayload(settings) {
 }
 
 async function loadSettings() {
-  let rows = await rest("agency_settings", `owner_id=eq.${encodeURIComponent(currentUser.id)}&select=*`);
+  let rows = await rest("agency_settings", `owner_id=eq.${encodeURIComponent(currentUser.id)}&select=owner_id,functions,activities,sub_activities,transactions,staff`);
   if (!rows.length) {
     rows = await rest("agency_settings", "", {
       method: "POST",
@@ -244,13 +253,9 @@ function mapMovement(row) {
 }
 
 async function loadFiles() {
-  const rows = await rest("files", "select=*&order=transaction_code.asc,volume.asc");
+  const columns = "id,owner_id,function_name,activity_name,sub_activity_name,transaction_code,volume,opened_on,closed_on,status,current_holder,created_at";
+  const rows = await rest("files", `select=${columns}&order=transaction_code.asc,volume.asc`);
   state.files = rows.map(mapFile);
-}
-
-async function loadMovements() {
-  const rows = await rest("movements", "select=*&order=moved_at.desc");
-  state.movements = rows.map(mapMovement);
 }
 
 async function loadAgencies() {
@@ -284,7 +289,7 @@ async function initLogin() {
 
 async function initDashboard() {
   if (!await initShell()) return;
-  await Promise.all([loadSettings(), loadFiles(), loadMovements(), loadAgencies()]);
+  await Promise.all([loadSettings(), loadFiles(), loadAgencies()]);
   const body = document.querySelector("#fileRows");
   const search = document.querySelector("#searchFile");
   const filter = document.querySelector("#filterFungsi");
@@ -350,21 +355,13 @@ function openMovement(file, refresh) {
     if (from === to && !note) { toast("Tiada perubahan", "Pilih penerima baharu atau masukkan catatan.", "error"); return; }
     setBusy(button, true, "Menyimpan…");
     try {
-      const status = to === "Bilik Fail" ? "Bilik Fail" : "Sedang Beredar";
-      await rest("files", `id=eq.${encodeURIComponent(file.id)}`, { method: "PATCH", body: JSON.stringify({ current_holder: to, status }) });
-      try {
-        const rows = await rest("movements", "", {
-          method: "POST",
-          headers: { Prefer: "return=representation" },
-          body: JSON.stringify({ file_id: file.id, owner_id: file.ownerId, moved_at: new Date(movedAt).toISOString(), from_holder: from, to_holder: to, note })
-        });
-        state.movements.unshift(mapMovement(rows[0]));
-      } catch (error) {
-        await rest("files", `id=eq.${encodeURIComponent(file.id)}`, { method: "PATCH", body: JSON.stringify({ current_holder: from, status: from === "Bilik Fail" ? "Bilik Fail" : "Sedang Beredar" }) });
-        throw error;
-      }
-      file.pemegangTerkini = to;
-      file.status = status;
+      const result = await rpc("move_file", {
+        p_file_id: file.id,
+        p_to_holder: to,
+        p_moved_at: new Date(movedAt).toISOString(),
+        p_note: note
+      });
+      Object.assign(file, mapFile(result.file));
       closeModal(modal);
       refresh();
       toast("Berjaya", `Fail kini bersama ${to}.`);
@@ -401,24 +398,30 @@ function openEdit(file, refresh) {
   start.focus();
 }
 
-function openHistory(file) {
+async function openHistory(file) {
   const modal = document.querySelector("#historyModal");
   const list = modal.querySelector("#historyList");
-  list.replaceChildren();
+  list.replaceChildren(create("li", { text: "Memuatkan sejarah…" }));
   modal.querySelector("[data-file-reference]").textContent = `${file.transaksi} (Jilid ${file.jilid})`;
-  const records = state.movements.filter(item => item.idFail === file.id).sort((a, b) => new Date(b.tarikh) - new Date(a.tarikh));
-  if (!records.length) list.append(create("li", { text: "Tiada rekod pergerakan." }));
-  records.forEach(record => list.append(create("li", {}, [
-    create("strong", { text: `${record.dari} → ${record.kepada}` }),
-    record.catatan ? create("div", { text: record.catatan }) : null,
-    create("time", { text: formatDate(record.tarikh, true) })
-  ])));
   showModal("#historyModal");
+  try {
+    const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+    const rows = await rest("movements", `file_id=eq.${encodeURIComponent(file.id)}&select=${columns}&order=moved_at.desc`);
+    const records = rows.map(mapMovement);
+    list.replaceChildren();
+    if (!records.length) list.append(create("li", { text: "Tiada rekod pergerakan." }));
+    records.forEach(record => list.append(create("li", {}, [
+      create("strong", { text: `${record.dari} → ${record.kepada}` }),
+      record.catatan ? create("div", { text: record.catatan }) : null,
+      create("time", { text: formatDate(record.tarikh, true) })
+    ])));
+  } catch (error) {
+    list.replaceChildren(create("li", { text: `Sejarah tidak dapat dimuatkan: ${error.message}` }));
+  }
 }
 
 async function initRegister() {
-  const user = await initShell();
-  if (!user) return;
+  if (!await initShell()) return;
   await loadSettings();
   const settings = state.settings;
   const form = document.querySelector("#registerFile");
@@ -434,35 +437,19 @@ async function initRegister() {
     if (!validDateRange(data.tarikhBuka, data.tarikhTutup)) { toast("Tarikh tidak sah", "Tarikh tutup tidak boleh mendahului tarikh buka.", "error"); return; }
     const button = form.querySelector("button[type=submit]");
     setBusy(button, true, "Menyimpan…");
-    let file;
     try {
-      const rows = await rest("files", "", {
-        method: "POST",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify({
-          owner_id: user.id,
-          function_name: data.fungsi,
-          activity_name: data.aktiviti,
-          sub_activity_name: data.subAktiviti,
-          transaction_code: data.transaksi,
-          volume: Number(data.jilid),
-          opened_on: data.tarikhBuka,
-          closed_on: data.tarikhTutup || null,
-          status: "Bilik Fail",
-          current_holder: "Bilik Fail"
-        })
-      });
-      file = rows[0];
-      await rest("movements", "", {
-        method: "POST",
-        body: JSON.stringify({ file_id: file.id, owner_id: user.id, from_holder: "Sistem Pendaftaran", to_holder: "Bilik Fail", note: "Rekod asal dicipta" })
+      await rpc("register_file", {
+        p_function_name: data.fungsi,
+        p_activity_name: data.aktiviti,
+        p_sub_activity_name: data.subAktiviti,
+        p_transaction_code: data.transaksi,
+        p_volume: Number(data.jilid),
+        p_opened_on: data.tarikhBuka,
+        p_closed_on: data.tarikhTutup || null
       });
       form.reset();
       toast("Pendaftaran berjaya", "Fail baharu telah disimpan ke Supabase.");
     } catch (error) {
-      if (file?.id) {
-        try { await rest("files", `id=eq.${encodeURIComponent(file.id)}`, { method: "DELETE" }); } catch { /* Best-effort rollback. */ }
-      }
       const duplicate = /duplicate|unique_agency_file_volume/i.test(error.message);
       toast(duplicate ? "Rekod telah wujud" : "Pendaftaran gagal", duplicate ? `Fail ${data.transaksi}, Jilid ${data.jilid} telah didaftarkan.` : error.message, "error");
     } finally { setBusy(button, false); }
