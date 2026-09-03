@@ -1,9 +1,7 @@
 "use strict";
 
 const SESSION_KEY = "myfailpro_supabase_session";
-const CONFIG_KEY = "myfailpro_public_config";
 const PROFILE_KEY = "myfailpro_profile";
-const CONFIG_ENDPOINT = "/.netlify/functions/runtime-config";
 const defaults = {
   fungsi: ["400 Pengurusan Kewangan dan Perakaunan"],
   aktiviti: ["400-1 Tadbir Urus Kewangan/Akaun"],
@@ -59,18 +57,14 @@ async function responseError(response, fallback) {
 }
 
 async function loadConfig() {
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(CONFIG_KEY));
-    if (cached?.url && cached?.publishableKey) {
-      config = cached;
-      return;
-    }
-  } catch { sessionStorage.removeItem(CONFIG_KEY); }
-  const response = await fetch(CONFIG_ENDPOINT, { cache: "no-store" });
-  if (!response.ok) throw await responseError(response, "Konfigurasi Supabase tidak dapat dimuatkan.");
-  config = await response.json();
-  if (!config.url || !config.publishableKey) throw new Error("Konfigurasi Supabase belum lengkap di Netlify.");
-  sessionStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  const publicConfig = globalThis.MYFAILPRO_CONFIG;
+  if (!publicConfig?.url || !publicConfig?.publishableKey) {
+    throw new Error("Konfigurasi awam Supabase belum lengkap dalam assets/runtime-config.js.");
+  }
+  config = {
+    url: String(publicConfig.url).replace(/\/$/, ""),
+    publishableKey: String(publicConfig.publishableKey)
+  };
 }
 
 function saveSession(value) {
@@ -411,7 +405,7 @@ async function initLogin() {
     try {
       const response = await authRequest("recover", {
         method: "POST",
-        body: JSON.stringify({ email, redirect_to: `${location.origin}/myfailpro` })
+        body: JSON.stringify({ email, redirect_to: new URL("MyFailPro.html", location.href).href })
       });
       if (!response.ok) throw await responseError(response, "Permintaan tetapan semula gagal.");
       toast("E-mel dihantar", "Semak peti masuk anda untuk menetapkan semula kata laluan.");
@@ -709,9 +703,13 @@ async function initSettings() {
 }
 
 async function callAdminFunction(name, payload, retry = true) {
-  const response = await fetch(`/.netlify/functions/${name}`, {
+  const response = await fetch(`${config.url}/functions/v1/${name}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+    headers: {
+      apikey: config.publishableKey,
+      authorization: `Bearer ${session.access_token}`,
+      "content-type": "application/json"
+    },
     body: JSON.stringify(payload)
   });
   if (response.status === 401 && retry && await refreshSession()) return callAdminFunction(name, payload, false);

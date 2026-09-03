@@ -11,4 +11,3 @@ node_modules/
 
 # Local backups are not deployed or committed
 MyFailPro.original.html
-assets/runtime-config.js

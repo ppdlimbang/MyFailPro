@@ -1,17 +1,17 @@
-# MyFailPro deployment setup
+# MyFailPro: GitHub Pages + Supabase
 
-The repository is prepared for GitHub, Netlify, and Supabase. The user interface now uses Supabase Auth and tenant-isolated database tables instead of browser storage.
+The frontend is published by GitHub Pages. Supabase provides Authentication,
+Postgres, Row Level Security, and the privileged Edge Functions used by the
+administrator page. Netlify is no longer required.
 
-## 1. Create the Supabase project
+## 1. Configure the Supabase project
 
-1. Create a project at <https://supabase.com/dashboard>.
-2. Open **SQL Editor** and run these files in order:
+1. Open the project at <https://supabase.com/dashboard>.
+2. In **SQL Editor**, run these files in order:
    - `supabase/migrations/20260903000000_initial_schema.sql`
    - `supabase/migrations/20260903010000_optimize_database.sql`
-
-   The second migration is an additive upgrade: it adds query indexes, stronger ownership integrity, optimized RLS policies, and atomic file operations without deleting existing application data.
-3. In **Authentication > Users**, create your first admin account.
-4. Run this statement in SQL Editor with your real admin email:
+3. In **Authentication > Users**, create the first administrator account.
+4. Promote it in SQL Editor:
 
    ```sql
    update public.profiles
@@ -19,42 +19,50 @@ The repository is prepared for GitHub, Netlify, and Supabase. The user interface
    where email = 'your-admin@example.com';
    ```
 
-5. Open the project's **Connect** dialog and copy:
-   - Project URL
-   - Publishable key (`sb_publishable_...`)
-   - Secret key (`sb_secret_...`) for the Netlify Function only
+5. In **Authentication > URL Configuration**, set:
+   - Site URL: `https://ppdlimbang.github.io/MyFailPro/`
+   - Redirect URL: `https://ppdlimbang.github.io/MyFailPro/MyFailPro.html`
 
-Never put the secret key in HTML or `assets/app.js`.
+The Project URL and browser-safe publishable key are stored in
+`assets/runtime-config.js`. The publishable key is intentionally public and all
+table access remains protected by Row Level Security. Never place a secret or
+service-role key in that file.
 
-## 2. Create and push the GitHub repository
+## 2. Allow GitHub to deploy Edge Functions
 
-The local repository uses the `main` branch. Create an empty private repository named `MyFailPro` on GitHub without adding a README, `.gitignore`, or license. Then run:
+1. In Supabase, open **Account > Access Tokens** and generate an access token.
+2. In GitHub, open the `MyFailPro` repository.
+3. Go to **Settings > Secrets and variables > Actions > New repository secret**.
+4. Create a secret named `SUPABASE_ACCESS_TOKEN` and paste the token there.
+5. Open **Actions > Deploy Supabase Edge Functions > Run workflow**.
 
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/MyFailPro.git
-git push -u origin main
-```
+The workflow deploys:
 
-## 3. Deploy through Netlify
+- `admin-create-user`
+- `admin-delete-user`
 
-1. Log in to <https://app.netlify.com/> and choose **Add new project > Import an existing project**.
-2. Select GitHub, then select the `MyFailPro` repository.
-3. Netlify reads `netlify.toml`; no build command is required and the publish directory is `.`.
-4. In **Project configuration > Environment variables**, add:
-   - `SUPABASE_URL`
-   - `SUPABASE_PUBLISHABLE_KEY`
-   - `SUPABASE_SECRET_KEY` (mark as a secret and scope it to Functions when available)
-5. Deploy the site.
-6. In Supabase **Authentication > URL Configuration**, set the Netlify production URL as the Site URL and add the deploy URL to Redirect URLs.
+Both functions validate the caller's Supabase session and confirm that the
+profile role is `admin` before using a server-only secret key. The functions
+accept browser requests from `https://ppdlimbang.github.io` by default.
+
+## 3. Enable GitHub Pages
+
+1. In the GitHub repository, open **Settings > Pages**.
+2. Under **Build and deployment**, select **GitHub Actions** as the source.
+3. Open **Actions > Deploy GitHub Pages > Run workflow**, or push to `main`.
+4. The application will be available at:
+   `https://ppdlimbang.github.io/MyFailPro/`
 
 ## Security model
 
+- GitHub Pages receives only static HTML, CSS, JavaScript, and image files.
 - Supabase Auth verifies passwords and sessions.
-- Row Level Security restricts agencies to rows where `owner_id = auth.uid()`.
-- Admin profiles can manage all agency rows.
-- The publishable key may be used by browser code because RLS enforces access.
-- The secret key bypasses RLS and is only available in the `admin-create-user` Netlify Function.
+- Row Level Security restricts agencies to their own `owner_id` rows.
+- Admin-only account operations run inside Supabase Edge Functions.
+- `SUPABASE_ACCESS_TOKEN`, secret keys, and service-role keys must never be
+  committed or placed in browser assets.
 
-## Runtime connection
+## Updating the application
 
-The browser retrieves the public Project URL and publishable key from the `runtime-config` Netlify Function. Admin account creation and deletion run through server-only Netlify Functions. Do not send the Supabase secret key in chat; add it directly in Netlify's environment-variable UI.
+Push frontend changes to `main`; the Pages workflow republishes the site.
+Changes under `supabase/functions/` trigger the Edge Function workflow.
