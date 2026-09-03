@@ -6,7 +6,7 @@
   <meta name="description" content="Papan pemuka pengurusan fail MyFailPro">
   <title>Laman Utama · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png">
-  <link rel="stylesheet" href="assets/styles.css?v=20260904-13">
+  <link rel="stylesheet" href="assets/styles.css?v=20260904-15">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
   <script src="assets/supabase-app.js?v=20260904-14" defer></script>
 </head>
@@ -14,13 +14,13 @@
 <div class="app-shell">
   <header class="topbar">
     <div class="container topbar-inner">
-      <a class="brand" href="dashboard.html" aria-label="MyFailPro, laman utama"><img class="brand-mark" src="file.png" alt=""><span class="brand-copy"><strong>MyFailPro</strong><small>PPD Limbang</small></span></a>
-      <nav class="nav" aria-label="Navigasi utama"><a href="dashboard.html" aria-current="page">Utama</a><a href="daftar.html">Daftar Fail</a><a href="tetapan.html">Tetapan</a><a class="hidden" href="admin.html" data-admin>Admin</a></nav>
-      <div class="user-box"><span class="user-avatar" data-user-avatar aria-hidden="true">MP</span><div class="user-copy"><strong data-user-name></strong><span data-user-role></span></div><button class="logout-button" type="button" data-logout aria-label="Log keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/></svg><span>Log keluar</span></button></div>
+      <a class="brand" href="dashboard.html" aria-label="MyFailPro, laman utama"><span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 8 8-4 8 4-8 4-8-4Z"/><path d="m4 12 8 4 8-4M4 16l8 4 8-4"/></svg></span><span class="brand-copy"><strong>MyFailPro</strong><small>Sistem Korporat</small></span></a>
+      <nav class="nav" aria-label="Navigasi utama"><a href="dashboard.html" aria-current="page"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9V3Z"/><path d="M15 3.5A8 8 0 0 1 20.5 9H15V3.5Z"/></svg></span><span>Dashboard</span></a><a href="daftar.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3V6Z"/><path d="M12 11v5M9.5 13.5h5"/></svg></span><span>Daftar Fail</span></a><a href="tetapan.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h5M15 7h5M4 17h9M19 17h1M9 4v6M13 14v6"/></svg></span><span>Tetapan</span></a><a class="hidden" href="admin.html" data-admin><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M17 11v6M14 14h6"/></svg></span><span>Admin</span></a></nav>
+      <div class="user-box"><div class="sidebar-user-card"><span class="user-avatar" data-user-avatar aria-hidden="true">MP</span><div class="user-copy"><strong data-user-name></strong><span data-user-role></span></div></div><button class="logout-button" type="button" data-logout aria-label="Log keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/></svg><span>Log keluar</span></button></div>
     </div>
   </header>
   <main class="main container">
-    <div class="page-head"><div class="page-head-copy"><span class="eyebrow">Ringkasan operasi</span><h1>Laman Utama</h1><p>Pantau kedudukan dan pergerakan semua rekod fail anda.</p></div><span class="date-chip" data-current-date></span></div>
+    <div class="page-head"><div class="page-head-copy"><span class="eyebrow">Ringkasan operasi</span><h1>Dashboard</h1><p>Gambaran keseluruhan pergerakan fail korporat.</p></div><span class="date-chip" data-current-date></span></div>
     <section class="stats" aria-label="Statistik fail">
       <article class="panel stat"><span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v5h4M9 12h7M9 16h7"/></svg></span><div><small>Jumlah fail</small><strong id="statTotal">0</strong></div></article>
       <article class="panel stat"><span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h16v12H4zM3 4h18v4H3zM9 12h6"/></svg></span><div><small>Di bilik fail</small><strong id="statArchive">0</strong></div></article>
