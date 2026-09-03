@@ -1,6 +1,8 @@
 "use strict";
 
 const SESSION_KEY = "myfailpro_supabase_session";
+const CONFIG_KEY = "myfailpro_public_config";
+const PROFILE_KEY = "myfailpro_profile";
 const CONFIG_ENDPOINT = "/.netlify/functions/runtime-config";
 const defaults = {
   fungsi: ["400 Pengurusan Kewangan dan Perakaunan"],
@@ -57,16 +59,27 @@ async function responseError(response, fallback) {
 }
 
 async function loadConfig() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CONFIG_KEY));
+    if (cached?.url && cached?.publishableKey) {
+      config = cached;
+      return;
+    }
+  } catch { sessionStorage.removeItem(CONFIG_KEY); }
   const response = await fetch(CONFIG_ENDPOINT, { cache: "no-store" });
   if (!response.ok) throw await responseError(response, "Konfigurasi Supabase tidak dapat dimuatkan.");
   config = await response.json();
   if (!config.url || !config.publishableKey) throw new Error("Konfigurasi Supabase belum lengkap di Netlify.");
+  sessionStorage.setItem(CONFIG_KEY, JSON.stringify(config));
 }
 
 function saveSession(value) {
   session = value;
   if (value) sessionStorage.setItem(SESSION_KEY, JSON.stringify(value));
-  else sessionStorage.removeItem(SESSION_KEY);
+  else {
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(PROFILE_KEY);
+  }
 }
 
 function readSession() {
@@ -134,19 +147,38 @@ async function loadProfile(userId) {
     role: profile.role,
     data: { nama: profile.name, jenis: profile.agency_type }
   };
+  sessionStorage.setItem(PROFILE_KEY, JSON.stringify(currentUser));
   return currentUser;
+}
+
+function renderShell(user) {
+  if (!user) return;
+  document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
+  const name = document.querySelector("[data-user-name]");
+  const role = document.querySelector("[data-user-role]");
+  if (name) name.textContent = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
+  if (role) role.textContent = user.role === "admin" ? "Admin PPD" : (user.data?.jenis || "Agensi");
+  const date = document.querySelector("[data-current-date]");
+  if (date) date.textContent = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full" }).format(new Date());
+}
+
+function renderCachedShell() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(PROFILE_KEY));
+    if (cached?.id && cached?.role) renderShell(cached);
+  } catch { sessionStorage.removeItem(PROFILE_KEY); }
 }
 
 async function restoreAuth() {
   session = readSession();
   if (!session?.access_token) return null;
-  let response = await authRequest("user", { headers: { authorization: `Bearer ${session.access_token}` } });
-  if (!response.ok && await refreshSession()) {
-    response = await authRequest("user", { headers: { authorization: `Bearer ${session.access_token}` } });
+  const userId = session.user?.id;
+  if (!userId) { saveSession(null); return null; }
+  try { return await loadProfile(userId); }
+  catch (error) {
+    if (!await refreshSession()) return null;
+    return loadProfile(session.user?.id || userId);
   }
-  if (!response.ok) { saveSession(null); return null; }
-  const authUser = await response.json();
-  return loadProfile(authUser.id);
 }
 
 async function requireAuth(adminOnly = false) {
@@ -162,13 +194,7 @@ async function requireAuth(adminOnly = false) {
 async function initShell(adminOnly = false) {
   const user = await requireAuth(adminOnly);
   if (!user) return null;
-  document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
-  const name = document.querySelector("[data-user-name]");
-  const role = document.querySelector("[data-user-role]");
-  if (name) name.textContent = user.data.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
-  if (role) role.textContent = user.role === "admin" ? "Admin PPD" : (user.data.jenis || "Agensi");
-  const date = document.querySelector("[data-current-date]");
-  if (date) date.textContent = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full" }).format(new Date());
+  renderShell(user);
   document.querySelectorAll("[data-logout]").forEach(button => button.addEventListener("click", async () => {
     button.disabled = true;
     try { await authRequest("logout", { method: "POST", headers: { authorization: `Bearer ${session.access_token}` } }); }
@@ -547,6 +573,7 @@ async function callAdminFunction(name, payload, retry = true) {
 
 async function initAdmin() {
   if (!await initShell(true)) return;
+  markReady();
   await loadAgencies();
   const form = document.querySelector("#agencyForm");
   const body = document.querySelector("#agencyRows");
@@ -587,7 +614,6 @@ async function initAdmin() {
     finally { setBusy(button, false); }
   });
   render();
-  markReady();
 }
 
 function showFatal(error) {
@@ -601,6 +627,7 @@ function showFatal(error) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  renderCachedShell();
   document.querySelectorAll(".modal").forEach(wireModal);
   try {
     await loadConfig();
