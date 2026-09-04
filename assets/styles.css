@@ -2488,3 +2488,25 @@ body:not([data-page="login"]) .workspace-toolbar .user-avatar:focus-visible::aft
   visibility: visible;
   transform: translateY(0);
 }
+
+/* Shared illustrated background for every authenticated tab. */
+body:not([data-page="login"]) {
+  background-color: #eef2f7;
+  background-image:
+    linear-gradient(135deg, rgba(247, 245, 255, .78), rgba(242, 239, 255, .86)),
+    url("../Gemini_Generated_Image_vvxauovvxauovvxa.jpeg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body:not([data-page="login"]) .topbar {
+  background: rgba(255, 255, 255, .72);
+}
+
+body:not([data-page="login"]) .panel,
+body:not([data-page="login"]) .stat,
+body:not([data-page="login"]) .notice {
+  background-color: rgba(255, 255, 255, .68);
+}
