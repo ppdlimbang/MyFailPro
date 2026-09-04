@@ -2070,7 +2070,7 @@ body:not([data-page="login"]) .nav-icon svg { width: 18px; height: 18px; }
 
 body:not([data-page="login"]) .nav-settings {
   margin-left: 0;
-  margin-right: 340px;
+  margin-right: 205px;
   border: 1px solid rgba(255, 255, 255, .84);
   background: rgba(255, 255, 255, .58);
   box-shadow: 0 7px 18px rgba(49, 46, 129, .08);
@@ -2087,7 +2087,7 @@ body:not([data-page="login"]) .workspace-toolbar .user-box {
   top: 15px;
   right: max(32px, calc((100vw - 1800px) / 2 + 32px));
   width: auto;
-  min-width: 320px;
+  min-width: 185px;
   min-height: 50px;
   margin: 0;
   padding: 0;
@@ -2100,12 +2100,7 @@ body:not([data-page="login"]) .workspace-toolbar .user-box {
   background: transparent;
 }
 body:not([data-page="login"]) .workspace-toolbar .user-copy {
-  width: auto;
-  max-width: 170px;
-  display: grid;
-  gap: 2px;
-  overflow: hidden;
-  text-align: right;
+  display: none;
 }
 body:not([data-page="login"]) .workspace-toolbar .user-copy strong {
   display: block;
