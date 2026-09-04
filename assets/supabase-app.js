@@ -151,10 +151,15 @@ function renderShell(user) {
   const name = document.querySelector("[data-user-name]");
   const role = document.querySelector("[data-user-role]");
   const displayName = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
+  const roleLabel = user.role === "admin" ? "Admin PPD" : (user.data?.jenis || "Agensi");
   if (name) name.textContent = displayName;
-  if (role) role.textContent = user.role === "admin" ? "Admin PPD" : (user.data?.jenis || "Agensi");
+  if (role) role.textContent = roleLabel;
   document.querySelectorAll("[data-user-avatar]").forEach(el => {
     el.textContent = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "MP";
+    el.dataset.userTooltip = `${displayName} · ${roleLabel}`;
+    el.title = `${displayName} — ${roleLabel}`;
+    el.tabIndex = 0;
+    el.setAttribute("aria-label", `${displayName}, ${roleLabel}`);
   });
   const date = document.querySelector("[data-current-date]");
   if (date) date.textContent = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full" }).format(new Date());

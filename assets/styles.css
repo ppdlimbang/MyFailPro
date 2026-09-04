@@ -2443,3 +2443,48 @@ body[data-page="admin"] #agencyForm .button { background: linear-gradient(135deg
   body[data-page="register"] #registerFile .form-actions { grid-column: auto; }
   body[data-page="settings"] .settings-grid { grid-template-columns: 1fr; }
 }
+
+/* Keep the authenticated identity compact and collision-free on every page. */
+body:not([data-page="login"]) .workspace-toolbar .user-copy {
+  display: none !important;
+}
+
+body:not([data-page="login"]) .workspace-toolbar .user-avatar {
+  position: relative;
+  display: grid;
+  overflow: visible;
+  cursor: help;
+  outline: none;
+}
+
+body:not([data-page="login"]) .workspace-toolbar .user-avatar::after {
+  content: attr(data-user-tooltip);
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px 13px;
+  border: 1px solid rgba(196, 181, 253, .8);
+  border-radius: 11px;
+  color: #312e81;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 12px 28px rgba(49, 46, 129, .16);
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-5px);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+}
+
+body:not([data-page="login"]) .workspace-toolbar .user-avatar:hover::after,
+body:not([data-page="login"]) .workspace-toolbar .user-avatar:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
