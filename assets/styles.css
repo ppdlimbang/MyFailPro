@@ -2083,7 +2083,7 @@ body:not([data-page="login"]) .workspace-actions { display: contents; }
 
 body:not([data-page="login"]) .workspace-toolbar .user-box {
   position: fixed;
-  z-index: 30;
+  z-index: 40;
   top: 15px;
   right: max(32px, calc((100vw - 1800px) / 2 + 32px));
   width: auto;
@@ -2157,6 +2157,8 @@ body:not([data-page="login"]) .workspace-toolbar .logout-button svg { width: 18p
 body:not([data-page="login"]) .workspace-toolbar .logout-button span { display: inline; }
 
 body:not([data-page="login"]) .main.container {
+  position: static;
+  z-index: auto;
   width: min(1800px, calc(100% - 64px));
   max-width: 1800px;
   margin: 0 auto;
