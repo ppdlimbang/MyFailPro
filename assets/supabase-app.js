@@ -131,6 +131,98 @@ async function rpc(functionName, parameters) {
   return response.json();
 }
 
+function missingRpc(error, functionName) {
+  const message = String(error?.message || "");
+  return message.includes("PGRST202") || new RegExp(`Could not find the function public\\.${functionName}\\b`, "i").test(message);
+}
+
+async function registerFile(payload) {
+  try {
+    return await rpc("register_file", payload);
+  } catch (error) {
+    if (!missingRpc(error, "register_file")) throw error;
+
+    const rows = await rest("files", "", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        owner_id: currentUser.id,
+        function_name: payload.p_function_name,
+        activity_name: payload.p_activity_name,
+        sub_activity_name: payload.p_sub_activity_name,
+        transaction_code: payload.p_transaction_code,
+        volume: payload.p_volume,
+        opened_on: payload.p_opened_on,
+        closed_on: payload.p_closed_on,
+        status: "Bilik Fail",
+        current_holder: "Bilik Fail"
+      })
+    });
+    const file = rows?.[0];
+    if (!file?.id) throw new Error("Rekod fail telah dihantar tetapi pengesahan Supabase tidak diterima.");
+
+    try {
+      await rest("movements", "", {
+        method: "POST",
+        body: JSON.stringify({
+          file_id: file.id,
+          owner_id: currentUser.id,
+          from_holder: "Sistem Pendaftaran",
+          to_holder: "Bilik Fail",
+          note: "Rekod asal dicipta"
+        })
+      });
+    } catch (movementError) {
+      try { await rest("files", `id=eq.${encodeURIComponent(file.id)}`, { method: "DELETE" }); }
+      catch { /* Preserve the original movement error. */ }
+      throw movementError;
+    }
+
+    return { file };
+  }
+}
+
+async function moveFile(file, payload) {
+  try {
+    return await rpc("move_file", payload);
+  } catch (error) {
+    if (!missingRpc(error, "move_file")) throw error;
+
+    const nextStatus = payload.p_to_holder.toLowerCase() === "bilik fail" ? "Bilik Fail" : "Sedang Beredar";
+    const rows = await rest("files", `id=eq.${encodeURIComponent(file.id)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ current_holder: payload.p_to_holder, status: nextStatus })
+    });
+    const updatedFile = rows?.[0];
+    if (!updatedFile?.id) throw new Error("Pergerakan fail telah dihantar tetapi pengesahan Supabase tidak diterima.");
+
+    try {
+      await rest("movements", "", {
+        method: "POST",
+        body: JSON.stringify({
+          file_id: file.id,
+          owner_id: file.ownerId,
+          moved_at: payload.p_moved_at,
+          from_holder: file.pemegangTerkini,
+          to_holder: payload.p_to_holder,
+          note: payload.p_note || ""
+        })
+      });
+    } catch (movementError) {
+      try {
+        await rest("files", `id=eq.${encodeURIComponent(file.id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ current_holder: file.pemegangTerkini, status: file.status })
+        });
+      } catch { /* Preserve the original movement error. */ }
+      throw movementError;
+    }
+
+    return { file: updatedFile };
+  }
+}
+
 async function loadProfile(userId) {
   const rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
   if (!rows?.length) throw new Error("Profil pengguna tidak ditemui. Jalankan migrasi Supabase dan cipta semula pengguna ini.");
@@ -530,7 +622,7 @@ function openMovement(file, refresh) {
     if (from === to && !note) { toast("Tiada perubahan", "Pilih penerima baharu atau masukkan catatan.", "error"); return; }
     setBusy(button, true, "Menyimpan…");
     try {
-      const result = await rpc("move_file", {
+      const result = await moveFile(file, {
         p_file_id: file.id,
         p_to_holder: to,
         p_moved_at: new Date(movedAt).toISOString(),
@@ -613,7 +705,7 @@ async function initRegister() {
     const button = form.querySelector("button[type=submit]");
     setBusy(button, true, "Menyimpan…");
     try {
-      await rpc("register_file", {
+      await registerFile({
         p_function_name: data.fungsi,
         p_activity_name: data.aktiviti,
         p_sub_activity_name: data.subAktiviti,
