@@ -1073,11 +1073,14 @@ body:not([data-page="login"]) .user-box {
 }
 
 body:not([data-page="login"]) .sidebar-user-card {
+  width: 100%;
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  padding: 14px;
+  padding: 13px;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .92);
   border-radius: 18px;
   background: rgba(255, 255, 255, .68);
@@ -1095,20 +1098,38 @@ body:not([data-page="login"]) .user-avatar {
 }
 
 body:not([data-page="login"]) .user-copy {
+  width: 100%;
   min-width: 0;
-  display: flex;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  overflow: hidden;
+  line-height: 1.2;
 }
 body:not([data-page="login"]) .user-copy strong {
+  display: -webkit-box;
+  width: 100%;
+  max-width: none;
   overflow: hidden;
   color: #253550;
-  font-size: .78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: .75rem;
+  line-height: 1.22;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 body:not([data-page="login"]) .user-copy span {
-  margin-top: 3px;
+  display: block;
+  width: 100%;
+  margin-top: 0;
+  overflow: hidden;
   color: #7287a3;
-  font-size: .7rem;
+  font-size: .67rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 body:not([data-page="login"]) .logout-button {
@@ -1116,6 +1137,7 @@ body:not([data-page="login"]) .logout-button {
   min-height: 44px;
   justify-content: center;
   gap: 10px;
+  margin-top: 2px;
   padding: 9px 14px;
   border: 0;
   color: #ff3d4d;
