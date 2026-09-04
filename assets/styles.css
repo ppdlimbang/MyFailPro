@@ -2022,7 +2022,7 @@ body:not([data-page="login"]) .brand-copy small {
 
 body:not([data-page="login"]) .nav {
   width: auto;
-  margin: 0 auto;
+  margin: 0 0 0 auto;
   padding: 6px;
   flex-direction: row;
   align-items: center;
@@ -2069,8 +2069,8 @@ body:not([data-page="login"]) .nav-icon { width: 18px; height: 18px; }
 body:not([data-page="login"]) .nav-icon svg { width: 18px; height: 18px; }
 
 body:not([data-page="login"]) .nav-settings {
-  margin-left: -14px;
-  margin-right: 260px;
+  margin-left: 0;
+  margin-right: 340px;
   border: 1px solid rgba(255, 255, 255, .84);
   background: rgba(255, 255, 255, .58);
   box-shadow: 0 7px 18px rgba(49, 46, 129, .08);
@@ -2087,7 +2087,7 @@ body:not([data-page="login"]) .workspace-toolbar .user-box {
   top: 15px;
   right: max(32px, calc((100vw - 1800px) / 2 + 32px));
   width: auto;
-  min-width: 220px;
+  min-width: 320px;
   min-height: 50px;
   margin: 0;
   padding: 0;
@@ -2135,18 +2135,26 @@ body:not([data-page="login"]) .workspace-toolbar .user-avatar {
   font-size: .76rem;
 }
 body:not([data-page="login"]) .workspace-toolbar .logout-button {
-  width: 42px;
+  width: auto;
   min-height: 42px;
   margin: 0;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, .82);
-  border-radius: 50%;
-  color: #7c3aed;
-  background: rgba(255, 255, 255, .72);
-  box-shadow: 0 6px 15px rgba(49, 46, 129, .09);
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #c4b5fd;
+  border-radius: 13px;
+  color: #5b21b6;
+  background: #f5f3ff;
+  box-shadow: 0 7px 17px rgba(91, 33, 182, .13);
+  font-size: .74rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 body:not([data-page="login"]) .workspace-toolbar .logout-button:hover { color: #fff; background: #7c3aed; }
-body:not([data-page="login"]) .workspace-toolbar .logout-button span { display: none; }
+body:not([data-page="login"]) .workspace-toolbar .logout-button svg { width: 18px; height: 18px; }
+body:not([data-page="login"]) .workspace-toolbar .logout-button span { display: inline; }
 
 body:not([data-page="login"]) .main.container {
   width: min(1800px, calc(100% - 64px));
@@ -2371,12 +2379,12 @@ body[data-page="settings"] .settings-grid .button,
 body[data-page="settings"] #staffForm .button,
 body[data-page="admin"] #agencyForm .button { background: linear-gradient(135deg, var(--legacy-primary), var(--legacy-violet)); }
 
-@media (max-width: 1180px) {
+@media (max-width: 1340px) {
   body:not([data-page="login"]) .nav a,
   body:not([data-page="login"]) .nav-settings { padding-inline: 11px; font-size: .7rem; }
-  body:not([data-page="login"]) .nav-settings { margin-right: 220px; }
-  body:not([data-page="login"]) .workspace-toolbar .user-box { min-width: 190px; }
-  body:not([data-page="login"]) .workspace-toolbar .user-copy { max-width: 115px; }
+  body:not([data-page="login"]) .nav-settings { margin-right: 175px; }
+  body:not([data-page="login"]) .workspace-toolbar .user-box { min-width: 160px; }
+  body:not([data-page="login"]) .workspace-toolbar .user-copy { display: none; }
   body[data-page="settings"] .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -2394,7 +2402,7 @@ body[data-page="admin"] #agencyForm .button { background: linear-gradient(135deg
   body:not([data-page="login"]) .workspace-toolbar .user-box {
     top: 12px;
     right: 16px;
-    min-width: 0;
+    min-width: 150px;
   }
   body:not([data-page="login"]) .workspace-toolbar .user-copy { display: none; }
   body:not([data-page="login"]) .nav {
@@ -2405,7 +2413,7 @@ body[data-page="admin"] #agencyForm .button { background: linear-gradient(135deg
   }
   body:not([data-page="login"]) .nav-settings {
     order: 4;
-    margin: 0;
+    margin: 0 164px 0 0;
   }
   body:not([data-page="login"]) .main.container { padding-top: 30px; }
   body:not([data-page="login"]) .stats { padding-inline: 0; }
@@ -2419,7 +2427,7 @@ body[data-page="admin"] #agencyForm .button { background: linear-gradient(135deg
   body:not([data-page="login"]) .brand-copy small { display: none; }
   body:not([data-page="login"]) .brand-symbol { width: 42px; height: 42px; }
   body:not([data-page="login"]) .workspace-toolbar .user-avatar { display: none; }
-  body:not([data-page="login"]) .workspace-toolbar .logout-button { width: 38px; min-height: 38px; }
+  body:not([data-page="login"]) .workspace-toolbar .logout-button { min-height: 38px; padding-inline: 12px; }
   body:not([data-page="login"]) .nav { padding: 4px; }
   body:not([data-page="login"]) .nav a,
   body:not([data-page="login"]) .nav-settings { min-height: 39px; padding: 8px 10px; }
