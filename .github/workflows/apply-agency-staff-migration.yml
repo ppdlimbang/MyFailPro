@@ -32,12 +32,19 @@ jobs:
       - name: Apply migration
         run: |
           jq -Rs '{ query: . }' "$MIGRATION_FILE" > "$RUNNER_TEMP/migration.json"
-          curl --silent --show-error --fail-with-body \
+          status=$(curl --silent --show-error \
             --request POST \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
             --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             --header "Content-Type: application/json" \
-            --data-binary "@$RUNNER_TEMP/migration.json"
+            --data-binary "@$RUNNER_TEMP/migration.json" \
+            --output "$RUNNER_TEMP/migration-result.json" \
+            --write-out '%{http_code}')
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            message=$(jq -r '.message // .error // "Supabase menolak permintaan migrasi."' "$RUNNER_TEMP/migration-result.json")
+            echo "::error title=Supabase migration rejected::$message (HTTP $status)"
+            exit 1
+          fi
 
       - name: Verify agency staff schema
         run: |
