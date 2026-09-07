@@ -2511,6 +2511,21 @@ body:not([data-page="login"]) .notice {
   background-color: rgba(255, 255, 255, .68);
 }
 
+/* Keep every dashboard section on one consistent content axis. */
+body[data-page="dashboard"] .page-head,
+body[data-page="dashboard"] .stats {
+  width: min(1440px, 100%);
+  margin-inline: auto;
+}
+
+body[data-page="dashboard"] .page-head {
+  margin-bottom: 28px;
+}
+
+body[data-page="dashboard"] .stats {
+  padding-inline: 0;
+}
+
 /* Dashboard file list: keep wide-screen records compact and easy to scan. */
 body[data-page="dashboard"] #file-list {
   width: min(1440px, 100%);
