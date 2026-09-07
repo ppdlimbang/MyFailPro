@@ -814,6 +814,53 @@ async function initSettings() {
     document.querySelector("#settingsScope").textContent = "Tetapan ini dimiliki oleh akaun pentadbir dan diasingkan daripada tetapan setiap agensi.";
   }
   const grid = document.querySelector("#settingsGrid");
+  const fileColumns = {
+    fungsi: "function_name",
+    aktiviti: "activity_name",
+    subAktiviti: "sub_activity_name",
+    transaksi: "transaction_code"
+  };
+  const updateFileReferences = async (column, oldValue, newValue) => {
+    if (!column || oldValue === newValue) return;
+    await rest("files", `owner_id=eq.${encodeURIComponent(currentUser.id)}&${column}=eq.${encodeURIComponent(oldValue)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ [column]: newValue })
+    });
+  };
+  const saveCategoryEdit = async (category, index, value) => {
+    const previous = settings[category][index];
+    settings[category][index] = value;
+    let referencesUpdated = false;
+    try {
+      await updateFileReferences(fileColumns[category], previous, value);
+      referencesUpdated = previous !== value;
+      await saveSettings();
+    } catch (error) {
+      settings[category][index] = previous;
+      if (referencesUpdated) {
+        try { await updateFileReferences(fileColumns[category], value, previous); }
+        catch { /* Preserve the original save error. */ }
+      }
+      throw error;
+    }
+  };
+  const saveStaffEdit = async (index, person) => {
+    const previous = { ...settings.pegawai[index] };
+    settings.pegawai[index] = person;
+    let holdersUpdated = false;
+    try {
+      await updateFileReferences("current_holder", previous.nama, person.nama);
+      holdersUpdated = previous.nama !== person.nama;
+      await saveSettings();
+    } catch (error) {
+      settings.pegawai[index] = previous;
+      if (holdersUpdated) {
+        try { await updateFileReferences("current_holder", person.nama, previous.nama); }
+        catch { /* Preserve the original save error. */ }
+      }
+      throw error;
+    }
+  };
   const render = () => {
     grid.replaceChildren();
     Object.keys(labels).forEach(category => {
@@ -832,13 +879,43 @@ async function initSettings() {
       });
       const list = create("ul", { className: "item-list" });
       settings[category].forEach((value, index) => {
+        const item = create("li", { className: "item" });
+        const edit = create("button", { type: "button", text: "Edit", "aria-label": `Edit ${value}`, onclick: () => {
+          const editInput = create("input", { className: "input item-edit-input", value, "aria-label": `Nilai baharu untuk ${labels[category]}` });
+          const save = create("button", { className: "item-save", type: "submit", text: "Simpan" });
+          const cancel = create("button", { className: "item-cancel", type: "button", text: "Batal", onclick: render });
+          const editForm = create("form", { className: "item-edit-form" }, [
+            editInput,
+            create("div", { className: "item-edit-actions" }, [save, cancel])
+          ]);
+          editForm.addEventListener("submit", async event => {
+            event.preventDefault();
+            const nextValue = editInput.value.trim();
+            const duplicate = settings[category].some((entry, entryIndex) => entryIndex !== index && entry.toLowerCase() === nextValue.toLowerCase());
+            if (!nextValue) { toast("Nilai diperlukan", `${labels[category]} tidak boleh kosong.`, "error"); editInput.focus(); return; }
+            if (duplicate) { toast("Rekod telah wujud", `${labels[category]} yang sama sudah disenaraikan.`, "error"); editInput.focus(); return; }
+            setBusy(save, true, "Menyimpan…");
+            try {
+              await saveCategoryEdit(category, index, nextValue);
+              render();
+              toast("Perubahan disimpan", `${labels[category]} telah dikemas kini.`);
+            } catch (error) {
+              toast("Tidak berjaya", error.message, "error");
+              setBusy(save, false);
+            }
+          });
+          item.replaceChildren(editForm);
+          editInput.focus();
+          editInput.select();
+        } });
         const remove = create("button", { type: "button", text: "Padam", "aria-label": `Padam ${value}`, onclick: async () => {
           const removed = settings[category].splice(index, 1)[0];
           remove.disabled = true;
           try { await saveSettings(); render(); }
           catch (error) { settings[category].splice(index, 0, removed); remove.disabled = false; toast("Tidak berjaya", error.message, "error"); }
         } });
-        list.append(create("li", { className: "item" }, [create("span", { text: value }), remove]));
+        item.append(create("span", { text: value }), create("div", { className: "item-actions" }, [edit, remove]));
+        list.append(item);
       });
       grid.append(create("section", { className: "panel panel-body" }, [create("h2", { text: labels[category] }), form, list]));
     });
@@ -848,13 +925,42 @@ async function initSettings() {
   const renderStaff = () => {
     staffList.replaceChildren();
     settings.pegawai.forEach((person, index) => {
+      const item = create("li", { className: "item staff-item" });
+      const edit = create("button", { type: "button", text: "Edit", "aria-label": `Edit ${person.nama}`, onclick: () => {
+        const nameInput = create("input", { className: "input", value: person.nama, placeholder: "Nama penuh", "aria-label": "Nama penuh" });
+        const sectorInput = create("input", { className: "input", value: person.sektor, placeholder: "Sektor atau unit", "aria-label": "Sektor atau unit" });
+        const save = create("button", { className: "item-save", type: "submit", text: "Simpan" });
+        const cancel = create("button", { className: "item-cancel", type: "button", text: "Batal", onclick: renderStaff });
+        const editForm = create("form", { className: "item-edit-form staff-edit-form" }, [
+          create("div", { className: "staff-edit-fields" }, [nameInput, sectorInput]),
+          create("div", { className: "item-edit-actions" }, [save, cancel])
+        ]);
+        editForm.addEventListener("submit", async event => {
+          event.preventDefault();
+          const nextPerson = { nama: nameInput.value.trim(), sektor: sectorInput.value.trim() };
+          if (!nextPerson.nama || !nextPerson.sektor) { toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error"); return; }
+          setBusy(save, true, "Menyimpan…");
+          try {
+            await saveStaffEdit(index, nextPerson);
+            renderStaff();
+            toast("Perubahan disimpan", "Maklumat pegawai telah dikemas kini.");
+          } catch (error) {
+            toast("Tidak berjaya", error.message, "error");
+            setBusy(save, false);
+          }
+        });
+        item.replaceChildren(editForm);
+        nameInput.focus();
+        nameInput.select();
+      } });
       const remove = create("button", { type: "button", text: "Padam", onclick: async () => {
         const removed = settings.pegawai.splice(index, 1)[0];
         remove.disabled = true;
         try { await saveSettings(); renderStaff(); }
         catch (error) { settings.pegawai.splice(index, 0, removed); remove.disabled = false; toast("Tidak berjaya", error.message, "error"); }
       } });
-      staffList.append(create("li", { className: "item" }, [create("span", { text: `${person.nama} — ${person.sektor}` }), remove]));
+      item.append(create("span", { text: `${person.nama} — ${person.sektor}` }), create("div", { className: "item-actions" }, [edit, remove]));
+      staffList.append(item);
     });
   };
   staffForm.addEventListener("submit", async event => {

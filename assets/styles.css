@@ -2710,3 +2710,59 @@ body[data-page="register"] #registerFile .duplicate-status.is-duplicate::before 
   content: "!";
   background: #e11d48;
 }
+
+/* Inline editing for agency settings and recipient directory entries. */
+body[data-page="settings"] .item-actions,
+body[data-page="settings"] .item-edit-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+body[data-page="settings"] .item-edit-form {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+body[data-page="settings"] .item-edit-form .input {
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: .78rem;
+}
+
+body[data-page="settings"] .item .item-save {
+  color: #fff;
+  background: #6d4aff;
+}
+
+body[data-page="settings"] .item .item-cancel {
+  color: #655d75;
+  background: rgba(255, 255, 255, .72);
+}
+
+body[data-page="settings"] .staff-edit-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+body[data-page="settings"] .staff-edit-fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 680px) {
+  body[data-page="settings"] .item-edit-form,
+  body[data-page="settings"] .staff-edit-form,
+  body[data-page="settings"] .staff-edit-fields {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="settings"] .item-edit-actions {
+    justify-content: flex-end;
+  }
+}
