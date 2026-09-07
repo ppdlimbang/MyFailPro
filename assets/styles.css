@@ -2629,15 +2629,13 @@ body[data-page="dashboard"] #file-archive table {
 }
 
 body[data-page="dashboard"] #file-archive th:nth-child(1),
-body[data-page="dashboard"] #file-archive td:nth-child(1) { width: 32%; }
+body[data-page="dashboard"] #file-archive td:nth-child(1) { width: 34%; }
 body[data-page="dashboard"] #file-archive th:nth-child(2),
-body[data-page="dashboard"] #file-archive td:nth-child(2) { width: 15%; }
+body[data-page="dashboard"] #file-archive td:nth-child(2) { width: 22%; }
 body[data-page="dashboard"] #file-archive th:nth-child(3),
-body[data-page="dashboard"] #file-archive td:nth-child(3) { width: 15%; }
+body[data-page="dashboard"] #file-archive td:nth-child(3) { width: 18%; }
 body[data-page="dashboard"] #file-archive th:nth-child(4),
-body[data-page="dashboard"] #file-archive td:nth-child(4) { width: 16%; }
-body[data-page="dashboard"] #file-archive th:nth-child(5),
-body[data-page="dashboard"] #file-archive td:nth-child(5) { width: 22%; }
+body[data-page="dashboard"] #file-archive td:nth-child(4) { width: 26%; }
 
 body[data-page="dashboard"] #file-archive th,
 body[data-page="dashboard"] #file-archive td {

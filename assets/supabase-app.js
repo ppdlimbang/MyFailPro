@@ -625,8 +625,7 @@ async function initDashboard() {
       ]);
       archiveBody.append(create("tr", {}, [
         create("td", {}, [create("div", { className: "record-title", text: file.transaksi }), create("div", { className: "record-meta", text: `Jilid ${file.jilid} · ${file.subAktiviti}` })]),
-        create("td", { text: formatDate(file.tarikhBuka) }),
-        create("td", { text: formatDate(file.tarikhTutup) }),
+        create("td", { text: `${formatDate(file.tarikhBuka)} — ${formatDate(file.tarikhTutup)}` }),
         create("td", {}, create("span", { className: `badge ${archive ? "archive" : "moving"}`, text: file.pemegangTerkini })),
         create("td", {}, buttons)
       ]));
