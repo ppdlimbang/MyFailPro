@@ -828,6 +828,7 @@ async function initSettings() {
   if (!user) return;
   await loadSettings();
   const settings = state.settings;
+  const normalizeSettingValue = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
   const isAgency = user.role === "agency";
   if (isAgency) {
     document.querySelector("#settingsTitle").textContent = "Tetapan Agensi";
@@ -893,7 +894,18 @@ async function initSettings() {
       form.addEventListener("submit", async event => {
         event.preventDefault();
         const value = input.value.trim();
-        if (!value || settings[category].includes(value)) return;
+        if (!value) {
+          toast("Nilai diperlukan", `${labels[category]} tidak boleh kosong.`, "error");
+          input.focus();
+          return;
+        }
+        const duplicate = settings[category].some(entry => normalizeSettingValue(entry) === normalizeSettingValue(value));
+        if (duplicate) {
+          toast("Data telah wujud", `${labels[category]} “${value}” sudah disenaraikan.`, "error");
+          input.focus();
+          input.select();
+          return;
+        }
         settings[category].push(value);
         setBusy(add, true, "Menyimpan…");
         try { await saveSettings(); render(); toast("Berjaya", `${labels[category]} telah ditambah.`); }
@@ -914,9 +926,9 @@ async function initSettings() {
           editForm.addEventListener("submit", async event => {
             event.preventDefault();
             const nextValue = editInput.value.trim();
-            const duplicate = settings[category].some((entry, entryIndex) => entryIndex !== index && entry.toLowerCase() === nextValue.toLowerCase());
+            const duplicate = settings[category].some((entry, entryIndex) => entryIndex !== index && normalizeSettingValue(entry) === normalizeSettingValue(nextValue));
             if (!nextValue) { toast("Nilai diperlukan", `${labels[category]} tidak boleh kosong.`, "error"); editInput.focus(); return; }
-            if (duplicate) { toast("Rekod telah wujud", `${labels[category]} yang sama sudah disenaraikan.`, "error"); editInput.focus(); return; }
+            if (duplicate) { toast("Data telah wujud", `${labels[category]} yang sama sudah disenaraikan.`, "error"); editInput.focus(); editInput.select(); return; }
             setBusy(save, true, "Menyimpan…");
             try {
               await saveCategoryEdit(category, index, nextValue);
@@ -962,6 +974,15 @@ async function initSettings() {
           event.preventDefault();
           const nextPerson = { nama: nameInput.value.trim(), sektor: sectorInput.value.trim() };
           if (!nextPerson.nama || !nextPerson.sektor) { toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error"); return; }
+          const duplicate = settings.pegawai.some((entry, entryIndex) => entryIndex !== index
+            && normalizeSettingValue(entry.nama) === normalizeSettingValue(nextPerson.nama)
+            && normalizeSettingValue(entry.sektor) === normalizeSettingValue(nextPerson.sektor));
+          if (duplicate) {
+            toast("Data telah wujud", `${nextPerson.nama} bagi ${nextPerson.sektor} sudah disenaraikan.`, "error");
+            nameInput.focus();
+            nameInput.select();
+            return;
+          }
           setBusy(save, true, "Menyimpan…");
           try {
             await saveStaffEdit(index, nextPerson);
@@ -991,6 +1012,18 @@ async function initSettings() {
     const data = Object.fromEntries(new FormData(staffForm));
     const person = { nama: data.nama.trim(), sektor: data.sektor.trim() };
     const button = staffForm.querySelector("button[type=submit]");
+    if (!person.nama || !person.sektor) {
+      toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error");
+      return;
+    }
+    const duplicate = settings.pegawai.some(entry => normalizeSettingValue(entry.nama) === normalizeSettingValue(person.nama)
+      && normalizeSettingValue(entry.sektor) === normalizeSettingValue(person.sektor));
+    if (duplicate) {
+      toast("Data telah wujud", `${person.nama} bagi ${person.sektor} sudah disenaraikan.`, "error");
+      staffForm.elements.nama.focus();
+      staffForm.elements.nama.select();
+      return;
+    }
     settings.pegawai.push(person);
     setBusy(button, true, "Menyimpan…");
     try { await saveSettings(); staffForm.reset(); renderStaff(); toast("Berjaya", "Pegawai telah ditambah."); }
