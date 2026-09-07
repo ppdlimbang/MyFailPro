@@ -601,6 +601,23 @@ async function initDashboard() {
   const search = document.querySelector("#searchFile");
   const archiveSearch = document.querySelector("#searchArchive");
   const filter = document.querySelector("#filterFungsi");
+  const pageSize = 6;
+  let activePage = 1;
+  let archivePage = 1;
+  const pagination = {
+    active: {
+      root: document.querySelector("#filePagination"),
+      info: document.querySelector("#filePageInfo"),
+      previous: document.querySelector("#filePrevious"),
+      next: document.querySelector("#fileNext")
+    },
+    archive: {
+      root: document.querySelector("#archivePagination"),
+      info: document.querySelector("#archivePageInfo"),
+      previous: document.querySelector("#archivePrevious"),
+      next: document.querySelector("#archiveNext")
+    }
+  };
   fillSelect(filter, state.settings.fungsi, "Semua fungsi");
   const compareByTransaction = (first, second) =>
     classificationCollator.compare(first.transaksi || "", second.transaksi || "") ||
@@ -609,6 +626,17 @@ async function initDashboard() {
   const matchesSearch = (file, term) => {
     const haystack = [file.transaksi, file.subAktiviti, file.pemegangTerkini].filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(term);
+  };
+  const pagedRecords = (records, requestedPage, controls) => {
+    const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+    const page = Math.min(Math.max(requestedPage, 1), pageCount);
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, records.length);
+    controls.root.classList.toggle("hidden", records.length <= pageSize);
+    controls.info.textContent = records.length ? `${start + 1}–${end} daripada ${records.length} rekod` : "0 rekod";
+    controls.previous.disabled = page === 1;
+    controls.next.disabled = page === pageCount;
+    return { page, records: records.slice(start, end) };
   };
   const updateStats = () => {
     document.querySelector("#statTotal").textContent = state.files.length;
@@ -636,6 +664,10 @@ async function initDashboard() {
     const archivedFiles = state.files
       .filter(file => Boolean(file.tarikhTutup) && matchesSearch(file, archiveTerm))
       .sort(compareByTransaction);
+    const activeResult = pagedRecords(activeFiles, activePage, pagination.active);
+    const archiveResult = pagedRecords(archivedFiles, archivePage, pagination.archive);
+    activePage = activeResult.page;
+    archivePage = archiveResult.page;
     body.replaceChildren();
     archiveBody.replaceChildren();
     document.querySelector("#emptyFiles").classList.toggle("hidden", activeFiles.length > 0);
@@ -647,7 +679,7 @@ async function initDashboard() {
     document.querySelector("#emptyArchiveCopy").textContent = archiveTerm
       ? "Ubah kata carian untuk melihat rekod arkib lain."
       : "Fail akan dipindahkan ke arkib secara automatik apabila Tarikh Tutup diisi.";
-    activeFiles.forEach(file => {
+    activeResult.records.forEach(file => {
       const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button small", type: "button", text: "Pindah", onclick: () => openMovement(file, render) }),
@@ -662,7 +694,7 @@ async function initDashboard() {
         create("td", {}, buttons)
       ]));
     });
-    archivedFiles.forEach(file => {
+    archiveResult.records.forEach(file => {
       const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button secondary small", type: "button", text: "Edit", title: "Ubah tarikh atau buka semula fail", onclick: () => openEdit(file, render) }),
@@ -677,9 +709,13 @@ async function initDashboard() {
       ]));
     });
   };
-  search.addEventListener("input", render);
-  archiveSearch.addEventListener("input", render);
-  filter.addEventListener("change", render);
+  search.addEventListener("input", () => { activePage = 1; render(); });
+  archiveSearch.addEventListener("input", () => { archivePage = 1; render(); });
+  filter.addEventListener("change", () => { activePage = 1; render(); });
+  pagination.active.previous.addEventListener("click", () => { activePage -= 1; render(); });
+  pagination.active.next.addEventListener("click", () => { activePage += 1; render(); });
+  pagination.archive.previous.addEventListener("click", () => { archivePage -= 1; render(); });
+  pagination.archive.next.addEventListener("click", () => { archivePage += 1; render(); });
   render();
   markReady();
 }

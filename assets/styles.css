@@ -2670,6 +2670,40 @@ body[data-page="dashboard"] #file-archive .actions .button.small {
   padding-inline: 13px;
 }
 
+body[data-page="dashboard"] .table-pagination {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 26px;
+  border-top: 1px solid rgba(109, 74, 255, .1);
+  background: rgba(255, 255, 255, .36);
+}
+
+body[data-page="dashboard"] .pagination-info {
+  color: #6c7890;
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+body[data-page="dashboard"] .pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body[data-page="dashboard"] .table-pagination .button.small {
+  min-width: 94px;
+  min-height: 38px;
+  padding: 8px 13px;
+}
+
+body[data-page="dashboard"] .table-pagination .button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 @media (max-width: 1180px) {
   body[data-page="dashboard"] #file-list .panel-head {
     grid-template-columns: 1fr;
@@ -2709,6 +2743,17 @@ body[data-page="dashboard"] #file-archive .actions .button.small {
 @media (max-width: 680px) {
   body[data-page="dashboard"] #file-archive .archive-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  body[data-page="dashboard"] .table-pagination {
+    align-items: stretch;
+    flex-direction: column;
+    padding-inline: 20px;
+  }
+
+  body[data-page="dashboard"] .pagination-actions,
+  body[data-page="dashboard"] .table-pagination .button.small {
+    width: 100%;
   }
 }
 

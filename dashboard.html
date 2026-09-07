@@ -6,9 +6,9 @@
   <meta name="description" content="Papan pemuka pengurusan fail MyFailPro">
   <title>Laman Utama · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png">
-  <link rel="stylesheet" href="assets/styles.css?v=20260907-34">
+  <link rel="stylesheet" href="assets/styles.css?v=20260907-35">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20260907-28" defer></script>
+  <script src="assets/supabase-app.js?v=20260907-29" defer></script>
 </head>
 <body data-page="dashboard">
 <div class="app-shell">
@@ -30,11 +30,13 @@
     <section class="panel page-section" id="file-list">
       <div class="panel-head"><div class="panel-title"><h2>Senarai Fail Terkini</h2><p>Carian dan tindakan pantas untuk rekod aktif.</p></div><div class="toolbar"><input class="input" id="searchFile" type="search" placeholder="Cari transaksi, tajuk atau pemegang…" aria-label="Cari fail"><select class="input" id="filterFungsi" aria-label="Tapis fungsi"></select></div></div>
       <div class="table-wrap"><table><caption class="sr-only">Senarai rekod fail</caption><thead><tr><th scope="col">Fail</th><th scope="col">Tempoh</th><th scope="col">Keberadaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="fileRows"></tbody></table></div>
+      <nav class="table-pagination hidden" id="filePagination" aria-label="Halaman senarai fail"><span class="pagination-info" id="filePageInfo" aria-live="polite"></span><div class="pagination-actions"><button class="button secondary small" id="filePrevious" type="button">Sebelumnya</button><button class="button secondary small" id="fileNext" type="button">Seterusnya</button></div></nav>
       <div class="empty hidden" id="emptyFiles"><strong>Tiada fail ditemui</strong><p>Daftar fail baharu atau ubah carian anda.</p><a class="button" href="daftar.html">Daftar Fail</a></div>
     </section>
     <section class="panel page-section" id="file-archive">
       <div class="panel-head"><div class="panel-title"><h2>Arkib Fail Ditutup</h2><p>Rekod fail yang telah mempunyai tarikh tutup.</p></div><div class="toolbar archive-toolbar"><input class="input" id="searchArchive" type="search" placeholder="Cari transaksi, tajuk atau pemegang…" aria-label="Cari arkib fail"><span class="archive-count" id="archiveCount" aria-live="polite">0 rekod</span></div></div>
       <div class="table-wrap"><table><caption class="sr-only">Senarai arkib fail yang ditutup</caption><thead><tr><th scope="col">Fail</th><th scope="col">Tempoh</th><th scope="col">Keberadaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="archiveRows"></tbody></table></div>
+      <nav class="table-pagination hidden" id="archivePagination" aria-label="Halaman arkib fail"><span class="pagination-info" id="archivePageInfo" aria-live="polite"></span><div class="pagination-actions"><button class="button secondary small" id="archivePrevious" type="button">Sebelumnya</button><button class="button secondary small" id="archiveNext" type="button">Seterusnya</button></div></nav>
       <div class="empty hidden" id="emptyArchive"><strong id="emptyArchiveTitle">Belum ada fail ditutup</strong><p id="emptyArchiveCopy">Fail akan dipindahkan ke arkib secara automatik apabila Tarikh Tutup diisi.</p></div>
     </section>
   </main>
