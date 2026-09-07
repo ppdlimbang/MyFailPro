@@ -932,9 +932,21 @@ async function initSettings() {
         catch (error) { settings[category] = previousValues; toast("Tidak berjaya", error.message, "error"); }
         finally { setBusy(add, false); }
       });
+      const totalRecords = settings[category].length;
+      const count = create("span", { className: "settings-count", text: `${totalRecords} rekod`, "aria-live": "polite" });
+      const cardHead = create("div", { className: "settings-card-head" }, [create("h2", { text: labels[category] }), count]);
+      const search = create("input", {
+        className: "input settings-search",
+        type: "search",
+        placeholder: `Cari ${labels[category].toLocaleLowerCase("ms")}…`,
+        "aria-label": `Cari ${labels[category]}`
+      });
       const list = create("ul", { className: "item-list" });
+      const emptySearch = create("p", { className: "settings-empty", text: totalRecords ? "Tiada data sepadan dengan carian." : "Belum ada data dalam kategori ini." });
+      emptySearch.hidden = totalRecords > 0;
+      list.hidden = totalRecords === 0;
       settings[category].forEach((value, index) => {
-        const item = create("li", { className: "item" });
+        const item = create("li", { className: "item", "data-search": normalizeSettingValue(value) });
         const edit = create("button", { type: "button", text: "Edit", "aria-label": `Edit ${value}`, onclick: () => {
           const editInput = create("input", { className: "input item-edit-input", value, "aria-label": `Nilai baharu untuk ${labels[category]}` });
           const save = create("button", { className: "item-save", type: "submit", text: "Simpan" });
@@ -969,10 +981,22 @@ async function initSettings() {
           try { await saveSettings(); render(); }
           catch (error) { settings[category].splice(index, 0, removed); remove.disabled = false; toast("Tidak berjaya", error.message, "error"); }
         } });
-        item.append(create("span", { text: value }), create("div", { className: "item-actions" }, [edit, remove]));
+        item.append(create("span", { text: value, title: value }), create("div", { className: "item-actions" }, [edit, remove]));
         list.append(item);
       });
-      grid.append(create("section", { className: "panel panel-body" }, [create("h2", { text: labels[category] }), form, list]));
+      search.addEventListener("input", () => {
+        const query = normalizeSettingValue(search.value);
+        let visibleRecords = 0;
+        Array.from(list.children).forEach(item => {
+          const matches = !query || item.dataset.search.includes(query);
+          item.hidden = !matches;
+          if (matches) visibleRecords += 1;
+        });
+        count.textContent = query ? `${visibleRecords} daripada ${totalRecords}` : `${totalRecords} rekod`;
+        list.hidden = visibleRecords === 0;
+        emptySearch.hidden = visibleRecords > 0;
+      });
+      grid.append(create("section", { className: "panel panel-body settings-card" }, [cardHead, form, search, emptySearch, list]));
     });
   };
   const staffForm = document.querySelector("#staffForm");
