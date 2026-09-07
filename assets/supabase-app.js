@@ -9,6 +9,13 @@ const defaults = {
   transaksi: ["400-1/1/1"],
   pegawai: [{ nama: "Ahmad Albab", sektor: "Unit Kewangan" }]
 };
+const classificationKeys = ["fungsi", "aktiviti", "subAktiviti", "transaksi"];
+const classificationCollator = new Intl.Collator("ms", { numeric: true, sensitivity: "base" });
+
+function sortClassificationSettings(settings) {
+  classificationKeys.forEach(key => settings[key].sort((first, second) => classificationCollator.compare(first, second)));
+  return settings;
+}
 
 let config;
 let session;
@@ -400,13 +407,13 @@ function initRevealAnimations() {
 }
 
 function mapSettings(row) {
-  return {
+  return sortClassificationSettings({
     fungsi: [...(row?.functions || defaults.fungsi)],
     aktiviti: [...(row?.activities || defaults.aktiviti)],
     subAktiviti: [...(row?.sub_activities || defaults.subAktiviti)],
     transaksi: [...(row?.transactions || defaults.transaksi)],
     pegawai: (row?.staff || defaults.pegawai).map(person => ({ ...person }))
-  };
+  });
 }
 
 function settingsPayload(settings) {
@@ -852,15 +859,17 @@ async function initSettings() {
     });
   };
   const saveCategoryEdit = async (category, index, value) => {
+    const previousValues = [...settings[category]];
     const previous = settings[category][index];
     settings[category][index] = value;
+    settings[category].sort((first, second) => classificationCollator.compare(first, second));
     let referencesUpdated = false;
     try {
       await updateFileReferences(fileColumns[category], previous, value);
       referencesUpdated = previous !== value;
       await saveSettings();
     } catch (error) {
-      settings[category][index] = previous;
+      settings[category] = previousValues;
       if (referencesUpdated) {
         try { await updateFileReferences(fileColumns[category], value, previous); }
         catch { /* Preserve the original save error. */ }
@@ -906,10 +915,12 @@ async function initSettings() {
           input.select();
           return;
         }
+        const previousValues = [...settings[category]];
         settings[category].push(value);
+        settings[category].sort((first, second) => classificationCollator.compare(first, second));
         setBusy(add, true, "Menyimpan…");
         try { await saveSettings(); render(); toast("Berjaya", `${labels[category]} telah ditambah.`); }
-        catch (error) { settings[category].pop(); toast("Tidak berjaya", error.message, "error"); }
+        catch (error) { settings[category] = previousValues; toast("Tidak berjaya", error.message, "error"); }
         finally { setBusy(add, false); }
       });
       const list = create("ul", { className: "item-list" });
