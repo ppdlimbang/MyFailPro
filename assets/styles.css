@@ -2510,3 +2510,89 @@ body:not([data-page="login"]) .stat,
 body:not([data-page="login"]) .notice {
   background-color: rgba(255, 255, 255, .68);
 }
+
+/* Dashboard file list: keep wide-screen records compact and easy to scan. */
+body[data-page="dashboard"] #file-list {
+  width: min(1440px, 100%);
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+body[data-page="dashboard"] #file-list .panel-head {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) minmax(520px, 660px);
+  align-items: center;
+  gap: 28px;
+  padding: 18px 26px;
+}
+
+body[data-page="dashboard"] #file-list .toolbar {
+  width: 100%;
+  grid-template-columns: minmax(300px, 1fr) minmax(180px, 240px);
+  gap: 12px;
+}
+
+body[data-page="dashboard"] #file-list table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+body[data-page="dashboard"] #file-list th:nth-child(1),
+body[data-page="dashboard"] #file-list td:nth-child(1) { width: 34%; }
+body[data-page="dashboard"] #file-list th:nth-child(2),
+body[data-page="dashboard"] #file-list td:nth-child(2) { width: 22%; }
+body[data-page="dashboard"] #file-list th:nth-child(3),
+body[data-page="dashboard"] #file-list td:nth-child(3) { width: 18%; }
+body[data-page="dashboard"] #file-list th:nth-child(4),
+body[data-page="dashboard"] #file-list td:nth-child(4) { width: 26%; }
+
+body[data-page="dashboard"] #file-list th,
+body[data-page="dashboard"] #file-list td {
+  padding-inline: 26px;
+}
+
+body[data-page="dashboard"] #file-list td {
+  padding-block: 15px;
+}
+
+body[data-page="dashboard"] #file-list th:last-child {
+  text-align: right;
+}
+
+body[data-page="dashboard"] #file-list .record-meta {
+  max-width: 34rem;
+  line-height: 1.45;
+}
+
+body[data-page="dashboard"] #file-list td:last-child .actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body[data-page="dashboard"] #file-list .actions .button.small {
+  min-width: 64px;
+  min-height: 40px;
+  padding-inline: 13px;
+}
+
+@media (max-width: 900px) {
+  body[data-page="dashboard"] #file-list .panel-head {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  body[data-page="dashboard"] #file-list .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="dashboard"] #file-list table {
+    min-width: 790px;
+    table-layout: auto;
+  }
+
+  body[data-page="dashboard"] #file-list th:nth-child(n),
+  body[data-page="dashboard"] #file-list td:nth-child(n) {
+    width: auto;
+  }
+}
