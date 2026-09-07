@@ -10,6 +10,7 @@ administrator page. Netlify is no longer required.
 2. In **SQL Editor**, run these files in order:
    - `supabase/migrations/20260903000000_initial_schema.sql`
    - `supabase/migrations/20260903010000_optimize_database.sql`
+   - `supabase/migrations/20260907030000_add_agency_staff_users.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -40,10 +41,17 @@ The workflow deploys:
 
 - `admin-create-user`
 - `admin-delete-user`
+- `agency-create-staff`
 
-Both functions validate the caller's Supabase session and confirm that the
-profile role is `admin` before using a server-only secret key. The functions
-accept browser requests from `https://ppdlimbang.github.io` by default.
+All functions validate the caller's Supabase session before using a server-only
+secret key. Admin functions require an `admin` profile, while
+`agency-create-staff` requires an agency-owner profile. The functions accept
+browser requests from `https://ppdlimbang.github.io` by default.
+
+An agency owner can create staff accounts from **Tetapan Sistem > Akaun Pegawai
+Agensi** by entering a name, email, and temporary password. Staff log in through
+the normal login page and share the agency's files and classification data, but
+cannot modify the agency settings.
 
 ## 3. Enable GitHub Pages
 
@@ -58,6 +66,8 @@ accept browser requests from `https://ppdlimbang.github.io` by default.
 - GitHub Pages receives only static HTML, CSS, JavaScript, and image files.
 - Supabase Auth verifies passwords and sessions.
 - Row Level Security restricts agencies to their own `owner_id` rows.
+- Staff profiles are linked to one agency and inherit access only to that
+  agency's workspace.
 - Admin-only account operations run inside Supabase Edge Functions.
 - `SUPABASE_ACCESS_TOKEN`, secret keys, and service-role keys must never be
   committed or placed in browser assets.
@@ -66,3 +76,5 @@ accept browser requests from `https://ppdlimbang.github.io` by default.
 
 Push frontend changes to `main`; the Pages workflow republishes the site.
 Changes under `supabase/functions/` trigger the Edge Function workflow.
+Database migrations are not applied automatically; run each new migration in
+the Supabase SQL Editor before using its related feature.

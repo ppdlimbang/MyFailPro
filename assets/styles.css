@@ -3054,3 +3054,28 @@ body[data-page="settings"] .settings-empty {
     justify-content: flex-end;
   }
 }
+
+/* Agency staff account management */
+body[data-page="settings"] #staffUserForm {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body[data-page="settings"] #staffUserForm .span-3 {
+  grid-column: 1 / -1;
+}
+
+body[data-page="settings"] #staffUsersPanel .empty-row {
+  padding-block: 28px;
+  color: #7c8799;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  body[data-page="settings"] #staffUserForm {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="settings"] #staffUserForm .span-3 {
+    grid-column: auto;
+  }
+}

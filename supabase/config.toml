@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.admin-delete-user]
 verify_jwt = false
+
+[functions.agency-create-staff]
+verify_jwt = false

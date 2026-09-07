@@ -20,7 +20,8 @@ function sortClassificationSettings(settings) {
 let config;
 let session;
 let currentUser;
-const state = { files: [], agencies: [], settings: null };
+const state = { files: [], agencies: [], staffUsers: [], settings: null };
+const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
 
 function create(tag, options = {}, children = []) {
@@ -156,7 +157,7 @@ async function registerFile(payload) {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
-        owner_id: currentUser.id,
+        owner_id: workspaceOwnerId(),
         function_name: payload.p_function_name,
         activity_name: payload.p_activity_name,
         sub_activity_name: payload.p_sub_activity_name,
@@ -176,7 +177,7 @@ async function registerFile(payload) {
         method: "POST",
         body: JSON.stringify({
           file_id: file.id,
-          owner_id: currentUser.id,
+          owner_id: workspaceOwnerId(),
           from_holder: "Sistem Pendaftaran",
           to_holder: "Bilik Fail",
           note: "Rekod asal dicipta"
@@ -240,11 +241,19 @@ async function deleteFile(file) {
 }
 
 async function loadProfile(userId) {
-  const rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
+  let rows;
+  try {
+    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id`);
+  } catch (error) {
+    if (!/agency_id/i.test(error.message)) throw error;
+    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
+  }
   if (!rows?.length) throw new Error("Profil pengguna tidak ditemui. Jalankan migrasi Supabase dan cipta semula pengguna ini.");
   const profile = rows[0];
   currentUser = {
     id: profile.id,
+    ownerId: profile.agency_id || profile.id,
+    agencyId: profile.agency_id || null,
     email: profile.email,
     role: profile.role,
     data: { nama: profile.name, jenis: profile.agency_type }
@@ -265,10 +274,11 @@ function renderShell(user) {
     if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
   }
   document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
+  document.querySelectorAll(".nav-settings").forEach(el => el.classList.toggle("hidden", user.role === "staff"));
   const name = document.querySelector("[data-user-name]");
   const role = document.querySelector("[data-user-role]");
   const displayName = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
-  const roleLabel = user.role === "admin" ? "Admin PPD" : (user.data?.jenis || "Agensi");
+  const roleLabel = user.role === "admin" ? "Admin PPD" : user.role === "staff" ? "Pegawai Agensi" : (user.data?.jenis || "Agensi");
   if (name) name.textContent = displayName;
   if (role) role.textContent = roleLabel;
   document.querySelectorAll("[data-user-avatar]").forEach(el => {
@@ -436,12 +446,12 @@ function settingsPayload(settings) {
 }
 
 async function loadSettings() {
-  let rows = await rest("agency_settings", `owner_id=eq.${encodeURIComponent(currentUser.id)}&select=owner_id,functions,activities,sub_activities,transactions,staff`);
+  let rows = await rest("agency_settings", `owner_id=eq.${encodeURIComponent(workspaceOwnerId())}&select=owner_id,functions,activities,sub_activities,transactions,staff`);
   if (!rows.length) {
     rows = await rest("agency_settings", "", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify({ owner_id: currentUser.id })
+      body: JSON.stringify({ owner_id: workspaceOwnerId() })
     });
   }
   state.settings = mapSettings(rows[0]);
@@ -449,7 +459,7 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  await rest("agency_settings", `owner_id=eq.${encodeURIComponent(currentUser.id)}`, {
+  await rest("agency_settings", `owner_id=eq.${encodeURIComponent(workspaceOwnerId())}`, {
     method: "PATCH",
     body: JSON.stringify(settingsPayload(state.settings))
   });
@@ -486,6 +496,12 @@ async function loadAgencies() {
   if (currentUser.role !== "admin") { state.agencies = []; return; }
   const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,created_at&order=name.asc");
   state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, createdAt: row.created_at }));
+}
+
+async function loadStaffUsers() {
+  if (currentUser.role !== "agency") { state.staffUsers = []; return; }
+  const rows = await rest("profiles", `agency_id=eq.${encodeURIComponent(currentUser.id)}&role=eq.staff&select=id,email,name,created_at&order=name.asc`);
+  state.staffUsers = rows.map(row => ({ id: row.id, email: row.email, name: row.name, createdAt: row.created_at }));
 }
 
 async function initLogin() {
@@ -779,7 +795,7 @@ async function initRegister() {
     const transaction = String(data.transaksi || "").trim().toLowerCase();
     const volume = Number(data.jilid);
     if (!transaction || !Number.isInteger(volume) || volume < 1) return null;
-    return state.files.find(file => file.ownerId === currentUser.id && file.transaksi.trim().toLowerCase() === transaction && Number(file.jilid) === volume) || null;
+    return state.files.find(file => file.ownerId === workspaceOwnerId() && file.transaksi.trim().toLowerCase() === transaction && Number(file.jilid) === volume) || null;
   };
   const updateDuplicateStatus = () => {
     const data = Object.fromEntries(new FormData(form));
@@ -842,10 +858,16 @@ const labels = { fungsi: "Fungsi", aktiviti: "Aktiviti", subAktiviti: "Sub-Aktiv
 async function initSettings() {
   const user = await initShell();
   if (!user) return;
+  if (user.role === "staff") { location.replace("dashboard.html"); return; }
   await loadSettings();
   const settings = state.settings;
   const normalizeSettingValue = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
   const isAgency = user.role === "agency";
+  let staffUsersError = null;
+  if (isAgency) {
+    try { await loadStaffUsers(); }
+    catch (error) { staffUsersError = error; }
+  }
   if (isAgency) {
     document.querySelector("#settingsTitle").textContent = "Tetapan Agensi";
     document.querySelector("#settingsSubtitle").textContent = `Konfigurasi khusus untuk ${user.data.nama || user.email}`;
@@ -862,7 +884,7 @@ async function initSettings() {
   };
   const updateFileReferences = async (column, oldValue, newValue) => {
     if (!column || oldValue === newValue) return;
-    await rest("files", `owner_id=eq.${encodeURIComponent(currentUser.id)}&${column}=eq.${encodeURIComponent(oldValue)}`, {
+    await rest("files", `owner_id=eq.${encodeURIComponent(workspaceOwnerId())}&${column}=eq.${encodeURIComponent(oldValue)}`, {
       method: "PATCH",
       body: JSON.stringify({ [column]: newValue })
     });
@@ -1074,6 +1096,53 @@ async function initSettings() {
     catch (error) { settings.pegawai.pop(); toast("Tidak berjaya", error.message, "error"); }
     finally { setBusy(button, false); }
   });
+  const staffUsersPanel = document.querySelector("#staffUsersPanel");
+  if (isAgency && staffUsersPanel) {
+    staffUsersPanel.classList.remove("hidden");
+    const accountForm = document.querySelector("#staffUserForm");
+    const accountRows = document.querySelector("#staffUserRows");
+    const accountStatus = document.querySelector("#staffUserStatus");
+    const renderStaffUsers = () => {
+      accountRows.replaceChildren();
+      if (!state.staffUsers.length) {
+        accountRows.append(create("tr", {}, create("td", { colspan: "3", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
+        return;
+      }
+      state.staffUsers.forEach(person => accountRows.append(create("tr", {}, [
+        create("td", { text: person.name }),
+        create("td", { text: person.email }),
+        create("td", {}, create("span", { className: "badge archive", text: "Aktif" }))
+      ])));
+    };
+    if (staffUsersError) {
+      accountStatus.classList.remove("hidden");
+      accountStatus.textContent = /agency_id/i.test(staffUsersError.message)
+        ? "Modul pengguna pegawai memerlukan migrasi Supabase 20260907030000_add_agency_staff_users.sql."
+        : `Akaun pegawai tidak dapat dimuatkan: ${staffUsersError.message}`;
+      Array.from(accountForm.elements).forEach(element => { element.disabled = true; });
+    } else {
+      accountForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(accountForm));
+        const button = accountForm.querySelector("button[type=submit]");
+        setBusy(button, true, "Mencipta…");
+        try {
+          await callAdminFunction("agency-create-staff", {
+            name: data.nama.trim(),
+            email: data.emel.trim().toLowerCase(),
+            password: data.password
+          });
+          await loadStaffUsers();
+          accountForm.reset();
+          renderStaffUsers();
+          toast("Akaun berjaya dicipta", "Pegawai kini boleh log masuk menggunakan e-mel dan kata laluan yang didaftarkan.");
+        } catch (error) {
+          toast("Akaun tidak dapat dicipta", error.message, "error");
+        } finally { setBusy(button, false); }
+      });
+      renderStaffUsers();
+    }
+  }
   render();
   renderStaff();
   markReady();
