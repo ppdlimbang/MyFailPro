@@ -14,9 +14,12 @@ let config;
 let session;
 let currentUser;
 const state = { files: [], agencies: [], settings: null };
+const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
 
 function create(tag, options = {}, children = []) {
-  const node = document.createElement(tag);
+  const node = SVG_TAGS.has(tag)
+    ? document.createElementNS("http://www.w3.org/2000/svg", tag)
+    : document.createElement(tag);
   Object.entries(options).forEach(([key, value]) => {
     if (key === "className") node.className = value;
     else if (key === "text") node.textContent = value;
@@ -593,7 +596,7 @@ async function initDashboard() {
           title: "Padam fail",
           "aria-label": `Padam fail ${file.transaksi}, Jilid ${file.jilid}`,
           onclick: () => openDelete(file, render)
-        }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "aria-hidden": "true" }, [
+        }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [
           create("path", { d: "M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" })
         ]))
       ]);
