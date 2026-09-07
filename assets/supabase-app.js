@@ -11,6 +11,21 @@ const defaults = {
 };
 const classificationKeys = ["fungsi", "aktiviti", "subAktiviti", "transaksi"];
 const classificationCollator = new Intl.Collator("ms", { numeric: true, sensitivity: "base" });
+const avatarOptions = {
+  initials: { label: "Inisial", symbol: "" },
+  professional: { label: "Profesional", symbol: "🧑‍💼" },
+  man: { label: "Lelaki", symbol: "👨‍💼" },
+  woman: { label: "Wanita", symbol: "👩‍💼" },
+  technology: { label: "Teknologi", symbol: "🧑‍💻" },
+  educator: { label: "Pendidik", symbol: "🧑‍🏫" }
+};
+
+function avatarPresentation(key, name) {
+  const resolvedKey = Object.hasOwn(avatarOptions, key) ? key : "initials";
+  const option = avatarOptions[resolvedKey];
+  const initials = String(name || "MP").split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "MP";
+  return { key: resolvedKey, label: option.label, symbol: option.symbol || initials, emoji: Boolean(option.symbol) };
+}
 
 function sortClassificationSettings(settings) {
   classificationKeys.forEach(key => settings[key].sort((first, second) => classificationCollator.compare(first, second)));
@@ -20,7 +35,7 @@ function sortClassificationSettings(settings) {
 let config;
 let session;
 let currentUser;
-const state = { files: [], agencies: [], staffUsers: [], staffUsageAvailable: true, settings: null };
+const state = { files: [], agencies: [], staffUsers: [], staffUsageAvailable: true, staffAvatarsAvailable: true, settings: null };
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
 
@@ -251,10 +266,15 @@ async function deleteFile(file) {
 async function loadProfile(userId) {
   let rows;
   try {
-    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id`);
+    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id,avatar_key`);
   } catch (error) {
-    if (!/agency_id/i.test(error.message)) throw error;
-    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
+    if (!/agency_id|avatar_key/i.test(error.message)) throw error;
+    try {
+      rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id`);
+    } catch (fallbackError) {
+      if (!/agency_id/i.test(fallbackError.message)) throw fallbackError;
+      rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
+    }
   }
   if (!rows?.length) throw new Error("Profil pengguna tidak ditemui. Jalankan migrasi Supabase dan cipta semula pengguna ini.");
   const profile = rows[0];
@@ -264,7 +284,7 @@ async function loadProfile(userId) {
     agencyId: profile.agency_id || null,
     email: profile.email,
     role: profile.role,
-    data: { nama: profile.name, jenis: profile.agency_type }
+    data: { nama: profile.name, jenis: profile.agency_type, avatarKey: profile.avatar_key || "initials" }
   };
   sessionStorage.setItem(PROFILE_KEY, JSON.stringify(currentUser));
   return currentUser;
@@ -288,8 +308,11 @@ function renderShell(user) {
   const roleLabel = user.role === "admin" ? "Admin PPD" : user.role === "staff" ? "Pegawai Agensi" : (user.data?.jenis || "Agensi");
   if (name) name.textContent = displayName;
   if (role) role.textContent = roleLabel;
+  const selectedAvatar = avatarPresentation(user.data?.avatarKey, displayName);
   document.querySelectorAll("[data-user-avatar]").forEach(el => {
-    el.textContent = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "MP";
+    el.textContent = selectedAvatar.symbol;
+    el.classList.toggle("avatar-emoji", selectedAvatar.emoji);
+    el.dataset.avatar = selectedAvatar.key;
     el.dataset.userTooltip = `${displayName} · ${roleLabel}`;
     el.title = `${displayName} — ${roleLabel}`;
     el.tabIndex = 0;
@@ -508,14 +531,28 @@ async function loadAgencies() {
 async function loadStaffUsers() {
   if (currentUser.role !== "agency") { state.staffUsers = []; return; }
   const baseQuery = `agency_id=eq.${encodeURIComponent(currentUser.id)}&role=eq.staff`;
+  const baseColumns = "id,email,name,created_at";
   let rows;
   state.staffUsageAvailable = true;
+  state.staffAvatarsAvailable = true;
   try {
-    rows = await rest("profiles", `${baseQuery}&select=id,email,name,created_at,login_count,last_login_at&order=name.asc`);
+    rows = await rest("profiles", `${baseQuery}&select=${baseColumns},login_count,last_login_at,avatar_key&order=name.asc`);
   } catch (error) {
-    if (!/login_count|last_login_at/i.test(error.message)) throw error;
-    state.staffUsageAvailable = false;
-    rows = await rest("profiles", `${baseQuery}&select=id,email,name,created_at&order=name.asc`);
+    if (!/login_count|last_login_at|avatar_key/i.test(error.message)) throw error;
+    if (/login_count|last_login_at/i.test(error.message)) state.staffUsageAvailable = false;
+    if (/avatar_key/i.test(error.message)) state.staffAvatarsAvailable = false;
+    const optionalColumns = [
+      ...(state.staffUsageAvailable ? ["login_count", "last_login_at"] : []),
+      ...(state.staffAvatarsAvailable ? ["avatar_key"] : [])
+    ];
+    try {
+      rows = await rest("profiles", `${baseQuery}&select=${[baseColumns, ...optionalColumns].join(",")}&order=name.asc`);
+    } catch (fallbackError) {
+      if (!/login_count|last_login_at|avatar_key/i.test(fallbackError.message)) throw fallbackError;
+      if (/login_count|last_login_at/i.test(fallbackError.message)) state.staffUsageAvailable = false;
+      if (/avatar_key/i.test(fallbackError.message)) state.staffAvatarsAvailable = false;
+      rows = await rest("profiles", `${baseQuery}&select=${baseColumns}&order=name.asc`);
+    }
   }
   state.staffUsers = rows.map(row => ({
     id: row.id,
@@ -523,7 +560,8 @@ async function loadStaffUsers() {
     name: row.name,
     createdAt: row.created_at,
     loginCount: Number(row.login_count || 0),
-    lastLoginAt: row.last_login_at || null
+    lastLoginAt: row.last_login_at || null,
+    avatarKey: row.avatar_key || "initials"
   }));
 }
 
@@ -1179,21 +1217,35 @@ async function initSettings() {
     const accountForm = document.querySelector("#staffUserForm");
     const accountRows = document.querySelector("#staffUserRows");
     const accountStatus = document.querySelector("#staffUserStatus");
+    const accountNameInput = accountForm.elements.nama;
+    const avatarPreviews = accountForm.querySelectorAll("[data-avatar-preview]");
+    const updateAvatarPreviews = () => avatarPreviews.forEach(preview => {
+      const avatar = avatarPresentation(preview.dataset.avatarPreview, accountNameInput.value);
+      preview.textContent = avatar.symbol;
+    });
+    accountNameInput.addEventListener("input", updateAvatarPreviews);
+    updateAvatarPreviews();
     const renderStaffUsers = () => {
       accountRows.replaceChildren();
       if (!state.staffUsers.length) {
         accountRows.append(create("tr", {}, create("td", { colspan: "4", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
         return;
       }
-      state.staffUsers.forEach(person => accountRows.append(create("tr", {}, [
-        create("td", { text: person.name }),
+      state.staffUsers.forEach(person => {
+        const avatar = avatarPresentation(person.avatarKey, person.name);
+        accountRows.append(create("tr", {}, [
+        create("td", {}, create("div", { className: "staff-user-identity" }, [
+          create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
+          create("span", { text: person.name })
+        ])),
         create("td", { text: person.email }),
         create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
         create("td", {}, create("div", { className: "staff-usage-log" }, [
           create("strong", { text: state.staffUsageAvailable ? `${person.loginCount} kali log masuk` : "Belum tersedia" }),
           create("span", { text: state.staffUsageAvailable && person.lastLoginAt ? `Terakhir: ${formatDate(person.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
         ]))
-      ])));
+        ]));
+      });
     };
     if (staffUsersError) {
       accountStatus.classList.remove("hidden");
@@ -1202,9 +1254,16 @@ async function initSettings() {
         : `Akaun pegawai tidak dapat dimuatkan: ${staffUsersError.message}`;
       Array.from(accountForm.elements).forEach(element => { element.disabled = true; });
     } else {
+      const unavailableFeatures = [];
       if (!state.staffUsageAvailable) {
+        unavailableFeatures.push("log penggunaan: 20260907050000_add_staff_login_activity.sql");
+      }
+      if (!state.staffAvatarsAvailable) {
+        unavailableFeatures.push("pilihan avatar: 20260907060000_add_staff_avatar.sql");
+      }
+      if (unavailableFeatures.length) {
         accountStatus.classList.remove("hidden");
-        accountStatus.textContent = "Log penggunaan memerlukan migrasi Supabase 20260907050000_add_staff_login_activity.sql.";
+        accountStatus.textContent = `Ciri tambahan memerlukan migrasi Supabase (${unavailableFeatures.join("; ")}).`;
       }
       accountForm.addEventListener("submit", async event => {
         event.preventDefault();
@@ -1215,10 +1274,12 @@ async function initSettings() {
           await callAdminFunction("agency-create-staff", {
             name: data.nama.trim(),
             email: data.emel.trim().toLowerCase(),
-            password: data.password
+            password: data.password,
+            avatar: data.avatar
           });
           await loadStaffUsers();
           accountForm.reset();
+          updateAvatarPreviews();
           renderStaffUsers();
           toast("Akaun berjaya dicipta", "Pegawai kini boleh log masuk menggunakan e-mel dan kata laluan yang didaftarkan.");
         } catch (error) {

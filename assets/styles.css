@@ -3154,6 +3154,100 @@ body[data-page="settings"] .staff-usage-log span {
   line-height: 1.35;
 }
 
+body[data-page="settings"] .staff-avatar-field {
+  min-width: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+body[data-page="settings"] .staff-avatar-field legend {
+  margin-bottom: 10px;
+  color: #4b4660;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+body[data-page="settings"] .avatar-options {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+body[data-page="settings"] .avatar-option {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 12px 8px;
+  border: 1px solid #ded9f7;
+  border-radius: 14px;
+  color: #635b78;
+  background: rgba(255, 255, 255, .7);
+  cursor: pointer;
+  font-size: .7rem;
+  font-weight: 750;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+body[data-page="settings"] .avatar-option:hover {
+  transform: translateY(-1px);
+  border-color: #a997ff;
+}
+
+body[data-page="settings"] .avatar-option:has(input:checked) {
+  border-color: #7657f5;
+  background: #f2efff;
+  box-shadow: 0 0 0 2px rgba(118, 87, 245, .12);
+}
+
+body[data-page="settings"] .avatar-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+body[data-page="settings"] .avatar-option:has(input:focus-visible) {
+  outline: 3px solid rgba(118, 87, 245, .25);
+  outline-offset: 2px;
+}
+
+body[data-page="settings"] .avatar-choice,
+body[data-page="settings"] .staff-avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #7b61ff, #5b39db);
+  box-shadow: 0 7px 14px rgba(91, 57, 219, .18);
+  font-size: .76rem;
+  font-weight: 850;
+}
+
+body[data-page="settings"] :is(.avatar-choice, .staff-avatar).avatar-emoji {
+  background: #f0edff;
+  box-shadow: none;
+  font-size: 1.45rem;
+}
+
+body[data-page="settings"] .staff-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 190px;
+  font-weight: 750;
+}
+
+body:not([data-page="login"]) .user-avatar.avatar-emoji {
+  font-size: 1.35rem;
+}
+
 @media (max-width: 900px) {
   body[data-page="settings"] #staffUserForm {
     grid-template-columns: 1fr;
@@ -3161,5 +3255,19 @@ body[data-page="settings"] .staff-usage-log span {
 
   body[data-page="settings"] #staffUserForm .span-3 {
     grid-column: auto;
+  }
+
+  body[data-page="settings"] .staff-avatar-field.span-3 {
+    grid-column: auto;
+  }
+
+  body[data-page="settings"] .avatar-options {
+    grid-template-columns: repeat(3, minmax(86px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  body[data-page="settings"] .avatar-options {
+    grid-template-columns: repeat(2, minmax(86px, 1fr));
   }
 }

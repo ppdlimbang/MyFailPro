@@ -1,6 +1,8 @@
 import { requireAgencyOwner } from "../_shared/auth.ts";
 import { isOriginAllowed, json, preflight, serviceConfig } from "../_shared/http.ts";
 
+const avatarKeys = new Set(["initials", "professional", "man", "woman", "technology", "educator"]);
+
 async function rollbackAuthUser(config: NonNullable<ReturnType<typeof serviceConfig>>, id: string) {
   await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -30,8 +32,12 @@ Deno.serve(async request => {
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
   const name = String(input.name || "").trim();
+  const avatarKey = String(input.avatar || "initials");
   if (!/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || !name) {
     return json(request, { error: "Lengkapkan nama dan e-mel; kata laluan mesti sekurang-kurangnya 8 aksara." }, 400);
+  }
+  if (!avatarKeys.has(avatarKey)) {
+    return json(request, { error: "Pilihan avatar tidak sah." }, 400);
   }
 
   const createResponse = await fetch(`${config.url}/auth/v1/admin/users`, {
@@ -45,7 +51,7 @@ Deno.serve(async request => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { name, agency_type: agency.profile.agency_type }
+      user_metadata: { name, agency_type: agency.profile.agency_type, avatar_key: avatarKey }
     })
   });
   const result = await createResponse.json();
@@ -65,7 +71,8 @@ Deno.serve(async request => {
     body: JSON.stringify({
       role: "staff",
       agency_id: agency.caller.id,
-      agency_type: agency.profile.agency_type
+      agency_type: agency.profile.agency_type,
+      avatar_key: avatarKey
     })
   });
   if (!profileResponse.ok) {
@@ -73,7 +80,7 @@ Deno.serve(async request => {
     try { profileError = await profileResponse.json(); } catch { /* Preserve fallback message. */ }
     await rollbackAuthUser(config, staffId);
     return json(request, {
-      error: profileError.message || "Profil pegawai tidak dapat dipautkan kepada agensi. Pastikan migrasi pengguna pegawai telah dijalankan."
+      error: profileError.message || "Profil pegawai tidak dapat dipautkan kepada agensi. Pastikan semua migrasi pengguna pegawai telah dijalankan."
     }, 500);
   }
 
@@ -82,5 +89,5 @@ Deno.serve(async request => {
     headers: { apikey: config.secretKey, authorization: `Bearer ${config.secretKey}` }
   });
 
-  return json(request, { id: staffId, email: result.email, name }, 201);
+  return json(request, { id: staffId, email: result.email, name, avatar: avatarKey }, 201);
 });
