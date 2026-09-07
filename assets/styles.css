@@ -2526,6 +2526,16 @@ body[data-page="dashboard"] .stats {
   padding-inline: 0;
 }
 
+body[data-page="register"] .page-head,
+body[data-page="register"] .main > .panel {
+  width: min(1440px, 100%);
+  margin-inline: auto;
+}
+
+body[data-page="register"] .page-head {
+  margin-bottom: 28px;
+}
+
 /* Dashboard file list: keep wide-screen records compact and easy to scan. */
 body[data-page="dashboard"] #file-list {
   width: min(1440px, 100%);
