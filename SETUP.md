@@ -78,3 +78,8 @@ Push frontend changes to `main`; the Pages workflow republishes the site.
 Changes under `supabase/functions/` trigger the Edge Function workflow.
 Database migrations are not applied automatically; run each new migration in
 the Supabase SQL Editor before using its related feature.
+
+Alternatively, create a scoped Supabase access token with **Database:
+Read-write**, save it as the GitHub Actions secret
+`SUPABASE_DATABASE_ACCESS_TOKEN`, then run **Apply Agency Staff Migration** from
+the repository's Actions page.

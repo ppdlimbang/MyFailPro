@@ -1,11 +1,6 @@
 name: Apply Agency Staff Migration
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "supabase/migrations/20260907030000_add_agency_staff_users.sql"
-      - ".github/workflows/apply-agency-staff-migration.yml"
   workflow_dispatch:
 
 permissions:
@@ -19,14 +14,14 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_DATABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ucneczznmwkyeemkdoxw
       MIGRATION_FILE: supabase/migrations/20260907030000_add_agency_staff_users.sql
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Verify deployment token
+      - name: Verify database token
         run: test -n "$SUPABASE_ACCESS_TOKEN"
 
       - name: Apply migration
