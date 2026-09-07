@@ -274,7 +274,6 @@ function renderShell(user) {
     if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
   }
   document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
-  document.querySelectorAll(".nav-settings").forEach(el => el.classList.toggle("hidden", user.role === "staff"));
   const name = document.querySelector("[data-user-name]");
   const role = document.querySelector("[data-user-role]");
   const displayName = user.data?.nama || (user.role === "admin" ? "Pentadbir" : "Agensi");
@@ -858,17 +857,17 @@ const labels = { fungsi: "Fungsi", aktiviti: "Aktiviti", subAktiviti: "Sub-Aktiv
 async function initSettings() {
   const user = await initShell();
   if (!user) return;
-  if (user.role === "staff") { location.replace("dashboard.html"); return; }
   await loadSettings();
   const settings = state.settings;
   const normalizeSettingValue = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
-  const isAgency = user.role === "agency";
+  const isAgencyOwner = user.role === "agency";
+  const isAgencyMember = isAgencyOwner || user.role === "staff";
   let staffUsersError = null;
-  if (isAgency) {
+  if (isAgencyOwner) {
     try { await loadStaffUsers(); }
     catch (error) { staffUsersError = error; }
   }
-  if (isAgency) {
+  if (isAgencyMember) {
     document.querySelector("#settingsTitle").textContent = "Tetapan Agensi";
     document.querySelector("#settingsSubtitle").textContent = `Konfigurasi khusus untuk ${user.data.nama || user.email}`;
     document.querySelector("#settingsScope").textContent = "Semua perubahan di halaman ini hanya digunakan oleh agensi anda dan tidak mengubah data agensi lain.";
@@ -1097,7 +1096,7 @@ async function initSettings() {
     finally { setBusy(button, false); }
   });
   const staffUsersPanel = document.querySelector("#staffUsersPanel");
-  if (isAgency && staffUsersPanel) {
+  if (isAgencyOwner && staffUsersPanel) {
     staffUsersPanel.classList.remove("hidden");
     const accountForm = document.querySelector("#staffUserForm");
     const accountRows = document.querySelector("#staffUserRows");

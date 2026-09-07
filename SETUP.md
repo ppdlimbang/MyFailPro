@@ -11,6 +11,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260903000000_initial_schema.sql`
    - `supabase/migrations/20260903010000_optimize_database.sql`
    - `supabase/migrations/20260907030000_add_agency_staff_users.sql`
+   - `supabase/migrations/20260907040000_allow_staff_manage_agency_settings.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -50,8 +51,9 @@ browser requests from `https://ppdlimbang.github.io` by default.
 
 An agency owner can create staff accounts from **Tetapan Sistem > Akaun Pegawai
 Agensi** by entering a name, email, and temporary password. Staff log in through
-the normal login page and share the agency's files and classification data, but
-cannot modify the agency settings.
+the normal login page and can manage the agency's shared files, classifications,
+and recipient directory. Only the agency owner can view and manage staff login
+accounts.
 
 ## 3. Enable GitHub Pages
 
