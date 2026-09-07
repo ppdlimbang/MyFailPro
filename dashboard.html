@@ -6,9 +6,9 @@
   <meta name="description" content="Papan pemuka pengurusan fail MyFailPro">
   <title>Laman Utama · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png">
-  <link rel="stylesheet" href="assets/styles.css?v=20260907-24">
+  <link rel="stylesheet" href="assets/styles.css?v=20260907-25">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20260904-16" defer></script>
+  <script src="assets/supabase-app.js?v=20260907-17" defer></script>
 </head>
 <body data-page="dashboard">
 <div class="app-shell">
@@ -37,5 +37,6 @@
 <form class="modal hidden" id="movementModal" role="dialog" aria-modal="true" aria-labelledby="movementTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="movementTitle">Pindah Keberadaan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><div class="field"><label for="recipient">Keberadaan fail</label><select class="input" id="recipient" required></select></div><div class="field"><label for="movementDate">Tarikh dan masa diserah</label><input class="input" id="movementDate" type="datetime-local" required></div><div class="field"><label for="movementNote">Catatan</label><textarea class="input" id="movementNote" rows="3" placeholder="Masukkan catatan jika perlu"></textarea></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Pergerakan</button></div></section></form>
 <form class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="editTitle">Kemaskini Tarikh</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><div class="field"><label for="editOpenDate">Tarikh buka</label><input class="input" id="editOpenDate" type="date" required></div><div class="field"><label for="editCloseDate">Tarikh tutup</label><input class="input" id="editCloseDate" type="date"></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Perubahan</button></div></section></form>
 <div class="modal hidden" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="historyTitle">Log Pergerakan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><ol class="history" id="historyList"></ol></section></div>
+<div class="modal hidden" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle"><section class="modal-card delete-modal-card"><div class="modal-head"><div><h2 id="deleteTitle">Padam Rekod Fail?</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><p class="delete-warning">Tindakan ini akan memadam rekod fail dan semua log pergerakannya secara kekal. Pastikan fail ini benar-benar tersilap didaftarkan.</p><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button danger delete-confirm-button" type="button" data-confirm-delete>Ya, Padam Fail</button></div></section></div>
 </body>
 </html>

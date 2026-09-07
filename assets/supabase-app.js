@@ -223,6 +223,12 @@ async function moveFile(file, payload) {
   }
 }
 
+async function deleteFile(file) {
+  await rest("files", `id=eq.${encodeURIComponent(file.id)}`, {
+    method: "DELETE"
+  });
+}
+
 async function loadProfile(userId) {
   const rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role`);
   if (!rows?.length) throw new Error("Profil pengguna tidak ditemui. Jalankan migrasi Supabase dan cipta semula pengguna ini.");
@@ -580,7 +586,16 @@ async function initDashboard() {
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button small", type: "button", text: "Pindah", onclick: () => openMovement(file, render) }),
         create("button", { className: "button secondary small", type: "button", text: "Edit", onclick: () => openEdit(file, render) }),
-        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) })
+        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) }),
+        create("button", {
+          className: "icon-button delete-file-button",
+          type: "button",
+          title: "Padam fail",
+          "aria-label": `Padam fail ${file.transaksi}, Jilid ${file.jilid}`,
+          onclick: () => openDelete(file, render)
+        }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "aria-hidden": "true" }, [
+          create("path", { d: "M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" })
+        ]))
       ]);
       body.append(create("tr", {}, [
         create("td", {}, [create("div", { className: "record-title", text: file.transaksi }), create("div", { className: "record-meta", text: `Jilid ${file.jilid} · ${file.subAktiviti}` })]),
@@ -687,21 +702,71 @@ async function openHistory(file) {
   }
 }
 
+function openDelete(file, refresh) {
+  const modal = document.querySelector("#deleteModal");
+  const confirmButton = modal.querySelector("[data-confirm-delete]");
+  modal.querySelector("[data-file-reference]").textContent = `${file.transaksi} (Jilid ${file.jilid})`;
+  confirmButton.onclick = async () => {
+    confirmButton.disabled = true;
+    confirmButton.textContent = "Memadam…";
+    try {
+      await deleteFile(file);
+      state.files = state.files.filter(item => item.id !== file.id);
+      closeModal(modal);
+      refresh();
+      toast("Fail dipadam", `${file.transaksi}, Jilid ${file.jilid} telah dipadam bersama log pergerakannya.`);
+    } catch (error) {
+      toast("Fail tidak dapat dipadam", error.message, "error");
+    } finally {
+      confirmButton.disabled = false;
+      confirmButton.textContent = "Ya, Padam Fail";
+    }
+  };
+  showModal("#deleteModal");
+  confirmButton.focus();
+}
+
 async function initRegister() {
   if (!await initShell()) return;
-  await loadSettings();
+  await Promise.all([loadSettings(), loadFiles()]);
   const settings = state.settings;
   const form = document.querySelector("#registerFile");
+  const duplicateStatus = document.querySelector("#duplicateStatus");
   const ids = ["fungsi", "aktiviti", "subAktiviti", "transaksi"];
+  const findDuplicate = data => {
+    const transaction = String(data.transaksi || "").trim().toLowerCase();
+    const volume = Number(data.jilid);
+    if (!transaction || !Number.isInteger(volume) || volume < 1) return null;
+    return state.files.find(file => file.ownerId === currentUser.id && file.transaksi.trim().toLowerCase() === transaction && Number(file.jilid) === volume) || null;
+  };
+  const updateDuplicateStatus = () => {
+    const data = Object.fromEntries(new FormData(form));
+    const duplicate = findDuplicate(data);
+    const ready = data.transaksi && Number(data.jilid) > 0;
+    duplicateStatus.className = `duplicate-status ${duplicate ? "is-duplicate" : ready ? "is-available" : "is-idle"}`;
+    duplicateStatus.textContent = duplicate
+      ? `Rekod sama telah wujud: ${duplicate.transaksi}, Jilid ${duplicate.jilid}. Sila semak Senarai Fail atau gunakan nombor jilid lain.`
+      : ready
+        ? "Tiada rekod sama ditemui. Kod transaksi dan nombor jilid ini boleh digunakan."
+        : "Pilih Transaksi Fail dan Nombor Jilid untuk menyemak rekod pendua.";
+    return duplicate;
+  };
   ids.forEach(id => fillSelect(form.elements[id], settings[id] || []));
   form.elements.fungsi.addEventListener("change", () => fillSelect(form.elements.aktiviti, settings.aktiviti.filter(v => v.startsWith(form.elements.fungsi.value.split(" ")[0]))));
   form.elements.aktiviti.addEventListener("change", () => fillSelect(form.elements.subAktiviti, settings.subAktiviti.filter(v => v.startsWith(form.elements.aktiviti.value.split(" ")[0]))));
-  form.elements.subAktiviti.addEventListener("change", () => fillSelect(form.elements.transaksi, settings.transaksi.filter(v => v.startsWith(form.elements.subAktiviti.value.split(" ")[0]))));
-  form.addEventListener("reset", () => setTimeout(() => { ids.forEach(id => fillSelect(form.elements[id], id === "fungsi" ? settings.fungsi : [])); form.elements.jilid.value = 1; }, 0));
+  form.elements.subAktiviti.addEventListener("change", () => { fillSelect(form.elements.transaksi, settings.transaksi.filter(v => v.startsWith(form.elements.subAktiviti.value.split(" ")[0]))); updateDuplicateStatus(); });
+  form.elements.transaksi.addEventListener("change", updateDuplicateStatus);
+  form.elements.jilid.addEventListener("input", updateDuplicateStatus);
+  form.addEventListener("reset", () => setTimeout(() => { ids.forEach(id => fillSelect(form.elements[id], id === "fungsi" ? settings.fungsi : [])); form.elements.jilid.value = 1; updateDuplicateStatus(); }, 0));
   form.addEventListener("submit", async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
     if (!validDateRange(data.tarikhBuka, data.tarikhTutup)) { toast("Tarikh tidak sah", "Tarikh tutup tidak boleh mendahului tarikh buka.", "error"); return; }
+    if (findDuplicate(data)) {
+      updateDuplicateStatus();
+      toast("Rekod telah wujud", `Fail ${data.transaksi}, Jilid ${data.jilid} telah didaftarkan.`, "error");
+      return;
+    }
     const button = form.querySelector("button[type=submit]");
     setBusy(button, true, "Menyimpan…");
     try {
@@ -714,13 +779,19 @@ async function initRegister() {
         p_opened_on: data.tarikhBuka,
         p_closed_on: data.tarikhTutup || null
       });
+      await loadFiles();
       form.reset();
       toast("Pendaftaran berjaya", "Fail baharu telah disimpan ke Supabase.");
     } catch (error) {
       const duplicate = /duplicate|unique_agency_file_volume/i.test(error.message);
+      if (duplicate) {
+        await loadFiles().catch(() => {});
+        updateDuplicateStatus();
+      }
       toast(duplicate ? "Rekod telah wujud" : "Pendaftaran gagal", duplicate ? `Fail ${data.transaksi}, Jilid ${data.jilid} telah didaftarkan.` : error.message, "error");
     } finally { setBusy(button, false); }
   });
+  updateDuplicateStatus();
   markReady();
 }
 
