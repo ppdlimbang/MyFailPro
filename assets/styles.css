@@ -2457,7 +2457,7 @@ body:not([data-page="login"]) .workspace-toolbar .user-avatar {
   outline: none;
 }
 
-body:not([data-page="login"]) .workspace-toolbar .user-avatar::after {
+body:not([data-page="login"]) :is(.workspace-toolbar, .topbar-inner) .user-avatar::after {
   content: attr(data-user-tooltip);
   position: absolute;
   top: calc(100% + 12px);
@@ -2482,8 +2482,8 @@ body:not([data-page="login"]) .workspace-toolbar .user-avatar::after {
   transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
 }
 
-body:not([data-page="login"]) .workspace-toolbar .user-avatar:hover::after,
-body:not([data-page="login"]) .workspace-toolbar .user-avatar:focus-visible::after {
+body:not([data-page="login"]) :is(.workspace-toolbar, .topbar-inner) .user-avatar:hover::after,
+body:not([data-page="login"]) :is(.workspace-toolbar, .topbar-inner) .user-avatar:focus-visible::after {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -2688,6 +2688,127 @@ body[data-page="dashboard"] #file-archive .actions .button.small {
   body[data-page="dashboard"] #file-archive td:nth-child(n) {
     width: auto;
   }
+}
+
+/* Keep navigation and account controls in the same layout flow to prevent overlap. */
+body:not([data-page="login"]) .nav-settings {
+  margin-right: 0;
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box {
+  position: static;
+  z-index: auto;
+  width: auto;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box .user-copy {
+  display: none !important;
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box .user-avatar {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid rgba(109, 74, 255, .2);
+  border-radius: 50%;
+  color: #6d4aff;
+  background: #ede9fe;
+  box-shadow: 0 6px 14px rgba(109, 74, 255, .13);
+  font-size: .76rem;
+  cursor: help;
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box .logout-button {
+  width: auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #c4b5fd;
+  border-radius: 13px;
+  color: #5b21b6;
+  background: #f5f3ff;
+  box-shadow: 0 7px 17px rgba(91, 33, 182, .13);
+  font-size: .74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box .logout-button span {
+  display: inline;
+}
+
+@media (max-width: 1340px) {
+  body:not([data-page="login"]) .nav-settings { margin-right: 0; }
+}
+
+@media (max-width: 1180px) {
+  body:not([data-page="login"]) .topbar-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 12px;
+    padding-block: 12px;
+  }
+
+  body:not([data-page="login"]) .brand {
+    grid-column: 1;
+    margin-right: 0;
+  }
+
+  body:not([data-page="login"]) .topbar-inner > .topbar-user-box {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body:not([data-page="login"]) .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  body:not([data-page="login"]) .nav::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 680px) {
+  body:not([data-page="login"]) .topbar-inner > .topbar-user-box .logout-button {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  body:not([data-page="login"]) .topbar-inner > .topbar-user-box .logout-button span {
+    display: none;
+  }
+
+  body:not([data-page="login"]) .nav {
+    grid-column: 1 / -1;
+  }
+
+  body:not([data-page="login"]) .nav .nav-settings { width: auto; justify-content: flex-start; }
 }
 
 /* File deletion and live duplicate-record feedback. */

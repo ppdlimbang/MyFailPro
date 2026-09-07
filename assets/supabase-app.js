@@ -255,6 +255,15 @@ async function loadProfile(userId) {
 
 function renderShell(user) {
   if (!user) return;
+  const topbarInner = document.querySelector(".topbar-inner");
+  const shellUserBox = document.querySelector(".workspace-toolbar .user-box, .topbar-inner > .user-box");
+  const shellNavigation = topbarInner?.querySelector(".nav");
+  const settingsNavigation = topbarInner?.querySelector(".nav-settings");
+  if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
+  if (topbarInner && shellUserBox) {
+    shellUserBox.classList.add("topbar-user-box");
+    if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
+  }
   document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
   const name = document.querySelector("[data-user-name]");
   const role = document.querySelector("[data-user-role]");
