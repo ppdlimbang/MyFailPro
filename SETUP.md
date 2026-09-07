@@ -12,6 +12,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260903010000_optimize_database.sql`
    - `supabase/migrations/20260907030000_add_agency_staff_users.sql`
    - `supabase/migrations/20260907040000_allow_staff_manage_agency_settings.sql`
+   - `supabase/migrations/20260907050000_add_staff_login_activity.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -54,6 +55,10 @@ Agensi** by entering a name, email, and temporary password. Staff log in through
 the normal login page and can manage the agency's shared files, classifications,
 and recipient directory. Only the agency owner can view and manage staff login
 accounts.
+
+Successful sign-ins are counted for each profile. Agency owners can view each
+staff account's total sign-ins and most recent sign-in under **Tetapan Sistem >
+Akaun Pengguna Pegawai**.
 
 ## 3. Enable GitHub Pages
 

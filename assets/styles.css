@@ -3137,6 +3137,23 @@ body[data-page="settings"] #staffUsersPanel .empty-row {
   text-align: center;
 }
 
+body[data-page="settings"] .staff-usage-log {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+body[data-page="settings"] .staff-usage-log strong {
+  color: #2d2850;
+  font-size: .82rem;
+}
+
+body[data-page="settings"] .staff-usage-log span {
+  color: #7c8799;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
 @media (max-width: 900px) {
   body[data-page="settings"] #staffUserForm {
     grid-template-columns: 1fr;

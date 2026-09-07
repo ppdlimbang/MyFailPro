@@ -20,7 +20,7 @@ function sortClassificationSettings(settings) {
 let config;
 let session;
 let currentUser;
-const state = { files: [], agencies: [], staffUsers: [], settings: null };
+const state = { files: [], agencies: [], staffUsers: [], staffUsageAvailable: true, settings: null };
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
 
@@ -140,6 +140,14 @@ async function rpc(functionName, parameters) {
   });
   if (!response.ok) throw await responseError(response, "Operasi pangkalan data gagal.");
   return response.json();
+}
+
+async function recordLoginActivity() {
+  try {
+    await rpc("record_login_activity", {});
+  } catch (error) {
+    if (!missingRpc(error, "record_login_activity")) console.warn("Log penggunaan tidak dapat direkodkan.", error);
+  }
 }
 
 function missingRpc(error, functionName) {
@@ -499,8 +507,24 @@ async function loadAgencies() {
 
 async function loadStaffUsers() {
   if (currentUser.role !== "agency") { state.staffUsers = []; return; }
-  const rows = await rest("profiles", `agency_id=eq.${encodeURIComponent(currentUser.id)}&role=eq.staff&select=id,email,name,created_at&order=name.asc`);
-  state.staffUsers = rows.map(row => ({ id: row.id, email: row.email, name: row.name, createdAt: row.created_at }));
+  const baseQuery = `agency_id=eq.${encodeURIComponent(currentUser.id)}&role=eq.staff`;
+  let rows;
+  state.staffUsageAvailable = true;
+  try {
+    rows = await rest("profiles", `${baseQuery}&select=id,email,name,created_at,login_count,last_login_at&order=name.asc`);
+  } catch (error) {
+    if (!/login_count|last_login_at/i.test(error.message)) throw error;
+    state.staffUsageAvailable = false;
+    rows = await rest("profiles", `${baseQuery}&select=id,email,name,created_at&order=name.asc`);
+  }
+  state.staffUsers = rows.map(row => ({
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    createdAt: row.created_at,
+    loginCount: Number(row.login_count || 0),
+    lastLoginAt: row.last_login_at || null
+  }));
 }
 
 async function initLogin() {
@@ -508,6 +532,7 @@ async function initLogin() {
   const recoveryMode = authRedirect?.type === "recovery";
   if (authRedirect && !recoveryMode) {
     await loadProfile(authRedirect.user.id);
+    await recordLoginActivity();
     location.replace("dashboard.html");
     return;
   }
@@ -584,6 +609,7 @@ async function initLogin() {
       if (!response.ok) throw await responseError(response, "Emel atau katalaluan salah.");
       saveSession(await response.json());
       await loadProfile(session.user.id);
+      await recordLoginActivity();
       location.assign("dashboard.html");
     } catch (error) {
       if (!recoveryMode) saveSession(null);
@@ -1156,13 +1182,17 @@ async function initSettings() {
     const renderStaffUsers = () => {
       accountRows.replaceChildren();
       if (!state.staffUsers.length) {
-        accountRows.append(create("tr", {}, create("td", { colspan: "3", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
+        accountRows.append(create("tr", {}, create("td", { colspan: "4", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
         return;
       }
       state.staffUsers.forEach(person => accountRows.append(create("tr", {}, [
         create("td", { text: person.name }),
         create("td", { text: person.email }),
-        create("td", {}, create("span", { className: "badge archive", text: "Aktif" }))
+        create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
+        create("td", {}, create("div", { className: "staff-usage-log" }, [
+          create("strong", { text: state.staffUsageAvailable ? `${person.loginCount} kali log masuk` : "Belum tersedia" }),
+          create("span", { text: state.staffUsageAvailable && person.lastLoginAt ? `Terakhir: ${formatDate(person.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
+        ]))
       ])));
     };
     if (staffUsersError) {
@@ -1172,6 +1202,10 @@ async function initSettings() {
         : `Akaun pegawai tidak dapat dimuatkan: ${staffUsersError.message}`;
       Array.from(accountForm.elements).forEach(element => { element.disabled = true; });
     } else {
+      if (!state.staffUsageAvailable) {
+        accountStatus.classList.remove("hidden");
+        accountStatus.textContent = "Log penggunaan memerlukan migrasi Supabase 20260907050000_add_staff_login_activity.sql.";
+      }
       accountForm.addEventListener("submit", async event => {
         event.preventDefault();
         const data = Object.fromEntries(new FormData(accountForm));
