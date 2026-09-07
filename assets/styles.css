@@ -2550,8 +2550,19 @@ body[data-page="dashboard"] #file-archive {
 }
 
 body[data-page="dashboard"] #file-archive .panel-head {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) minmax(420px, 620px);
+  align-items: center;
+  gap: 28px;
   min-height: 78px;
   padding: 18px 26px;
+}
+
+body[data-page="dashboard"] #file-archive .archive-toolbar {
+  width: 100%;
+  grid-template-columns: minmax(300px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
 }
 
 body[data-page="dashboard"] #file-archive .archive-count {
@@ -2669,6 +2680,11 @@ body[data-page="dashboard"] #file-archive .actions .button.small {
     grid-template-columns: 1fr;
   }
 
+  body[data-page="dashboard"] #file-archive .panel-head {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
   body[data-page="dashboard"] #file-list table {
     min-width: 790px;
     table-layout: auto;
@@ -2687,6 +2703,12 @@ body[data-page="dashboard"] #file-archive .actions .button.small {
   body[data-page="dashboard"] #file-archive th:nth-child(n),
   body[data-page="dashboard"] #file-archive td:nth-child(n) {
     width: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  body[data-page="dashboard"] #file-archive .archive-toolbar {
+    grid-template-columns: 1fr;
   }
 }
 

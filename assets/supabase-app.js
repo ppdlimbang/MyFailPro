@@ -599,8 +599,17 @@ async function initDashboard() {
   const body = document.querySelector("#fileRows");
   const archiveBody = document.querySelector("#archiveRows");
   const search = document.querySelector("#searchFile");
+  const archiveSearch = document.querySelector("#searchArchive");
   const filter = document.querySelector("#filterFungsi");
   fillSelect(filter, state.settings.fungsi, "Semua fungsi");
+  const compareByTransaction = (first, second) =>
+    classificationCollator.compare(first.transaksi || "", second.transaksi || "") ||
+    Number(first.jilid || 0) - Number(second.jilid || 0) ||
+    String(first.tarikhBuka || "").localeCompare(String(second.tarikhBuka || ""));
+  const matchesSearch = (file, term) => {
+    const haystack = [file.transaksi, file.subAktiviti, file.pemegangTerkini].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(term);
+  };
   const updateStats = () => {
     document.querySelector("#statTotal").textContent = state.files.length;
     document.querySelector("#statArchive").textContent = state.files.filter(f => f.pemegangTerkini === "Bilik Fail").length;
@@ -618,20 +627,26 @@ async function initDashboard() {
   const render = () => {
     updateStats();
     const term = search.value.trim().toLowerCase();
+    const archiveTerm = archiveSearch.value.trim().toLowerCase();
     const selected = filter.value;
-    const files = state.files.filter(file => {
-      const haystack = [file.transaksi, file.subAktiviti, file.pemegangTerkini].filter(Boolean).join(" ").toLowerCase();
-      return haystack.includes(term) && (!selected || file.fungsi === selected);
-    });
-    const activeFiles = files.filter(file => !file.tarikhTutup);
-    const archivedFiles = files
-      .filter(file => Boolean(file.tarikhTutup))
-      .sort((first, second) => second.tarikhTutup.localeCompare(first.tarikhTutup));
+    const totalArchived = state.files.filter(file => Boolean(file.tarikhTutup)).length;
+    const activeFiles = state.files
+      .filter(file => !file.tarikhTutup && matchesSearch(file, term) && (!selected || file.fungsi === selected))
+      .sort(compareByTransaction);
+    const archivedFiles = state.files
+      .filter(file => Boolean(file.tarikhTutup) && matchesSearch(file, archiveTerm))
+      .sort(compareByTransaction);
     body.replaceChildren();
     archiveBody.replaceChildren();
     document.querySelector("#emptyFiles").classList.toggle("hidden", activeFiles.length > 0);
     document.querySelector("#emptyArchive").classList.toggle("hidden", archivedFiles.length > 0);
-    document.querySelector("#archiveCount").textContent = `${archivedFiles.length} rekod`;
+    document.querySelector("#archiveCount").textContent = archiveTerm
+      ? `${archivedFiles.length} daripada ${totalArchived} rekod`
+      : `${totalArchived} rekod`;
+    document.querySelector("#emptyArchiveTitle").textContent = archiveTerm ? "Tiada arkib ditemui" : "Belum ada fail ditutup";
+    document.querySelector("#emptyArchiveCopy").textContent = archiveTerm
+      ? "Ubah kata carian untuk melihat rekod arkib lain."
+      : "Fail akan dipindahkan ke arkib secara automatik apabila Tarikh Tutup diisi.";
     activeFiles.forEach(file => {
       const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const buttons = create("div", { className: "actions" }, [
@@ -663,6 +678,7 @@ async function initDashboard() {
     });
   };
   search.addEventListener("input", render);
+  archiveSearch.addEventListener("input", render);
   filter.addEventListener("change", render);
   render();
   markReady();
