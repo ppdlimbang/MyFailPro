@@ -2543,6 +2543,28 @@ body[data-page="dashboard"] #file-list {
   overflow: hidden;
 }
 
+body[data-page="dashboard"] #file-archive {
+  width: min(1440px, 100%);
+  margin: 24px auto 0;
+  overflow: hidden;
+}
+
+body[data-page="dashboard"] #file-archive .panel-head {
+  min-height: 78px;
+  padding: 18px 26px;
+}
+
+body[data-page="dashboard"] #file-archive .archive-count {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid rgba(109, 74, 255, .16);
+  border-radius: 999px;
+  color: #5b3fc7;
+  background: rgba(237, 233, 254, .68);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
 body[data-page="dashboard"] #file-list .panel-head {
   display: grid;
   grid-template-columns: minmax(230px, 1fr) minmax(520px, 660px);
@@ -2601,6 +2623,44 @@ body[data-page="dashboard"] #file-list .actions .button.small {
   padding-inline: 13px;
 }
 
+body[data-page="dashboard"] #file-archive table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+body[data-page="dashboard"] #file-archive th:nth-child(1),
+body[data-page="dashboard"] #file-archive td:nth-child(1) { width: 32%; }
+body[data-page="dashboard"] #file-archive th:nth-child(2),
+body[data-page="dashboard"] #file-archive td:nth-child(2) { width: 15%; }
+body[data-page="dashboard"] #file-archive th:nth-child(3),
+body[data-page="dashboard"] #file-archive td:nth-child(3) { width: 15%; }
+body[data-page="dashboard"] #file-archive th:nth-child(4),
+body[data-page="dashboard"] #file-archive td:nth-child(4) { width: 16%; }
+body[data-page="dashboard"] #file-archive th:nth-child(5),
+body[data-page="dashboard"] #file-archive td:nth-child(5) { width: 22%; }
+
+body[data-page="dashboard"] #file-archive th,
+body[data-page="dashboard"] #file-archive td {
+  padding-inline: 26px;
+}
+
+body[data-page="dashboard"] #file-archive td {
+  padding-block: 15px;
+}
+
+body[data-page="dashboard"] #file-archive th:last-child { text-align: right; }
+body[data-page="dashboard"] #file-archive td:last-child .actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body[data-page="dashboard"] #file-archive .actions .button.small {
+  min-width: 64px;
+  min-height: 40px;
+  padding-inline: 13px;
+}
+
 @media (max-width: 1180px) {
   body[data-page="dashboard"] #file-list .panel-head {
     grid-template-columns: 1fr;
@@ -2620,10 +2680,20 @@ body[data-page="dashboard"] #file-list .actions .button.small {
   body[data-page="dashboard"] #file-list td:nth-child(n) {
     width: auto;
   }
+
+  body[data-page="dashboard"] #file-archive table {
+    min-width: 860px;
+    table-layout: auto;
+  }
+
+  body[data-page="dashboard"] #file-archive th:nth-child(n),
+  body[data-page="dashboard"] #file-archive td:nth-child(n) {
+    width: auto;
+  }
 }
 
 /* File deletion and live duplicate-record feedback. */
-body[data-page="dashboard"] #file-list .delete-file-button {
+body[data-page="dashboard"] :is(#file-list, #file-archive) .delete-file-button {
   flex: 0 0 40px;
   min-height: 40px;
   border-color: rgba(244, 63, 94, .24);
@@ -2631,13 +2701,13 @@ body[data-page="dashboard"] #file-list .delete-file-button {
   background: rgba(255, 241, 242, .88);
 }
 
-body[data-page="dashboard"] #file-list .delete-file-button:hover {
+body[data-page="dashboard"] :is(#file-list, #file-archive) .delete-file-button:hover {
   border-color: rgba(225, 29, 72, .55);
   color: #fff;
   background: #e11d48;
 }
 
-body[data-page="dashboard"] #file-list .delete-file-button svg {
+body[data-page="dashboard"] :is(#file-list, #file-archive) .delete-file-button svg {
   width: 18px;
   height: 18px;
 }

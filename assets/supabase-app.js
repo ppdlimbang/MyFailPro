@@ -566,6 +566,7 @@ async function initDashboard() {
   if (!await initShell()) return;
   await Promise.all([loadSettings(), loadFiles(), loadAgencies()]);
   const body = document.querySelector("#fileRows");
+  const archiveBody = document.querySelector("#archiveRows");
   const search = document.querySelector("#searchFile");
   const filter = document.querySelector("#filterFungsi");
   fillSelect(filter, state.settings.fungsi, "Semua fungsi");
@@ -574,6 +575,15 @@ async function initDashboard() {
     document.querySelector("#statArchive").textContent = state.files.filter(f => f.pemegangTerkini === "Bilik Fail").length;
     document.querySelector("#statMoving").textContent = state.files.filter(f => f.pemegangTerkini !== "Bilik Fail").length;
   };
+  const deleteAction = (file, refresh) => create("button", {
+    className: "icon-button delete-file-button",
+    type: "button",
+    title: "Padam fail",
+    "aria-label": `Padam fail ${file.transaksi}, Jilid ${file.jilid}`,
+    onclick: () => openDelete(file, refresh)
+  }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [
+    create("path", { d: "M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" })
+  ]));
   const render = () => {
     updateStats();
     const term = search.value.trim().toLowerCase();
@@ -582,27 +592,41 @@ async function initDashboard() {
       const haystack = [file.transaksi, file.subAktiviti, file.pemegangTerkini].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(term) && (!selected || file.fungsi === selected);
     });
+    const activeFiles = files.filter(file => !file.tarikhTutup);
+    const archivedFiles = files
+      .filter(file => Boolean(file.tarikhTutup))
+      .sort((first, second) => second.tarikhTutup.localeCompare(first.tarikhTutup));
     body.replaceChildren();
-    document.querySelector("#emptyFiles").classList.toggle("hidden", files.length > 0);
-    files.forEach(file => {
+    archiveBody.replaceChildren();
+    document.querySelector("#emptyFiles").classList.toggle("hidden", activeFiles.length > 0);
+    document.querySelector("#emptyArchive").classList.toggle("hidden", archivedFiles.length > 0);
+    document.querySelector("#archiveCount").textContent = `${archivedFiles.length} rekod`;
+    activeFiles.forEach(file => {
       const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button small", type: "button", text: "Pindah", onclick: () => openMovement(file, render) }),
         create("button", { className: "button secondary small", type: "button", text: "Edit", onclick: () => openEdit(file, render) }),
         create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) }),
-        create("button", {
-          className: "icon-button delete-file-button",
-          type: "button",
-          title: "Padam fail",
-          "aria-label": `Padam fail ${file.transaksi}, Jilid ${file.jilid}`,
-          onclick: () => openDelete(file, render)
-        }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [
-          create("path", { d: "M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" })
-        ]))
+        deleteAction(file, render)
       ]);
       body.append(create("tr", {}, [
         create("td", {}, [create("div", { className: "record-title", text: file.transaksi }), create("div", { className: "record-meta", text: `Jilid ${file.jilid} · ${file.subAktiviti}` })]),
         create("td", { text: `${formatDate(file.tarikhBuka)} — ${file.tarikhTutup ? formatDate(file.tarikhTutup) : "Aktif"}` }),
+        create("td", {}, create("span", { className: `badge ${archive ? "archive" : "moving"}`, text: file.pemegangTerkini })),
+        create("td", {}, buttons)
+      ]));
+    });
+    archivedFiles.forEach(file => {
+      const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
+      const buttons = create("div", { className: "actions" }, [
+        create("button", { className: "button secondary small", type: "button", text: "Edit", title: "Ubah tarikh atau buka semula fail", onclick: () => openEdit(file, render) }),
+        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) }),
+        deleteAction(file, render)
+      ]);
+      archiveBody.append(create("tr", {}, [
+        create("td", {}, [create("div", { className: "record-title", text: file.transaksi }), create("div", { className: "record-meta", text: `Jilid ${file.jilid} · ${file.subAktiviti}` })]),
+        create("td", { text: formatDate(file.tarikhBuka) }),
+        create("td", { text: formatDate(file.tarikhTutup) }),
         create("td", {}, create("span", { className: `badge ${archive ? "archive" : "moving"}`, text: file.pemegangTerkini })),
         create("td", {}, buttons)
       ]));

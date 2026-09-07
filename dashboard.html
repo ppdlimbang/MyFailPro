@@ -6,9 +6,9 @@
   <meta name="description" content="Papan pemuka pengurusan fail MyFailPro">
   <title>Laman Utama · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png">
-  <link rel="stylesheet" href="assets/styles.css?v=20260907-26">
+  <link rel="stylesheet" href="assets/styles.css?v=20260907-29">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20260907-18" defer></script>
+  <script src="assets/supabase-app.js?v=20260907-20" defer></script>
 </head>
 <body data-page="dashboard">
 <div class="app-shell">
@@ -31,6 +31,11 @@
       <div class="panel-head"><div class="panel-title"><h2>Senarai Fail Terkini</h2><p>Carian dan tindakan pantas untuk rekod aktif.</p></div><div class="toolbar"><input class="input" id="searchFile" type="search" placeholder="Cari transaksi, tajuk atau pemegang…" aria-label="Cari fail"><select class="input" id="filterFungsi" aria-label="Tapis fungsi"></select></div></div>
       <div class="table-wrap"><table><caption class="sr-only">Senarai rekod fail</caption><thead><tr><th scope="col">Fail</th><th scope="col">Tempoh</th><th scope="col">Keberadaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="fileRows"></tbody></table></div>
       <div class="empty hidden" id="emptyFiles"><strong>Tiada fail ditemui</strong><p>Daftar fail baharu atau ubah carian anda.</p><a class="button" href="daftar.html">Daftar Fail</a></div>
+    </section>
+    <section class="panel page-section" id="file-archive">
+      <div class="panel-head"><div class="panel-title"><h2>Arkib Fail Ditutup</h2><p>Rekod fail yang telah mempunyai tarikh tutup.</p></div><span class="archive-count" id="archiveCount">0 rekod</span></div>
+      <div class="table-wrap"><table><caption class="sr-only">Senarai arkib fail yang ditutup</caption><thead><tr><th scope="col">Fail</th><th scope="col">Tarikh buka</th><th scope="col">Tarikh tutup</th><th scope="col">Keberadaan</th><th scope="col">Tindakan</th></tr></thead><tbody id="archiveRows"></tbody></table></div>
+      <div class="empty hidden" id="emptyArchive"><strong>Belum ada fail ditutup</strong><p>Fail akan dipindahkan ke arkib secara automatik apabila Tarikh Tutup diisi.</p></div>
     </section>
   </main>
 </div>
