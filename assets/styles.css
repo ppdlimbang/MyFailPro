@@ -2889,6 +2889,7 @@ body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notific
 
 .notification-item {
   position: relative;
+  width: 100%;
   min-width: 0;
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
@@ -2898,7 +2899,11 @@ body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notific
   border-radius: 14px;
   color: #514b61;
   background: rgba(248, 247, 255, .68);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  appearance: none;
   transition: border-color .16s ease, background .16s ease, transform .16s ease;
 }
 
@@ -2974,6 +2979,102 @@ body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notific
 
 .notification-empty strong { color: #302a48; }
 .notification-empty p { margin: 0; font-size: .78rem; }
+
+.notification-file-modal-card {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(820px, calc(100vh - 40px));
+}
+
+.notification-file-content {
+  display: grid;
+  gap: 18px;
+}
+
+.notification-file-handoff {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(16, 185, 129, .2);
+  border-radius: 16px;
+  color: #31534d;
+  background: linear-gradient(135deg, rgba(204, 251, 241, .7), rgba(240, 253, 250, .82));
+}
+
+.notification-file-handoff-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #14b8a6, #0f8f83);
+  box-shadow: 0 8px 18px rgba(13, 148, 136, .18);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.notification-file-handoff strong,
+.notification-file-handoff p,
+.notification-file-handoff time,
+.notification-file-handoff small { display: block; }
+.notification-file-handoff strong { color: #145e55; font-size: .9rem; }
+.notification-file-handoff p { margin: 3px 0; font-size: .8rem; font-weight: 750; }
+.notification-file-handoff time,
+.notification-file-handoff small { color: #5e7c77; font-size: .7rem; }
+
+.notification-file-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.notification-file-field {
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(109, 74, 255, .11);
+  border-radius: 13px;
+  background: rgba(248, 247, 255, .66);
+}
+
+.notification-file-field.wide { grid-column: 1 / -1; }
+.notification-file-field dt {
+  margin-bottom: 5px;
+  color: #837b91;
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.notification-file-field dd {
+  margin: 0;
+  color: #302a48;
+  font-size: .82rem;
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.notification-file-actions { justify-content: flex-end; }
+.notification-file-loading,
+.notification-file-error {
+  padding: 36px 20px;
+  border: 1px dashed rgba(109, 74, 255, .2);
+  border-radius: 15px;
+  color: #837b91;
+  background: rgba(248, 247, 255, .55);
+  text-align: center;
+}
+.notification-file-error strong { color: #9f1239; }
+.notification-file-error p { margin: 6px 0 0; }
+
+@media (max-width: 620px) {
+  .notification-file-grid { grid-template-columns: 1fr; }
+  .notification-file-field.wide { grid-column: auto; }
+  .notification-file-handoff { grid-template-columns: 40px minmax(0, 1fr); padding: 14px; }
+  .notification-file-handoff-icon { width: 40px; height: 40px; }
+}
 
 @media (max-width: 1340px) {
   body:not([data-page="login"]) .nav-settings { margin-right: 0; }

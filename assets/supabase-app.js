@@ -620,17 +620,6 @@ function mapFileNotification(row) {
   };
 }
 
-function notificationDateValue(value) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kuching",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(new Date(value));
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 function ensureNotificationModal() {
   let modal = document.querySelector("#notificationModal");
   if (modal) return modal;
@@ -655,6 +644,85 @@ function ensureNotificationModal() {
   return modal;
 }
 
+function ensureNotificationFileModal() {
+  let modal = document.querySelector("#notificationFileModal");
+  if (modal) return modal;
+  modal = create("div", {
+    className: "modal hidden notification-file-modal",
+    id: "notificationFileModal",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "notificationFileTitle"
+  }, create("section", { className: "modal-card notification-file-modal-card" }, [
+    create("div", { className: "modal-head" }, [
+      create("div", {}, [
+        create("h2", { id: "notificationFileTitle", text: "Butiran Fail Diserahkan" }),
+        create("p", { "data-file-reference": "", text: "Memuatkan rekod fail…" })
+      ]),
+      create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
+    ]),
+    create("div", { className: "notification-file-content", id: "notificationFileContent" }),
+    create("div", { className: "form-actions notification-file-actions" },
+      create("button", { className: "button secondary", type: "button", "data-close": "", text: "Tutup" })
+    )
+  ]));
+  document.body.append(modal);
+  wireModal(modal);
+  return modal;
+}
+
+function notificationFileField(label, value, className = "") {
+  return create("div", { className: `notification-file-field${className ? ` ${className}` : ""}` }, [
+    create("dt", { text: label }),
+    typeof value === "string" ? create("dd", { text: value }) : create("dd", {}, value)
+  ]);
+}
+
+async function openNotificationFile(item, notificationModal) {
+  const modal = ensureNotificationFileModal();
+  const reference = modal.querySelector("[data-file-reference]");
+  const content = modal.querySelector("#notificationFileContent");
+  reference.textContent = `${item.transactionCode} (Jilid ${item.volume})`;
+  content.replaceChildren(create("div", { className: "notification-file-loading", text: "Memuatkan butiran fail…" }));
+  closeModal(notificationModal);
+  showModal("#notificationFileModal");
+
+  try {
+    const columns = "id,owner_id,function_name,activity_name,sub_activity_name,transaction_code,volume,opened_on,closed_on,status,current_holder,created_at";
+    const rows = await rest("files", `id=eq.${encodeURIComponent(item.fileId)}&select=${columns}&limit=1`);
+    if (!rows.length) throw new Error("Rekod fail ini tidak lagi ditemui atau akses telah ditarik balik.");
+    const file = mapFile(rows[0]);
+    const inFileRoom = normalizeRecipientName(file.pemegangTerkini) === normalizeRecipientName("Bilik Fail");
+    reference.textContent = `${file.transaksi} (Jilid ${file.jilid})`;
+    content.replaceChildren(
+      create("section", { className: "notification-file-handoff" }, [
+        create("span", { className: "notification-file-handoff-icon", "aria-hidden": "true", text: "→" }),
+        create("div", {}, [
+          create("strong", { text: `Diserahkan oleh ${item.actorName}` }),
+          create("p", { text: `${item.fromHolder} → ${item.toHolder}` }),
+          create("time", { datetime: item.movedAt, text: formatDate(item.movedAt, true) }),
+          item.actorEmail ? create("small", { text: item.actorEmail }) : null
+        ])
+      ]),
+      create("dl", { className: "notification-file-grid" }, [
+        notificationFileField("Kod Transaksi", file.transaksi, "wide"),
+        notificationFileField("Jilid", String(file.jilid)),
+        notificationFileField("Keberadaan Semasa", create("span", { className: `badge ${inFileRoom ? "archive" : "moving"}`, text: file.pemegangTerkini })),
+        notificationFileField("Tarikh Buka", formatDate(file.tarikhBuka)),
+        notificationFileField("Tarikh Tutup", file.tarikhTutup ? formatDate(file.tarikhTutup) : "Belum ditutup"),
+        notificationFileField("Fungsi", file.fungsi, "wide"),
+        notificationFileField("Aktiviti", file.aktiviti, "wide"),
+        notificationFileField("Sub-Aktiviti", file.subAktiviti, "wide")
+      ])
+    );
+  } catch (error) {
+    content.replaceChildren(create("div", { className: "notification-file-error" }, [
+      create("strong", { text: "Fail tidak dapat dipaparkan" }),
+      create("p", { text: error.message })
+    ]));
+  }
+}
+
 function updateNotificationBadge(button) {
   const unreadCount = state.notifications.filter(item => !item.readAt).length;
   const indicator = button.querySelector("span");
@@ -676,8 +744,12 @@ function renderNotifications(modal) {
     return;
   }
   state.notifications.forEach(item => {
-    const destination = `log-pergerakan.html?date=${encodeURIComponent(notificationDateValue(item.movedAt))}`;
-    list.append(create("a", { className: `notification-item${item.readAt ? "" : " unread"}`, href: destination }, [
+    list.append(create("button", {
+      className: `notification-item${item.readAt ? "" : " unread"}`,
+      type: "button",
+      "aria-label": `Paparkan fail ${item.transactionCode}, Jilid ${item.volume}`,
+      onclick: () => openNotificationFile(item, modal)
+    }, [
       create("span", { className: "notification-item-icon", "aria-hidden": "true", text: "→" }),
       create("span", { className: "notification-item-copy" }, [
         create("strong", { text: `${item.transactionCode} · Jilid ${item.volume}` }),
