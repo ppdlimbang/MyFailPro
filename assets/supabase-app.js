@@ -1049,8 +1049,11 @@ async function initMovementLog() {
       body.append(create("tr", {}, [
         create("td", {}, create("time", { datetime: record.tarikh, text: movementTime })),
         create("td", {}, [create("div", { className: "record-title", text: fileReference }), create("div", { className: "record-meta", text: fileDetail })]),
-        create("td", {}, create("span", { className: "movement-holder from", text: record.dari })),
-        create("td", {}, create("span", { className: "movement-holder to", text: record.kepada })),
+        create("td", {}, create("div", { className: "movement-route" }, [
+          create("span", { className: "movement-holder from", text: record.dari, title: record.dari }),
+          create("span", { className: "movement-route-arrow", text: "→", "aria-hidden": "true" }),
+          create("span", { className: "movement-holder to", text: record.kepada, title: record.kepada })
+        ])),
         create("td", {}, create("div", { className: "movement-user" }, [
           create("span", { className: "movement-user-avatar", "aria-hidden": "true", text: avatarPresentation("initials", record.penggunaNama || "TD").symbol }),
           create("span", { className: "movement-user-copy" }, [
