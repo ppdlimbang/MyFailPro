@@ -784,6 +784,100 @@ async function initDashboard() {
   markReady();
 }
 
+async function initMovementLog() {
+  if (!await initShell()) return;
+  await loadFiles();
+  const form = document.querySelector("#movementLogFilter");
+  const dateInput = document.querySelector("#movementLogDate");
+  const body = document.querySelector("#movementLogRows");
+  const empty = document.querySelector("#emptyMovementLog");
+  const count = document.querySelector("#movementLogCount");
+  const subtitle = document.querySelector("#movementLogSubtitle");
+  const pagination = document.querySelector("#movementLogPagination");
+  const pageInfo = document.querySelector("#movementLogPageInfo");
+  const previous = document.querySelector("#movementLogPrevious");
+  const next = document.querySelector("#movementLogNext");
+  const fileById = new Map(state.files.map(file => [file.id, file]));
+  const pageSize = 12;
+  let records = [];
+  let currentPage = 1;
+
+  const malaysiaDateValue = () => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kuching",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+
+  const render = () => {
+    const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+    currentPage = Math.min(Math.max(currentPage, 1), pageCount);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, records.length);
+    const visibleRecords = records.slice(startIndex, endIndex);
+    body.replaceChildren();
+    visibleRecords.forEach(record => {
+      const file = fileById.get(record.idFail);
+      const fileReference = file ? `${file.transaksi} · Jilid ${file.jilid}` : "Rekod fail";
+      const fileDetail = file?.subAktiviti || "Maklumat fail tidak tersedia";
+      const movementTime = new Intl.DateTimeFormat("ms-MY", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Kuching"
+      }).format(new Date(record.tarikh));
+      body.append(create("tr", {}, [
+        create("td", {}, create("time", { datetime: record.tarikh, text: movementTime })),
+        create("td", {}, [create("div", { className: "record-title", text: fileReference }), create("div", { className: "record-meta", text: fileDetail })]),
+        create("td", {}, create("span", { className: "movement-holder from", text: record.dari })),
+        create("td", {}, create("span", { className: "movement-holder to", text: record.kepada })),
+        create("td", { text: record.catatan || "Tiada catatan" })
+      ]));
+    });
+    count.textContent = `${records.length} rekod`;
+    empty.classList.toggle("hidden", records.length > 0);
+    pagination.classList.toggle("hidden", records.length <= pageSize);
+    pageInfo.textContent = records.length ? `${startIndex + 1}–${endIndex} daripada ${records.length} rekod` : "0 rekod";
+    previous.disabled = currentPage === 1;
+    next.disabled = currentPage === pageCount;
+  };
+
+  const loadMovements = async () => {
+    const selectedDate = dateInput.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      toast("Tarikh diperlukan", "Pilih tarikh log pergerakan yang ingin dipaparkan.", "error");
+      return;
+    }
+    const button = form.querySelector("button[type=submit]");
+    setBusy(button, true, "Memuatkan…");
+    try {
+      const start = new Date(`${selectedDate}T00:00:00+08:00`);
+      const end = new Date(start.getTime() + 86400000);
+      const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+      const query = `select=${columns}&moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
+      records = (await rest("movements", query)).map(mapMovement);
+      currentPage = 1;
+      const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
+      subtitle.textContent = `Pergerakan fail yang direkodkan pada ${selectedLabel}.`;
+      render();
+    } catch (error) {
+      records = [];
+      render();
+      toast("Log tidak dapat dimuatkan", error.message, "error");
+    } finally { setBusy(button, false); }
+  };
+
+  dateInput.value = malaysiaDateValue();
+  form.addEventListener("submit", event => { event.preventDefault(); loadMovements(); });
+  previous.addEventListener("click", () => { currentPage -= 1; render(); });
+  next.addEventListener("click", () => { currentPage += 1; render(); });
+  await loadMovements();
+  markReady();
+}
+
 function showModal(id) { document.querySelector(id).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
 function closeModal(modal) { modal.classList.add("hidden"); document.body.style.overflow = ""; }
 function wireModal(modal) {
@@ -1444,6 +1538,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await loadConfig();
     const page = document.body.dataset.page;
-    await ({ login: initLogin, dashboard: initDashboard, register: initRegister, settings: initSettings, admin: initAdmin }[page] || (async () => {}))();
+    await ({ login: initLogin, dashboard: initDashboard, "movement-log": initMovementLog, register: initRegister, settings: initSettings, admin: initAdmin }[page] || (async () => {}))();
   } catch (error) { showFatal(error); }
 });
