@@ -407,6 +407,22 @@ function fillSelect(select, values, prompt = "Pilih parameter…") {
   values.forEach(value => select.append(create("option", { value, text: value })));
 }
 
+function normalizeRecipientName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
+}
+
+function uniqueRecipientNames(values) {
+  const seen = new Set();
+  return values.reduce((names, value) => {
+    const cleanName = String(value || "").trim().replace(/\s+/g, " ");
+    const normalizedName = normalizeRecipientName(cleanName);
+    if (!normalizedName || seen.has(normalizedName)) return names;
+    seen.add(normalizedName);
+    names.push(cleanName);
+    return names;
+  }, []);
+}
+
 function formatDate(value, withTime = false) {
   if (!value) return "–";
   const date = new Date(value.length === 10 ? `${value}T00:00:00` : value);
@@ -1092,12 +1108,14 @@ function openMovement(file, refresh) {
   const recipient = modal.querySelector("#recipient");
   const recipients = [
     "Bilik Fail",
+    file.pemegangTerkini,
     ...state.settings.pegawai.map(p => p.nama),
     ...state.recipientUsers.map(person => person.name),
     ...state.agencies.map(a => a.nama)
   ];
-  fillSelect(recipient, [...new Set(recipients)], "Pilih keberadaan…");
-  recipient.value = file.pemegangTerkini;
+  const uniqueRecipients = uniqueRecipientNames(recipients);
+  fillSelect(recipient, uniqueRecipients, "Pilih keberadaan…");
+  recipient.value = uniqueRecipients.find(name => normalizeRecipientName(name) === normalizeRecipientName(file.pemegangTerkini)) || "";
   modal.querySelector("#movementDate").value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   modal.querySelector("#movementNote").value = "";
   modal.onsubmit = async event => {
@@ -1107,7 +1125,7 @@ function openMovement(file, refresh) {
     const movedAt = modal.querySelector("#movementDate").value;
     const note = modal.querySelector("#movementNote").value.trim();
     const from = file.pemegangTerkini;
-    if (from === to && !note) { toast("Tiada perubahan", "Pilih penerima baharu atau masukkan catatan.", "error"); return; }
+    if (normalizeRecipientName(from) === normalizeRecipientName(to) && !note) { toast("Tiada perubahan", "Pilih penerima baharu atau masukkan catatan.", "error"); return; }
     setBusy(button, true, "Menyimpan…");
     try {
       const result = await moveFile(file, {
