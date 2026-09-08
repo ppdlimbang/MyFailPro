@@ -3679,6 +3679,12 @@ body[data-page="settings"] .staff-account-modal {
   width: min(720px, calc(100vw - 32px));
 }
 
+body[data-page="settings"] .staff-account-identity-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 body[data-page="settings"] .staff-account-modal .avatar-options {
   grid-template-columns: repeat(6, minmax(80px, 1fr));
 }
@@ -3710,6 +3716,10 @@ body:not([data-page="login"]) .user-avatar.avatar-emoji {
 }
 
 @media (max-width: 520px) {
+  body[data-page="settings"] .staff-account-identity-fields {
+    grid-template-columns: 1fr;
+  }
+
   body[data-page="settings"] .avatar-options {
     grid-template-columns: repeat(2, minmax(86px, 1fr));
   }

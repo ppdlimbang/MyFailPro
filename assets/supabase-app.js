@@ -1593,28 +1593,46 @@ async function initSettings() {
     const editAccountModal = document.querySelector("#staffAccountEditModal");
     const openStaffAccountEditor = person => {
       const reference = editAccountModal.querySelector("[data-staff-reference]");
+      const nameInput = editAccountModal.elements.nama;
+      const emailInput = editAccountModal.elements.emel;
       const passwordInput = editAccountModal.elements.password;
       const selectedAvatar = editAccountModal.querySelector(`input[name=avatar][value="${person.avatarKey}"]`)
         || editAccountModal.querySelector("input[name=avatar][value=initials]");
-      editAccountModal.querySelector("input[name=avatar][value=initials] + .avatar-choice").textContent = avatarPresentation("initials", person.name).symbol;
-      reference.textContent = `${person.name} · ${person.email}`;
+      const initialsPreview = editAccountModal.querySelector("input[name=avatar][value=initials] + .avatar-choice");
+      const updateEditInitials = () => { initialsPreview.textContent = avatarPresentation("initials", nameInput.value).symbol; };
+      reference.textContent = "Kemas kini identiti, akses dan avatar pengguna ini.";
+      nameInput.value = person.name;
+      emailInput.value = person.email;
       passwordInput.value = "";
       selectedAvatar.checked = true;
+      nameInput.oninput = updateEditInitials;
+      updateEditInitials();
       editAccountModal.onsubmit = async event => {
         event.preventDefault();
         const data = Object.fromEntries(new FormData(editAccountModal));
         const button = editAccountModal.querySelector("button[type=submit]");
         setBusy(button, true, "Menyimpan…");
         try {
-          await callAdminFunction("agency-update-staff", {
+          const updatedAccount = await callAdminFunction("agency-update-staff", {
             id: person.id,
+            name: data.nama.trim(),
+            email: data.emel.trim().toLowerCase(),
             password: data.password,
             avatar: data.avatar
           });
+          const linkedDirectoryEntry = settings.pegawai.find(entry => entry.user_id === person.id)
+            || settings.pegawai.find(entry => normalizeSettingValue(entry.nama) === normalizeSettingValue(person.name));
+          if (linkedDirectoryEntry) {
+            linkedDirectoryEntry.nama = updatedAccount.name;
+            linkedDirectoryEntry.email = updatedAccount.email;
+            linkedDirectoryEntry.avatar_key = updatedAccount.avatar;
+            linkedDirectoryEntry.user_id = person.id;
+          }
           await loadStaffUsers();
           closeModal(editAccountModal);
           renderStaffUsers();
-          toast("Akaun dikemas kini", data.password ? "Avatar dan kata laluan pegawai telah ditukar." : "Avatar pegawai telah ditukar.");
+          renderStaff();
+          toast("Akaun dikemas kini", data.password ? "Nama, e-mel, avatar dan kata laluan pegawai telah dikemas kini." : "Nama, e-mel dan avatar pegawai telah dikemas kini.");
         } catch (error) {
           toast("Akaun tidak dapat dikemas kini", error.message, "error");
         } finally { setBusy(button, false); }

@@ -3,11 +3,11 @@ import { isOriginAllowed, json, preflight, serviceConfig } from "../_shared/http
 
 const avatarKeys = new Set(["initials", "professional", "man", "woman", "technology", "educator"]);
 
-async function updateProfileAvatar(
+async function updateStaffProfile(
   config: NonNullable<ReturnType<typeof serviceConfig>>,
   agencyId: string,
   staffId: string,
-  avatarKey: string
+  values: { name: string; email: string; avatar_key: string }
 ) {
   return fetch(
     `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(staffId)}&agency_id=eq.${encodeURIComponent(agencyId)}&role=eq.staff`,
@@ -19,7 +19,7 @@ async function updateProfileAvatar(
         "content-type": "application/json",
         prefer: "return=representation"
       },
-      body: JSON.stringify({ avatar_key: avatarKey })
+      body: JSON.stringify(values)
     }
   );
 }
@@ -44,6 +44,8 @@ Deno.serve(async request => {
   }
 
   const staffId = String(input.id || "").trim();
+  const name = String(input.name || "").trim().replace(/\s+/g, " ");
+  const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
   const avatarKey = String(input.avatar || "initials");
   if (!/^[0-9a-f-]{36}$/i.test(staffId)) {
@@ -51,6 +53,12 @@ Deno.serve(async request => {
   }
   if (password && password.length < 8) {
     return json(request, { error: "Kata laluan baharu mesti sekurang-kurangnya 8 aksara." }, 400);
+  }
+  if (!name || name.length > 160) {
+    return json(request, { error: "Nama pegawai diperlukan dan tidak boleh melebihi 160 aksara." }, 400);
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) {
+    return json(request, { error: "Alamat e-mel pegawai tidak sah." }, 400);
   }
   if (!avatarKeys.has(avatarKey)) {
     return json(request, { error: "Pilihan avatar tidak sah." }, 400);
@@ -74,16 +82,21 @@ Deno.serve(async request => {
     return json(request, { error: authUser.msg || authUser.message || "Akaun Auth pegawai tidak ditemui." }, authLookup.status);
   }
 
-  const profileUpdate = await updateProfileAvatar(config, agency.caller.id, staffId, avatarKey);
+  const updatedProfile = { name, email, avatar_key: avatarKey };
+  const profileUpdate = await updateStaffProfile(config, agency.caller.id, staffId, updatedProfile);
   if (!profileUpdate.ok) {
     let profileError: Record<string, unknown> = {};
     try { profileError = await profileUpdate.json(); } catch { /* Preserve fallback message. */ }
-    return json(request, { error: profileError.message || "Avatar pegawai tidak dapat dikemas kini." }, profileUpdate.status);
+    return json(request, { error: profileError.message || "Maklumat profil pegawai tidak dapat dikemas kini." }, profileUpdate.status);
   }
 
   const authPayload: Record<string, unknown> = {
-    user_metadata: { ...(authUser.user_metadata || {}), avatar_key: avatarKey }
+    user_metadata: { ...(authUser.user_metadata || {}), name, avatar_key: avatarKey }
   };
+  if (email !== String(authUser.email || profile.email).trim().toLowerCase()) {
+    authPayload.email = email;
+    authPayload.email_confirm = true;
+  }
   if (password) authPayload.password = password;
   const authUpdate = await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(staffId)}`, {
     method: "PUT",
@@ -95,7 +108,11 @@ Deno.serve(async request => {
     body: JSON.stringify(authPayload)
   });
   if (!authUpdate.ok) {
-    await updateProfileAvatar(config, agency.caller.id, staffId, profile.avatar_key || "initials");
+    await updateStaffProfile(config, agency.caller.id, staffId, {
+      name: profile.name,
+      email: profile.email,
+      avatar_key: profile.avatar_key || "initials"
+    });
     let authError: Record<string, unknown> = {};
     try { authError = await authUpdate.json(); } catch { /* Preserve fallback message. */ }
     return json(request, { error: authError.msg || authError.message || "Akaun pegawai tidak dapat dikemas kini." }, authUpdate.status);
@@ -103,8 +120,8 @@ Deno.serve(async request => {
 
   return json(request, {
     id: staffId,
-    name: profile.name,
-    email: profile.email,
+    name,
+    email,
     avatar: avatarKey,
     passwordChanged: Boolean(password)
   });

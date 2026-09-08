@@ -18,6 +18,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260908020000_add_movement_actor.sql`
    - `supabase/migrations/20260908030000_add_file_notifications.sql`
    - `supabase/migrations/20260908040000_sync_staff_recipient_directory.sql`
+   - `supabase/migrations/20260908050000_sync_staff_identity_updates.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -70,9 +71,10 @@ Agency owners can also choose an avatar when creating a staff account. The
 selected avatar appears in the staff account list and in the navigation header
 when that staff member signs in.
 
-Agency owners can use **Edit** beside a staff account to replace its avatar or
-set a new password. Leaving the new-password field empty preserves the current
-password.
+Agency owners can use **Edit** beside a staff account to change its name, email,
+avatar, or password. Leaving the new-password field empty preserves the current
+password. A linked recipient-directory entry follows name and email changes
+automatically.
 
 Agency owners can add classification settings in bulk under **Tetapan Sistem >
 Pengisian Data Pukal**. Each line is treated as one record, existing values are
