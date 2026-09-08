@@ -3174,15 +3174,17 @@ body[data-page="movement-log"] table {
 }
 
 body[data-page="movement-log"] th:nth-child(1),
-body[data-page="movement-log"] td:nth-child(1) { width: 17%; }
+body[data-page="movement-log"] td:nth-child(1) { width: 16%; }
 body[data-page="movement-log"] th:nth-child(2),
-body[data-page="movement-log"] td:nth-child(2) { width: 27%; }
+body[data-page="movement-log"] td:nth-child(2) { width: 22%; }
 body[data-page="movement-log"] th:nth-child(3),
 body[data-page="movement-log"] td:nth-child(3),
 body[data-page="movement-log"] th:nth-child(4),
-body[data-page="movement-log"] td:nth-child(4) { width: 18%; }
+body[data-page="movement-log"] td:nth-child(4) { width: 14%; }
 body[data-page="movement-log"] th:nth-child(5),
-body[data-page="movement-log"] td:nth-child(5) { width: 20%; }
+body[data-page="movement-log"] td:nth-child(5) { width: 19%; }
+body[data-page="movement-log"] th:nth-child(6),
+body[data-page="movement-log"] td:nth-child(6) { width: 15%; }
 
 body[data-page="movement-log"] th,
 body[data-page="movement-log"] td {
@@ -3206,6 +3208,49 @@ body[data-page="movement-log"] .movement-holder.from {
 body[data-page="movement-log"] .movement-holder.to {
   color: #0b7d70;
   background: rgba(204, 251, 241, .68);
+}
+
+body[data-page="movement-log"] .movement-user {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+body[data-page="movement-log"] .movement-user-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(145deg, #7b61ff, #5b39db);
+  font-size: .68rem;
+  font-weight: 850;
+}
+
+body[data-page="movement-log"] .movement-user-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+body[data-page="movement-log"] .movement-user-copy strong,
+body[data-page="movement-log"] .movement-user-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-page="movement-log"] .movement-user-copy strong {
+  color: #302a48;
+  font-size: .78rem;
+}
+
+body[data-page="movement-log"] .movement-user-copy small {
+  color: #837b91;
+  font-size: .67rem;
 }
 
 body[data-page="movement-log"] .table-pagination {

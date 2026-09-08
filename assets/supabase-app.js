@@ -513,7 +513,18 @@ function mapFile(row) {
 }
 
 function mapMovement(row) {
-  return { id: row.id, idFail: row.file_id, ownerId: row.owner_id, tarikh: row.moved_at, dari: row.from_holder, kepada: row.to_holder, catatan: row.note };
+  return {
+    id: row.id,
+    idFail: row.file_id,
+    ownerId: row.owner_id,
+    tarikh: row.moved_at,
+    dari: row.from_holder,
+    kepada: row.to_holder,
+    catatan: row.note,
+    penggunaId: row.performed_by || null,
+    penggunaNama: row.performed_by_name || "",
+    penggunaEmel: row.performed_by_email || ""
+  };
 }
 
 async function loadFiles() {
@@ -834,6 +845,13 @@ async function initMovementLog() {
         create("td", {}, [create("div", { className: "record-title", text: fileReference }), create("div", { className: "record-meta", text: fileDetail })]),
         create("td", {}, create("span", { className: "movement-holder from", text: record.dari })),
         create("td", {}, create("span", { className: "movement-holder to", text: record.kepada })),
+        create("td", {}, create("div", { className: "movement-user" }, [
+          create("span", { className: "movement-user-avatar", "aria-hidden": "true", text: avatarPresentation("initials", record.penggunaNama || "TD").symbol }),
+          create("span", { className: "movement-user-copy" }, [
+            create("strong", { text: record.penggunaNama || "Tidak direkodkan" }),
+            record.penggunaEmel ? create("small", { text: record.penggunaEmel }) : create("small", { text: "Log terdahulu" })
+          ])
+        ])),
         create("td", { text: record.catatan || "Tiada catatan" })
       ]));
     });
@@ -856,9 +874,17 @@ async function initMovementLog() {
     try {
       const start = new Date(`${selectedDate}T00:00:00+08:00`);
       const end = new Date(start.getTime() + 86400000);
-      const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
-      const query = `select=${columns}&moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
-      records = (await rest("movements", query)).map(mapMovement);
+      const baseColumns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+      const actorColumns = `${baseColumns},performed_by,performed_by_name,performed_by_email`;
+      const filters = `moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
+      let rows;
+      try {
+        rows = await rest("movements", `select=${actorColumns}&${filters}`);
+      } catch (error) {
+        if (!/performed_by|performed_by_name|performed_by_email/i.test(error.message)) throw error;
+        rows = await rest("movements", `select=${baseColumns}&${filters}`);
+      }
+      records = rows.map(mapMovement);
       currentPage = 1;
       const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
       subtitle.textContent = `Pergerakan fail yang direkodkan pada ${selectedLabel}.`;

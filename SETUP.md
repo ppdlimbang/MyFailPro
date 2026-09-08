@@ -15,6 +15,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260907050000_add_staff_login_activity.sql`
    - `supabase/migrations/20260907060000_add_staff_avatar.sql`
    - `supabase/migrations/20260908010000_add_agency_bulk_settings.sql`
+   - `supabase/migrations/20260908020000_add_movement_actor.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -74,6 +75,10 @@ password.
 Agency owners can add classification settings in bulk under **Tetapan Sistem >
 Pengisian Data Pukal**. Each line is treated as one record, existing values are
 skipped, and the database function rejects access from staff accounts.
+
+The movement log records the name and email of the signed-in user responsible
+for every new file movement. Historical movements created before the migration
+remain labelled as unavailable because their actor cannot be determined safely.
 
 ## 3. Enable GitHub Pages
 

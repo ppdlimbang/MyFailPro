@@ -6,9 +6,9 @@
   <meta name="description" content="Log pergerakan fail semasa MyFailPro">
   <title>Log Pergerakan Fail · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png">
-  <link rel="stylesheet" href="assets/styles.css?v=20260908-42">
+  <link rel="stylesheet" href="assets/styles.css?v=20260908-43">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20260908-35" defer></script>
+  <script src="assets/supabase-app.js?v=20260908-36" defer></script>
 </head>
 <body data-page="movement-log">
 <div class="app-shell">
@@ -24,7 +24,7 @@
     <div class="page-head"><div class="page-head-copy"><span class="eyebrow">Rekod operasi</span><h1>Log Pergerakan Fail Semasa</h1><p id="movementLogSubtitle">Semak semua pergerakan fail berdasarkan tarikh pilihan.</p></div><a class="button secondary" href="dashboard.html">Kembali ke Paparan Utama</a></div>
     <section class="panel page-section movement-log-panel">
       <div class="panel-head"><div class="panel-title"><h2>Senarai Pergerakan</h2><p>Pilih tarikh untuk memaparkan rekod pergerakan pada hari tersebut.</p></div><form class="movement-log-filter" id="movementLogFilter"><label for="movementLogDate">Tarikh</label><input class="input" id="movementLogDate" name="date" type="date" required><button class="button" type="submit">Papar Log</button><span class="archive-count" id="movementLogCount" aria-live="polite">0 rekod</span></form></div>
-      <div class="table-wrap"><table><caption class="sr-only">Log pergerakan fail mengikut tarikh</caption><thead><tr><th scope="col">Tarikh &amp; Masa</th><th scope="col">Fail</th><th scope="col">Daripada</th><th scope="col">Kepada</th><th scope="col">Catatan</th></tr></thead><tbody id="movementLogRows"></tbody></table></div>
+      <div class="table-wrap"><table><caption class="sr-only">Log pergerakan fail mengikut tarikh dan pengguna</caption><thead><tr><th scope="col">Tarikh &amp; Masa</th><th scope="col">Fail</th><th scope="col">Daripada</th><th scope="col">Kepada</th><th scope="col">Dibuat Oleh</th><th scope="col">Catatan</th></tr></thead><tbody id="movementLogRows"></tbody></table></div>
       <nav class="table-pagination hidden" id="movementLogPagination" aria-label="Halaman log pergerakan"><span class="pagination-info" id="movementLogPageInfo" aria-live="polite"></span><div class="pagination-actions"><button class="button secondary small" id="movementLogPrevious" type="button">Sebelumnya</button><button class="button secondary small" id="movementLogNext" type="button">Seterusnya</button></div></nav>
       <div class="empty hidden" id="emptyMovementLog"><strong>Tiada pergerakan direkodkan</strong><p>Tiada pergerakan fail pada tarikh yang dipilih.</p></div>
     </section>
