@@ -1283,6 +1283,19 @@ async function initSettings() {
     try { await loadStaffUsers(); }
     catch (error) { staffUsersError = error; }
   }
+  const linkedAccountFor = person => state.staffUsers.find(account =>
+    (person.user_id && account.id === person.user_id)
+    || normalizeSettingValue(account.name) === normalizeSettingValue(person.nama)
+  );
+  const withDirectoryAccountLink = person => {
+    if (!isAgencyOwner || staffUsersError) return person;
+    const account = linkedAccountFor(person);
+    if (!account) {
+      const { user_id, email, avatar_key, ...unlinkedPerson } = person;
+      return unlinkedPerson;
+    }
+    return { ...person, user_id: account.id, email: account.email, avatar_key: account.avatarKey };
+  };
   if (isAgencyMember) {
     document.querySelector("#settingsTitle").textContent = "Tetapan Agensi";
     document.querySelector("#settingsSubtitle").textContent = `Konfigurasi khusus untuk ${user.data.nama || user.email}`;
@@ -1365,7 +1378,7 @@ async function initSettings() {
   };
   const saveStaffEdit = async (index, person) => {
     const previous = { ...settings.pegawai[index] };
-    settings.pegawai[index] = person;
+    settings.pegawai[index] = withDirectoryAccountLink(person);
     let holdersUpdated = false;
     try {
       await updateFileReferences("current_holder", previous.nama, person.nama);
@@ -1482,6 +1495,8 @@ async function initSettings() {
     staffList.replaceChildren();
     settings.pegawai.forEach((person, index) => {
       const item = create("li", { className: "item staff-item" });
+      const linkedAccount = linkedAccountFor(person);
+      const isLinked = Boolean(person.user_id || linkedAccount);
       const edit = create("button", { type: "button", text: "Edit", "aria-label": `Edit ${person.nama}`, onclick: () => {
         const nameInput = create("input", { className: "input", value: person.nama, placeholder: "Nama penuh", "aria-label": "Nama penuh" });
         const sectorInput = create("input", { className: "input", value: person.sektor, placeholder: "Sektor atau unit", "aria-label": "Sektor atau unit" });
@@ -1524,14 +1539,22 @@ async function initSettings() {
         try { await saveSettings(); renderStaff(); }
         catch (error) { settings.pegawai.splice(index, 0, removed); remove.disabled = false; toast("Tidak berjaya", error.message, "error"); }
       } });
-      item.append(create("span", { text: `${person.nama} — ${person.sektor}` }), create("div", { className: "item-actions" }, [edit, remove]));
+      const identity = create("div", { className: "staff-directory-identity" }, [
+        create("span", { text: `${person.nama} — ${person.sektor}` }),
+        isLinked ? create("span", {
+          className: "staff-sync-badge",
+          text: "Diselaraskan",
+          title: linkedAccount?.email ? `Dipautkan kepada ${linkedAccount.email}` : "Dipautkan kepada akaun pengguna pegawai"
+        }) : null
+      ]);
+      item.append(identity, create("div", { className: "item-actions" }, [edit, remove]));
       staffList.append(item);
     });
   };
   staffForm.addEventListener("submit", async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(staffForm));
-    const person = { nama: data.nama.trim(), sektor: data.sektor.trim() };
+    const person = withDirectoryAccountLink({ nama: data.nama.trim(), sektor: data.sektor.trim() });
     const button = staffForm.querySelector("button[type=submit]");
     if (!person.nama || !person.sektor) {
       toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error");
@@ -1558,6 +1581,8 @@ async function initSettings() {
     const accountRows = document.querySelector("#staffUserRows");
     const accountStatus = document.querySelector("#staffUserStatus");
     const accountNameInput = accountForm.elements.nama;
+    const directoryNames = document.querySelector("#staffDirectoryNames");
+    settings.pegawai.forEach(person => directoryNames.append(create("option", { value: person.nama })));
     const avatarPreviews = accountForm.querySelectorAll("[data-avatar-preview]");
     const updateAvatarPreviews = () => avatarPreviews.forEach(preview => {
       const avatar = avatarPresentation(preview.dataset.avatarPreview, accountNameInput.value);
@@ -1644,17 +1669,30 @@ async function initSettings() {
         const button = accountForm.querySelector("button[type=submit]");
         setBusy(button, true, "Mencipta…");
         try {
-          await callAdminFunction("agency-create-staff", {
-            name: data.nama.trim(),
+          const directoryPerson = settings.pegawai.find(person => normalizeSettingValue(person.nama) === normalizeSettingValue(data.nama));
+          const accountName = directoryPerson?.nama || data.nama.trim();
+          const createdAccount = await callAdminFunction("agency-create-staff", {
+            name: accountName,
             email: data.emel.trim().toLowerCase(),
             password: data.password,
             avatar: data.avatar
           });
+          if (directoryPerson) {
+            directoryPerson.user_id = createdAccount.id;
+            directoryPerson.email = createdAccount.email;
+            directoryPerson.avatar_key = createdAccount.avatar || data.avatar;
+          }
           await loadStaffUsers();
           accountForm.reset();
           updateAvatarPreviews();
           renderStaffUsers();
-          toast("Akaun berjaya dicipta", "Pegawai kini boleh log masuk menggunakan e-mel dan kata laluan yang didaftarkan.");
+          renderStaff();
+          toast(
+            "Akaun berjaya dicipta",
+            directoryPerson
+              ? "Akaun telah diselaraskan dengan Direktori Pegawai Penerima dan sedia menerima notifikasi fail."
+              : "Pegawai kini boleh log masuk menggunakan e-mel dan kata laluan yang didaftarkan."
+          );
         } catch (error) {
           toast("Akaun tidak dapat dicipta", error.message, "error");
         } finally { setBusy(button, false); }
