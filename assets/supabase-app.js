@@ -678,13 +678,13 @@ function notificationFileField(label, value, className = "") {
   ]);
 }
 
-async function openNotificationFile(item, notificationModal) {
+async function openTransferredFile(item, sourceModal = null) {
   const modal = ensureNotificationFileModal();
   const reference = modal.querySelector("[data-file-reference]");
   const content = modal.querySelector("#notificationFileContent");
   reference.textContent = `${item.transactionCode} (Jilid ${item.volume})`;
   content.replaceChildren(create("div", { className: "notification-file-loading", text: "Memuatkan butiran fail…" }));
-  closeModal(notificationModal);
+  if (sourceModal) closeModal(sourceModal);
   showModal("#notificationFileModal");
 
   try {
@@ -748,7 +748,7 @@ function renderNotifications(modal) {
       className: `notification-item${item.readAt ? "" : " unread"}`,
       type: "button",
       "aria-label": `Paparkan fail ${item.transactionCode}, Jilid ${item.volume}`,
-      onclick: () => openNotificationFile(item, modal)
+      onclick: () => openTransferredFile(item, modal)
     }, [
       create("span", { className: "notification-item-icon", "aria-hidden": "true", text: "→" }),
       create("span", { className: "notification-item-copy" }, [
@@ -1135,6 +1135,29 @@ async function initMovementLog() {
         ])),
         create("td", { text: record.catatan || "Tiada catatan" }),
         create("td", {}, create("div", { className: "movement-log-actions" }, [
+          create("button", {
+            className: "button small movement-file-view-button",
+            type: "button",
+            text: "Papar Fail",
+            "aria-label": `Paparkan fail ${fileReference}`,
+            onclick: () => openTransferredFile({
+              fileId: record.idFail,
+              transactionCode: file?.transaksi || "Rekod fail",
+              volume: file?.jilid || "",
+              actorName: record.penggunaNama || "Tidak direkodkan",
+              actorEmail: record.penggunaEmel,
+              fromHolder: record.dari,
+              toHolder: record.kepada,
+              movedAt: record.tarikh
+            })
+          }),
+          create("button", {
+            className: "button secondary small",
+            type: "button",
+            text: "Log",
+            "aria-label": `Paparkan semua log ${fileReference}`,
+            onclick: () => file && openHistory(file, loadMovements)
+          }),
           create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
             if (file) Object.assign(file, updatedFile);
             await loadMovements();
@@ -1410,8 +1433,32 @@ function openMovementLogDelete(record, file, onDeleted) {
   confirmButton.focus();
 }
 
+function ensureHistoryModal() {
+  let modal = document.querySelector("#historyModal");
+  if (modal) return modal;
+  modal = create("div", {
+    className: "modal hidden",
+    id: "historyModal",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "historyTitle"
+  }, create("section", { className: "modal-card" }, [
+    create("div", { className: "modal-head" }, [
+      create("div", {}, [
+        create("h2", { id: "historyTitle", text: "Log Pergerakan" }),
+        create("p", { "data-file-reference": "" })
+      ]),
+      create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
+    ]),
+    create("ol", { className: "history", id: "historyList" })
+  ]));
+  document.body.append(modal);
+  wireModal(modal);
+  return modal;
+}
+
 async function openHistory(file, refresh = () => {}) {
-  const modal = document.querySelector("#historyModal");
+  const modal = ensureHistoryModal();
   const list = modal.querySelector("#historyList");
   modal.querySelector("[data-file-reference]").textContent = `${file.transaksi} (Jilid ${file.jilid})`;
   showModal("#historyModal");
@@ -1426,7 +1473,7 @@ async function openHistory(file, refresh = () => {}) {
       records.forEach(record => {
         const actionCallback = async updatedFile => {
           Object.assign(file, updatedFile);
-          refresh();
+          await refresh();
           await reload();
         };
         list.append(create("li", {}, [
