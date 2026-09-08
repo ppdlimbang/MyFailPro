@@ -3,6 +3,14 @@ import { isOriginAllowed, json, preflight, serviceConfig } from "../_shared/http
 
 const avatarKeys = new Set(["initials", "professional", "man", "woman", "technology", "educator"]);
 
+function formatPersonName(value: unknown) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("ms-MY")
+    .replace(/(^|[\s@'’/-])(\p{L})/gu, (_match, prefix, letter) => `${prefix}${letter.toLocaleUpperCase("ms-MY")}`);
+}
+
 async function updateStaffProfile(
   config: NonNullable<ReturnType<typeof serviceConfig>>,
   agencyId: string,
@@ -44,7 +52,7 @@ Deno.serve(async request => {
   }
 
   const staffId = String(input.id || "").trim();
-  const name = String(input.name || "").trim().replace(/\s+/g, " ");
+  const name = formatPersonName(input.name);
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
   const avatarKey = String(input.avatar || "initials");

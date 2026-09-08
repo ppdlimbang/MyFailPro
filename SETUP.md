@@ -19,6 +19,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260908030000_add_file_notifications.sql`
    - `supabase/migrations/20260908040000_sync_staff_recipient_directory.sql`
    - `supabase/migrations/20260908050000_sync_staff_identity_updates.sql`
+   - `supabase/migrations/20260908060000_title_case_staff_names.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -94,6 +95,10 @@ when their normalized names match. The link is refreshed when either the
 directory entry or staff profile changes and is used for reliable notification
 delivery. Names that are not unique remain unlinked to avoid selecting the wrong
 account.
+
+Staff account and recipient-directory names are stored automatically with each
+word capitalized. The migration also normalizes names that were registered
+before this rule was introduced.
 
 ## 3. Enable GitHub Pages
 

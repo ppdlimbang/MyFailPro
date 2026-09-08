@@ -407,6 +407,14 @@ function fillSelect(select, values, prompt = "Pilih parameter…") {
   values.forEach(value => select.append(create("option", { value, text: value })));
 }
 
+function formatPersonName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("ms-MY")
+    .replace(/(^|[\s@'’/-])(\p{L})/gu, (_match, prefix, letter) => `${prefix}${letter.toLocaleUpperCase("ms-MY")}`);
+}
+
 function normalizeRecipientName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
 }
@@ -493,7 +501,7 @@ function mapSettings(row) {
     aktiviti: [...(row?.activities || defaults.aktiviti)],
     subAktiviti: [...(row?.sub_activities || defaults.subAktiviti)],
     transaksi: [...(row?.transactions || defaults.transaksi)],
-    pegawai: (row?.staff || defaults.pegawai).map(person => ({ ...person }))
+    pegawai: (row?.staff || defaults.pegawai).map(person => ({ ...person, nama: formatPersonName(person.nama) }))
   });
 }
 
@@ -575,7 +583,7 @@ async function loadRecipientUsers() {
   if (!currentUser || currentUser.role === "admin") { state.recipientUsers = []; return; }
   try {
     const rows = await rpc("workspace_staff_recipients", {});
-    state.recipientUsers = (rows || []).map(row => ({ id: row.id, name: row.name })).filter(person => person.name);
+    state.recipientUsers = (rows || []).map(row => ({ id: row.id, name: formatPersonName(row.name) })).filter(person => person.name);
   } catch (error) {
     if (!missingRpc(error, "workspace_staff_recipients")) console.warn("Senarai penerima akaun tidak dapat dimuatkan.", error);
     state.recipientUsers = [];
@@ -752,7 +760,7 @@ async function loadStaffUsers() {
   state.staffUsers = rows.map(row => ({
     id: row.id,
     email: row.email,
-    name: row.name,
+    name: formatPersonName(row.name),
     createdAt: row.created_at,
     loginCount: Number(row.login_count || 0),
     lastLoginAt: row.last_login_at || null,
@@ -1526,7 +1534,7 @@ async function initSettings() {
         ]);
         editForm.addEventListener("submit", async event => {
           event.preventDefault();
-          const nextPerson = { nama: nameInput.value.trim(), sektor: sectorInput.value.trim() };
+          const nextPerson = { nama: formatPersonName(nameInput.value), sektor: sectorInput.value.trim() };
           if (!nextPerson.nama || !nextPerson.sektor) { toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error"); return; }
           const duplicate = settings.pegawai.some((entry, entryIndex) => entryIndex !== index
             && normalizeSettingValue(entry.nama) === normalizeSettingValue(nextPerson.nama)
@@ -1572,7 +1580,7 @@ async function initSettings() {
   staffForm.addEventListener("submit", async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(staffForm));
-    const person = withDirectoryAccountLink({ nama: data.nama.trim(), sektor: data.sektor.trim() });
+    const person = withDirectoryAccountLink({ nama: formatPersonName(data.nama), sektor: data.sektor.trim() });
     const button = staffForm.querySelector("button[type=submit]");
     if (!person.nama || !person.sektor) {
       toast("Maklumat diperlukan", "Nama dan sektor pegawai perlu diisi.", "error");
@@ -1633,7 +1641,7 @@ async function initSettings() {
         try {
           const updatedAccount = await callAdminFunction("agency-update-staff", {
             id: person.id,
-            name: data.nama.trim(),
+            name: formatPersonName(data.nama),
             email: data.emel.trim().toLowerCase(),
             password: data.password,
             avatar: data.avatar
@@ -1706,7 +1714,7 @@ async function initSettings() {
         setBusy(button, true, "Mencipta…");
         try {
           const directoryPerson = settings.pegawai.find(person => normalizeSettingValue(person.nama) === normalizeSettingValue(data.nama));
-          const accountName = directoryPerson?.nama || data.nama.trim();
+          const accountName = formatPersonName(directoryPerson?.nama || data.nama);
           const createdAccount = await callAdminFunction("agency-create-staff", {
             name: accountName,
             email: data.emel.trim().toLowerCase(),

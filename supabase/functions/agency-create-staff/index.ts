@@ -3,6 +3,14 @@ import { isOriginAllowed, json, preflight, serviceConfig } from "../_shared/http
 
 const avatarKeys = new Set(["initials", "professional", "man", "woman", "technology", "educator"]);
 
+function formatPersonName(value: unknown) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("ms-MY")
+    .replace(/(^|[\s@'’/-])(\p{L})/gu, (_match, prefix, letter) => `${prefix}${letter.toLocaleUpperCase("ms-MY")}`);
+}
+
 async function rollbackAuthUser(config: NonNullable<ReturnType<typeof serviceConfig>>, id: string) {
   await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -31,7 +39,7 @@ Deno.serve(async request => {
 
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
-  const name = String(input.name || "").trim();
+  const name = formatPersonName(input.name);
   const avatarKey = String(input.avatar || "initials");
   if (!/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || !name) {
     return json(request, { error: "Lengkapkan nama dan e-mel; kata laluan mesti sekurang-kurangnya 8 aksara." }, 400);
