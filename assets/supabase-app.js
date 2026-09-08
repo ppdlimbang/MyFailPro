@@ -991,6 +991,46 @@ async function initSettings() {
     document.querySelector("#settingsScope").textContent = "Tetapan ini dimiliki oleh akaun pentadbir dan diasingkan daripada tetapan setiap agensi.";
   }
   const grid = document.querySelector("#settingsGrid");
+  const bulkPanel = document.querySelector("#bulkSettingsPanel");
+  if (isAgencyOwner && bulkPanel) {
+    bulkPanel.classList.remove("hidden");
+    const bulkForm = document.querySelector("#bulkSettingsForm");
+    bulkForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(bulkForm));
+      const category = String(data.category || "");
+      const values = String(data.values || "").split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+      if (!values.length) {
+        toast("Data diperlukan", "Masukkan sekurang-kurangnya satu rekod pada baris baharu.", "error");
+        bulkForm.elements.values.focus();
+        return;
+      }
+      if (values.length > 500) {
+        toast("Terlalu banyak rekod", "Maksimum 500 rekod dibenarkan bagi setiap pengisian.", "error");
+        return;
+      }
+      const button = bulkForm.querySelector("button[type=submit]");
+      setBusy(button, true, "Menyimpan…");
+      try {
+        const result = await rpc("bulk_add_agency_settings", { p_category: category, p_values: values });
+        const addedValues = Array.isArray(result?.added_values) ? result.added_values : [];
+        settings[category].push(...addedValues);
+        settings[category].sort((first, second) => classificationCollator.compare(first, second));
+        bulkForm.elements.values.value = "";
+        render();
+        if (result.added_count) {
+          toast("Data pukal berjaya", `${result.added_count} rekod ${labels[category]} ditambah${result.skipped_count ? `; ${result.skipped_count} rekod pendua dilangkau` : ""}.`);
+        } else {
+          toast("Tiada data baharu", "Semua rekod yang dimasukkan telah wujud.", "error");
+        }
+      } catch (error) {
+        const message = missingRpc(error, "bulk_add_agency_settings")
+          ? "Jalankan migrasi Supabase 20260908010000_add_agency_bulk_settings.sql terlebih dahulu."
+          : error.message;
+        toast("Data pukal tidak dapat disimpan", message, "error");
+      } finally { setBusy(button, false); }
+    });
+  }
   const fileColumns = {
     fungsi: "function_name",
     aktiviti: "activity_name",

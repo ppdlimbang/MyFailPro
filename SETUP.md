@@ -14,6 +14,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260907040000_allow_staff_manage_agency_settings.sql`
    - `supabase/migrations/20260907050000_add_staff_login_activity.sql`
    - `supabase/migrations/20260907060000_add_staff_avatar.sql`
+   - `supabase/migrations/20260908010000_add_agency_bulk_settings.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -69,6 +70,10 @@ when that staff member signs in.
 Agency owners can use **Edit** beside a staff account to replace its avatar or
 set a new password. Leaving the new-password field empty preserves the current
 password.
+
+Agency owners can add classification settings in bulk under **Tetapan Sistem >
+Pengisian Data Pukal**. Each line is treated as one record, existing values are
+skipped, and the database function rejects access from staff accounts.
 
 ## 3. Enable GitHub Pages
 

@@ -3103,6 +3103,20 @@ body[data-page="settings"] .settings-empty {
   text-align: center;
 }
 
+body[data-page="settings"] #bulkSettingsPanel {
+  overflow: hidden;
+}
+
+body[data-page="settings"] .bulk-settings-form textarea {
+  min-height: 220px;
+  line-height: 1.55;
+}
+
+body[data-page="settings"] .bulk-settings-form .field-hint {
+  max-width: 920px;
+  line-height: 1.5;
+}
+
 @media (max-width: 680px) {
   body[data-page="settings"] .settings-grid .settings-card {
     height: auto;
