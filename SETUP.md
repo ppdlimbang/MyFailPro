@@ -20,6 +20,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260908040000_sync_staff_recipient_directory.sql`
    - `supabase/migrations/20260908050000_sync_staff_identity_updates.sql`
    - `supabase/migrations/20260908060000_title_case_staff_names.sql`
+   - `supabase/migrations/20260908070000_manage_file_movement_logs.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -99,6 +100,10 @@ account.
 Staff account and recipient-directory names are stored automatically with each
 word capitalized. The migration also normalizes names that were registered
 before this rule was introduced.
+
+Workspace members can correct or delete erroneous movement logs. These actions
+run transactionally, refresh the file's current holder from the remaining
+history, and keep recipient notifications aligned with corrected movements.
 
 ## 3. Enable GitHub Pages
 

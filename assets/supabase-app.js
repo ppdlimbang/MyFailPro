@@ -273,6 +273,20 @@ async function deleteFile(file) {
   });
 }
 
+async function correctMovement(record, values) {
+  return rpc("correct_file_movement", {
+    p_movement_id: record.id,
+    p_from_holder: values.from,
+    p_to_holder: values.to,
+    p_moved_at: values.movedAt,
+    p_note: values.note
+  });
+}
+
+async function deleteMovement(record) {
+  return rpc("delete_file_movement", { p_movement_id: record.id });
+}
+
 async function loadProfile(userId) {
   let rows;
   try {
@@ -951,7 +965,7 @@ async function initDashboard() {
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button small", type: "button", text: "Pindah", onclick: () => openMovement(file, render) }),
         create("button", { className: "button secondary small", type: "button", text: "Edit", onclick: () => openEdit(file, render) }),
-        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) }),
+        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file, render) }),
         deleteAction(file, render)
       ]);
       body.append(create("tr", {}, [
@@ -965,7 +979,7 @@ async function initDashboard() {
       const archive = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const buttons = create("div", { className: "actions" }, [
         create("button", { className: "button secondary small", type: "button", text: "Edit", title: "Ubah tarikh atau buka semula fail", onclick: () => openEdit(file, render) }),
-        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file) }),
+        create("button", { className: "button secondary small", type: "button", text: "Log", onclick: () => openHistory(file, render) }),
         deleteAction(file, render)
       ]);
       archiveBody.append(create("tr", {}, [
@@ -1044,7 +1058,17 @@ async function initMovementLog() {
             record.penggunaEmel ? create("small", { text: record.penggunaEmel }) : create("small", { text: "Log terdahulu" })
           ])
         ])),
-        create("td", { text: record.catatan || "Tiada catatan" })
+        create("td", { text: record.catatan || "Tiada catatan" }),
+        create("td", {}, create("div", { className: "movement-log-actions" }, [
+          create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
+            if (file) Object.assign(file, updatedFile);
+            await loadMovements();
+          }) }),
+          create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${fileReference}`, onclick: () => openMovementLogDelete(record, file, async updatedFile => {
+            if (file) Object.assign(file, updatedFile);
+            await loadMovements();
+          }) })
+        ]))
       ]));
     });
     count.textContent = `${records.length} fail`;
@@ -1104,7 +1128,10 @@ async function initMovementLog() {
 }
 
 function showModal(id) { document.querySelector(id).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
-function closeModal(modal) { modal.classList.add("hidden"); document.body.style.overflow = ""; }
+function closeModal(modal) {
+  modal.classList.add("hidden");
+  if (!document.querySelector(".modal:not(.hidden)")) document.body.style.overflow = "";
+}
 function wireModal(modal) {
   modal.querySelectorAll("[data-close]").forEach(el => el.addEventListener("click", () => closeModal(modal)));
   modal.addEventListener("click", event => { if (event.target === modal) closeModal(modal); });
@@ -1179,26 +1206,171 @@ function openEdit(file, refresh) {
   start.focus();
 }
 
-async function openHistory(file) {
+function movementDateTimeInput(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function movementHolderSuggestions(record) {
+  return uniqueRecipientNames([
+    "Bilik Fail",
+    "Sistem Pendaftaran",
+    record.dari,
+    record.kepada,
+    ...(state.settings?.pegawai || []).map(person => person.nama),
+    ...state.recipientUsers.map(person => person.name),
+    ...state.agencies.map(agency => agency.nama)
+  ]);
+}
+
+function ensureMovementLogEditor() {
+  let modal = document.querySelector("#movementLogEditModal");
+  if (modal) return modal;
+  modal = create("form", { className: "modal hidden", id: "movementLogEditModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "movementLogEditTitle" },
+    create("section", { className: "modal-card movement-log-edit-card" }, [
+      create("div", { className: "modal-head" }, [
+        create("div", {}, [create("h2", { id: "movementLogEditTitle", text: "Edit Log Pergerakan" }), create("p", { "data-file-reference": "" })]),
+        create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
+      ]),
+      create("datalist", { id: "movementHolderSuggestions" }),
+      create("div", { className: "movement-log-edit-grid" }, [
+        create("div", { className: "field" }, [create("label", { for: "movementLogFrom", text: "Daripada" }), create("input", { className: "input", id: "movementLogFrom", name: "from", list: "movementHolderSuggestions", required: "", autocomplete: "off" })]),
+        create("div", { className: "field" }, [create("label", { for: "movementLogTo", text: "Kepada" }), create("input", { className: "input", id: "movementLogTo", name: "to", list: "movementHolderSuggestions", required: "", autocomplete: "off" })])
+      ]),
+      create("div", { className: "field" }, [create("label", { for: "movementLogTime", text: "Tarikh dan masa" }), create("input", { className: "input", id: "movementLogTime", name: "movedAt", type: "datetime-local", required: "" })]),
+      create("div", { className: "field" }, [create("label", { for: "movementLogNote", text: "Catatan" }), create("textarea", { className: "input", id: "movementLogNote", name: "note", rows: "3", placeholder: "Masukkan catatan jika perlu" })]),
+      create("div", { className: "form-actions" }, [
+        create("button", { className: "button secondary", type: "button", "data-close": "", text: "Batal" }),
+        create("button", { className: "button", type: "submit", text: "Simpan Perubahan" })
+      ])
+    ])
+  );
+  document.body.append(modal);
+  wireModal(modal);
+  return modal;
+}
+
+function ensureMovementLogDeleteModal() {
+  let modal = document.querySelector("#movementLogDeleteModal");
+  if (modal) return modal;
+  modal = create("div", { className: "modal hidden", id: "movementLogDeleteModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "movementLogDeleteTitle" },
+    create("section", { className: "modal-card delete-modal-card" }, [
+      create("div", { className: "modal-head" }, [
+        create("div", {}, [create("h2", { id: "movementLogDeleteTitle", text: "Padam Log Pergerakan?" }), create("p", { "data-file-reference": "" })]),
+        create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
+      ]),
+      create("p", { className: "delete-warning", text: "Log ini akan dipadam secara kekal. Keberadaan semasa fail akan dikira semula menggunakan log terakhir yang masih ada." }),
+      create("div", { className: "form-actions" }, [
+        create("button", { className: "button secondary", type: "button", "data-close": "", text: "Batal" }),
+        create("button", { className: "button danger delete-confirm-button", type: "button", "data-confirm-delete-movement": "", text: "Ya, Padam Log" })
+      ])
+    ])
+  );
+  document.body.append(modal);
+  wireModal(modal);
+  return modal;
+}
+
+function movementMutationError(error, functionName) {
+  return missingRpc(error, functionName)
+    ? "Jalankan migrasi Supabase 20260908070000_manage_file_movement_logs.sql terlebih dahulu."
+    : error.message;
+}
+
+function openMovementLogEditor(record, file, onSaved) {
+  const modal = ensureMovementLogEditor();
+  const suggestions = modal.querySelector("#movementHolderSuggestions");
+  suggestions.replaceChildren(...movementHolderSuggestions(record).map(value => create("option", { value })));
+  modal.querySelector("[data-file-reference]").textContent = `${file?.transaksi || "Rekod fail"}${file ? ` (Jilid ${file.jilid})` : ""}`;
+  modal.elements.from.value = record.dari;
+  modal.elements.to.value = record.kepada;
+  modal.elements.movedAt.value = movementDateTimeInput(record.tarikh);
+  modal.elements.note.value = record.catatan || "";
+  modal.onsubmit = async event => {
+    event.preventDefault();
+    const button = modal.querySelector("button[type=submit]");
+    const from = modal.elements.from.value.trim().replace(/\s+/g, " ");
+    const to = modal.elements.to.value.trim().replace(/\s+/g, " ");
+    const movedAt = modal.elements.movedAt.value;
+    if (!from || !to || !movedAt) {
+      toast("Maklumat diperlukan", "Lengkapkan Daripada, Kepada serta tarikh dan masa.", "error");
+      return;
+    }
+    setBusy(button, true, "Menyimpan…");
+    try {
+      const result = await correctMovement(record, {
+        from,
+        to,
+        movedAt: new Date(movedAt).toISOString(),
+        note: modal.elements.note.value.trim()
+      });
+      closeModal(modal);
+      await onSaved?.(mapMovement(result.movement), mapFile(result.file));
+      toast("Log dikemas kini", "Pembetulan log dan keberadaan fail telah disimpan.");
+    } catch (error) {
+      toast("Log tidak dapat dikemas kini", movementMutationError(error, "correct_file_movement"), "error");
+    } finally { setBusy(button, false); }
+  };
+  showModal("#movementLogEditModal");
+  modal.elements.from.focus();
+}
+
+function openMovementLogDelete(record, file, onDeleted) {
+  const modal = ensureMovementLogDeleteModal();
+  const confirmButton = modal.querySelector("[data-confirm-delete-movement]");
+  modal.querySelector("[data-file-reference]").textContent = `${file?.transaksi || "Rekod fail"}${file ? ` (Jilid ${file.jilid})` : ""} · ${record.dari} → ${record.kepada}`;
+  confirmButton.onclick = async () => {
+    setBusy(confirmButton, true, "Memadam…");
+    try {
+      const result = await deleteMovement(record);
+      closeModal(modal);
+      await onDeleted?.(mapFile(result.file));
+      toast("Log dipadam", "Log telah dipadam dan keberadaan fail dikira semula.");
+    } catch (error) {
+      toast("Log tidak dapat dipadam", movementMutationError(error, "delete_file_movement"), "error");
+    } finally { setBusy(confirmButton, false); }
+  };
+  showModal("#movementLogDeleteModal");
+  confirmButton.focus();
+}
+
+async function openHistory(file, refresh = () => {}) {
   const modal = document.querySelector("#historyModal");
   const list = modal.querySelector("#historyList");
-  list.replaceChildren(create("li", { text: "Memuatkan sejarah…" }));
   modal.querySelector("[data-file-reference]").textContent = `${file.transaksi} (Jilid ${file.jilid})`;
   showModal("#historyModal");
-  try {
-    const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
-    const rows = await rest("movements", `file_id=eq.${encodeURIComponent(file.id)}&select=${columns}&order=moved_at.desc`);
-    const records = rows.map(mapMovement);
-    list.replaceChildren();
-    if (!records.length) list.append(create("li", { text: "Tiada rekod pergerakan." }));
-    records.forEach(record => list.append(create("li", {}, [
-      create("strong", { text: `${record.dari} → ${record.kepada}` }),
-      record.catatan ? create("div", { text: record.catatan }) : null,
-      create("time", { text: formatDate(record.tarikh, true) })
-    ])));
-  } catch (error) {
-    list.replaceChildren(create("li", { text: `Sejarah tidak dapat dimuatkan: ${error.message}` }));
-  }
+  const reload = async () => {
+    list.replaceChildren(create("li", { text: "Memuatkan sejarah…" }));
+    try {
+      const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+      const rows = await rest("movements", `file_id=eq.${encodeURIComponent(file.id)}&select=${columns}&order=moved_at.desc`);
+      const records = rows.map(mapMovement);
+      list.replaceChildren();
+      if (!records.length) list.append(create("li", { text: "Tiada rekod pergerakan." }));
+      records.forEach(record => {
+        const actionCallback = async updatedFile => {
+          Object.assign(file, updatedFile);
+          refresh();
+          await reload();
+        };
+        list.append(create("li", {}, [
+          create("div", { className: "history-entry-copy" }, [
+            create("strong", { text: `${record.dari} → ${record.kepada}` }),
+            record.catatan ? create("div", { text: record.catatan }) : null,
+            create("time", { text: formatDate(record.tarikh, true) })
+          ]),
+          create("div", { className: "history-entry-actions" }, [
+            create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${record.dari} kepada ${record.kepada}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => actionCallback(updatedFile)) }),
+            create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${record.dari} kepada ${record.kepada}`, onclick: () => openMovementLogDelete(record, file, actionCallback) })
+          ])
+        ]));
+      });
+    } catch (error) {
+      list.replaceChildren(create("li", { text: `Sejarah tidak dapat dimuatkan: ${error.message}` }));
+    }
+  };
+  await reload();
 }
 
 function openDelete(file, refresh) {
