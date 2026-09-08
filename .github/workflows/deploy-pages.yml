@@ -33,7 +33,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site/assets
-          cp index.html MyFailPro.html dashboard.html daftar.html tetapan.html admin.html _site/
+          cp index.html MyFailPro.html dashboard.html daftar.html tetapan.html admin.html log-pergerakan.html _site/
           cp file.png Gemini_Generated_Image_vvxauovvxauovvxa.jpeg _site/
           cp -R assets/. _site/assets/
           touch _site/.nojekyll
