@@ -3719,7 +3719,7 @@ body:not([data-page="login"]) .user-avatar.avatar-emoji {
   }
 }
 
-/* Colour-coded navigation icons and the original dark notification bell. */
+/* Colour-coded navigation icons and a gold notification bell. */
 body:not([data-page="login"]) .nav a .nav-icon,
 body:not([data-page="login"]) .nav .nav-settings .nav-icon {
   width: 27px;
@@ -3779,17 +3779,17 @@ body:not([data-page="login"]) .nav :is(a, .nav-settings)[aria-current="page"] .n
 }
 
 body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notification-button {
-  border-color: rgba(148, 163, 184, .28);
-  color: #334155;
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 7px 16px rgba(51, 65, 85, .12);
+  border-color: rgba(245, 158, 11, .32);
+  color: #f59e0b;
+  background: linear-gradient(145deg, #fffef8, #fef3c7);
+  box-shadow: 0 7px 16px rgba(217, 119, 6, .16), inset 0 1px rgba(255, 255, 255, .9);
 }
 
 body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notification-button:hover {
-  border-color: rgba(100, 116, 139, .42);
-  color: #0f172a;
-  background: #fff;
-  box-shadow: 0 9px 20px rgba(51, 65, 85, .16);
+  border-color: rgba(217, 119, 6, .5);
+  color: #b45309;
+  background: #fef3c7;
+  box-shadow: 0 9px 20px rgba(217, 119, 6, .22);
 }
 
 body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notification-button span {
@@ -3797,4 +3797,8 @@ body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notific
   right: -6px;
   background: #f43f5e;
   box-shadow: 0 3px 8px rgba(244, 63, 94, .34);
+}
+
+body:not([data-page="login"]) .topbar-inner > .topbar-user-box > .topbar-notification-button span:empty {
+  display: none;
 }
