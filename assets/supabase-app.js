@@ -35,7 +35,17 @@ function sortClassificationSettings(settings) {
 let config;
 let session;
 let currentUser;
-const state = { files: [], agencies: [], staffUsers: [], staffUsageAvailable: true, staffAvatarsAvailable: true, settings: null };
+const state = {
+  files: [],
+  agencies: [],
+  staffUsers: [],
+  recipientUsers: [],
+  notifications: [],
+  notificationsAvailable: true,
+  staffUsageAvailable: true,
+  staffAvatarsAvailable: true,
+  settings: null
+};
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
 
@@ -294,12 +304,17 @@ function renderShell(user) {
   if (!user) return;
   const topbarInner = document.querySelector(".topbar-inner");
   const shellUserBox = document.querySelector(".workspace-toolbar .user-box, .topbar-inner > .user-box");
+  const shellNotificationButton = document.querySelector(".workspace-toolbar .notification-button, .topbar-inner .notification-button");
   const shellNavigation = topbarInner?.querySelector(".nav");
   const settingsNavigation = topbarInner?.querySelector(".nav-settings");
   if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
     if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
+  }
+  if (shellUserBox && shellNotificationButton) {
+    shellNotificationButton.classList.add("topbar-notification-button");
+    if (shellNotificationButton.parentElement !== shellUserBox) shellUserBox.insertBefore(shellNotificationButton, shellUserBox.firstChild);
   }
   document.querySelectorAll("[data-admin]").forEach(el => el.classList.toggle("hidden", user.role !== "admin"));
   const name = document.querySelector("[data-user-name]");
@@ -383,6 +398,7 @@ async function initShell(adminOnly = false) {
     try { await authRequest("logout", { method: "POST", headers: { authorization: `Bearer ${session.access_token}` } }); }
     finally { saveSession(null); location.replace("MyFailPro.html"); }
   }));
+  await initNotifications();
   return user;
 }
 
@@ -539,6 +555,158 @@ async function loadAgencies() {
   state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, createdAt: row.created_at }));
 }
 
+async function loadRecipientUsers() {
+  if (!currentUser || currentUser.role === "admin") { state.recipientUsers = []; return; }
+  try {
+    const rows = await rpc("workspace_staff_recipients", {});
+    state.recipientUsers = (rows || []).map(row => ({ id: row.id, name: row.name })).filter(person => person.name);
+  } catch (error) {
+    if (!missingRpc(error, "workspace_staff_recipients")) console.warn("Senarai penerima akaun tidak dapat dimuatkan.", error);
+    state.recipientUsers = [];
+  }
+}
+
+function mapFileNotification(row) {
+  return {
+    id: row.id,
+    fileId: row.file_id,
+    actorName: row.actor_name,
+    actorEmail: row.actor_email || "",
+    transactionCode: row.transaction_code,
+    volume: row.volume,
+    fromHolder: row.from_holder,
+    toHolder: row.to_holder,
+    movedAt: row.moved_at,
+    readAt: row.read_at || "",
+    createdAt: row.created_at
+  };
+}
+
+function notificationDateValue(value) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kuching",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function ensureNotificationModal() {
+  let modal = document.querySelector("#notificationModal");
+  if (modal) return modal;
+  modal = create("div", {
+    className: "modal hidden notification-modal",
+    id: "notificationModal",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "notificationTitle"
+  }, create("section", { className: "modal-card notification-modal-card" }, [
+    create("div", { className: "modal-head" }, [
+      create("div", {}, [
+        create("h2", { id: "notificationTitle", text: "Notifikasi Penerimaan Fail" }),
+        create("p", { text: "Fail yang dipindahkan kepada akaun anda." })
+      ]),
+      create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
+    ]),
+    create("div", { className: "notification-list", id: "notificationList" })
+  ]));
+  document.body.append(modal);
+  wireModal(modal);
+  return modal;
+}
+
+function updateNotificationBadge(button) {
+  const unreadCount = state.notifications.filter(item => !item.readAt).length;
+  const indicator = button.querySelector("span");
+  if (indicator) {
+    indicator.textContent = unreadCount > 99 ? "99+" : String(unreadCount || "");
+    indicator.classList.toggle("hidden", unreadCount === 0);
+  }
+  button.setAttribute("aria-label", unreadCount ? `Pemberitahuan, ${unreadCount} belum dibaca` : "Pemberitahuan, tiada yang baharu");
+}
+
+function renderNotifications(modal) {
+  const list = modal.querySelector("#notificationList");
+  list.replaceChildren();
+  if (!state.notifications.length) {
+    list.append(create("div", { className: "notification-empty" }, [
+      create("strong", { text: "Tiada notifikasi" }),
+      create("p", { text: "Pindahan fail kepada anda akan dipaparkan di sini." })
+    ]));
+    return;
+  }
+  state.notifications.forEach(item => {
+    const destination = `log-pergerakan.html?date=${encodeURIComponent(notificationDateValue(item.movedAt))}`;
+    list.append(create("a", { className: `notification-item${item.readAt ? "" : " unread"}`, href: destination }, [
+      create("span", { className: "notification-item-icon", "aria-hidden": "true", text: "→" }),
+      create("span", { className: "notification-item-copy" }, [
+        create("strong", { text: `${item.transactionCode} · Jilid ${item.volume}` }),
+        create("span", { text: `${item.actorName} memindahkan fail daripada ${item.fromHolder} kepada anda.` }),
+        item.actorEmail ? create("small", { text: item.actorEmail }) : null,
+        create("time", { datetime: item.movedAt, text: formatDate(item.movedAt, true) })
+      ])
+    ]));
+  });
+}
+
+async function loadNotifications() {
+  const columns = "id,file_id,actor_name,actor_email,transaction_code,volume,from_holder,to_holder,moved_at,read_at,created_at";
+  const query = `recipient_id=eq.${encodeURIComponent(currentUser.id)}&select=${columns}&order=created_at.desc&limit=50`;
+  state.notifications = (await rest("file_notifications", query)).map(mapFileNotification);
+  return state.notifications;
+}
+
+async function initNotifications() {
+  const button = document.querySelector(".notification-button");
+  if (!button) return;
+  const modal = ensureNotificationModal();
+  let refreshing = false;
+  const refresh = async () => {
+    if (refreshing || !state.notificationsAvailable) return;
+    refreshing = true;
+    try {
+      await loadNotifications();
+      updateNotificationBadge(button);
+      if (!modal.classList.contains("hidden")) renderNotifications(modal);
+    } catch (error) {
+      if (/file_notifications|schema cache/i.test(error.message)) {
+        state.notificationsAvailable = false;
+        state.notifications = [];
+        updateNotificationBadge(button);
+      }
+      else console.warn("Notifikasi tidak dapat dimuatkan.", error);
+    } finally { refreshing = false; }
+  };
+  await refresh();
+  button.addEventListener("click", async () => {
+    if (!state.notificationsAvailable) {
+      toast("Notifikasi belum diaktifkan", "Jalankan migrasi Supabase 20260908030000_add_file_notifications.sql.", "error");
+      return;
+    }
+    await refresh();
+    renderNotifications(modal);
+    showModal("#notificationModal");
+    const unread = state.notifications.filter(item => !item.readAt);
+    if (!unread.length) return;
+    const readAt = new Date().toISOString();
+    try {
+      await rest("file_notifications", `recipient_id=eq.${encodeURIComponent(currentUser.id)}&read_at=is.null`, {
+        method: "PATCH",
+        body: JSON.stringify({ read_at: readAt })
+      });
+      state.notifications.forEach(item => { if (!item.readAt) item.readAt = readAt; });
+      updateNotificationBadge(button);
+      renderNotifications(modal);
+    } catch (error) { console.warn("Status notifikasi tidak dapat dikemaskini.", error); }
+  });
+  if (state.notificationsAvailable) {
+    window.addEventListener("focus", refresh);
+    window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 45000);
+  }
+}
+
 async function loadStaffUsers() {
   if (currentUser.role !== "agency") { state.staffUsers = []; return; }
   const baseQuery = `agency_id=eq.${encodeURIComponent(currentUser.id)}&role=eq.staff`;
@@ -670,7 +838,7 @@ async function initLogin() {
 
 async function initDashboard() {
   if (!await initShell()) return;
-  await Promise.all([loadSettings(), loadFiles(), loadAgencies()]);
+  await Promise.all([loadSettings(), loadFiles(), loadAgencies(), loadRecipientUsers()]);
   const body = document.querySelector("#fileRows");
   const archiveBody = document.querySelector("#archiveRows");
   const search = document.querySelector("#searchFile");
@@ -902,7 +1070,8 @@ async function initMovementLog() {
     } finally { setBusy(button, false); }
   };
 
-  dateInput.value = malaysiaDateValue();
+  const requestedDate = new URLSearchParams(location.search).get("date");
+  dateInput.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : malaysiaDateValue();
   form.addEventListener("submit", event => { event.preventDefault(); loadMovements(); });
   previous.addEventListener("click", () => { currentPage -= 1; render(); });
   next.addEventListener("click", () => { currentPage += 1; render(); });
@@ -921,7 +1090,12 @@ function openMovement(file, refresh) {
   const modal = document.querySelector("#movementModal");
   modal.querySelector("[data-file-reference]").textContent = `${file.transaksi} (Jilid ${file.jilid})`;
   const recipient = modal.querySelector("#recipient");
-  const recipients = ["Bilik Fail", ...state.settings.pegawai.map(p => p.nama), ...state.agencies.map(a => a.nama)];
+  const recipients = [
+    "Bilik Fail",
+    ...state.settings.pegawai.map(p => p.nama),
+    ...state.recipientUsers.map(person => person.name),
+    ...state.agencies.map(a => a.nama)
+  ];
   fillSelect(recipient, [...new Set(recipients)], "Pilih keberadaan…");
   recipient.value = file.pemegangTerkini;
   modal.querySelector("#movementDate").value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
