@@ -3244,6 +3244,27 @@ body[data-page="settings"] .staff-user-identity {
   font-weight: 750;
 }
 
+body[data-page="settings"] .staff-name-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 280px;
+}
+
+body[data-page="settings"] .staff-account-edit {
+  min-width: 62px;
+  flex: 0 0 auto;
+}
+
+body[data-page="settings"] .staff-account-modal {
+  width: min(720px, calc(100vw - 32px));
+}
+
+body[data-page="settings"] .staff-account-modal .avatar-options {
+  grid-template-columns: repeat(6, minmax(80px, 1fr));
+}
+
 body:not([data-page="login"]) .user-avatar.avatar-emoji {
   font-size: 1.35rem;
 }
@@ -3264,10 +3285,18 @@ body:not([data-page="login"]) .user-avatar.avatar-emoji {
   body[data-page="settings"] .avatar-options {
     grid-template-columns: repeat(3, minmax(86px, 1fr));
   }
+
+  body[data-page="settings"] .staff-account-modal .avatar-options {
+    grid-template-columns: repeat(3, minmax(86px, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
   body[data-page="settings"] .avatar-options {
+    grid-template-columns: repeat(2, minmax(86px, 1fr));
+  }
+
+  body[data-page="settings"] .staff-account-modal .avatar-options {
     grid-template-columns: repeat(2, minmax(86px, 1fr));
   }
 }

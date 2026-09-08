@@ -1225,6 +1225,38 @@ async function initSettings() {
     });
     accountNameInput.addEventListener("input", updateAvatarPreviews);
     updateAvatarPreviews();
+    const editAccountModal = document.querySelector("#staffAccountEditModal");
+    const openStaffAccountEditor = person => {
+      const reference = editAccountModal.querySelector("[data-staff-reference]");
+      const passwordInput = editAccountModal.elements.password;
+      const selectedAvatar = editAccountModal.querySelector(`input[name=avatar][value="${person.avatarKey}"]`)
+        || editAccountModal.querySelector("input[name=avatar][value=initials]");
+      editAccountModal.querySelector("input[name=avatar][value=initials] + .avatar-choice").textContent = avatarPresentation("initials", person.name).symbol;
+      reference.textContent = `${person.name} · ${person.email}`;
+      passwordInput.value = "";
+      selectedAvatar.checked = true;
+      editAccountModal.onsubmit = async event => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(editAccountModal));
+        const button = editAccountModal.querySelector("button[type=submit]");
+        setBusy(button, true, "Menyimpan…");
+        try {
+          await callAdminFunction("agency-update-staff", {
+            id: person.id,
+            password: data.password,
+            avatar: data.avatar
+          });
+          await loadStaffUsers();
+          closeModal(editAccountModal);
+          renderStaffUsers();
+          toast("Akaun dikemas kini", data.password ? "Avatar dan kata laluan pegawai telah ditukar." : "Avatar pegawai telah ditukar.");
+        } catch (error) {
+          toast("Akaun tidak dapat dikemas kini", error.message, "error");
+        } finally { setBusy(button, false); }
+      };
+      showModal("#staffAccountEditModal");
+      selectedAvatar.focus();
+    };
     const renderStaffUsers = () => {
       accountRows.replaceChildren();
       if (!state.staffUsers.length) {
@@ -1234,9 +1266,12 @@ async function initSettings() {
       state.staffUsers.forEach(person => {
         const avatar = avatarPresentation(person.avatarKey, person.name);
         accountRows.append(create("tr", {}, [
-        create("td", {}, create("div", { className: "staff-user-identity" }, [
-          create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
-          create("span", { text: person.name })
+        create("td", {}, create("div", { className: "staff-name-cell" }, [
+          create("div", { className: "staff-user-identity" }, [
+            create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
+            create("span", { text: person.name })
+          ]),
+          create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${person.name}`, onclick: () => openStaffAccountEditor(person) })
         ])),
         create("td", { text: person.email }),
         create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),

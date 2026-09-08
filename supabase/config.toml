@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.agency-create-staff]
 verify_jwt = false
+
+[functions.agency-update-staff]
+verify_jwt = false

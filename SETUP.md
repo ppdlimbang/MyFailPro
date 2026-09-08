@@ -45,10 +45,11 @@ The workflow deploys:
 - `admin-create-user`
 - `admin-delete-user`
 - `agency-create-staff`
+- `agency-update-staff`
 
 All functions validate the caller's Supabase session before using a server-only
-secret key. Admin functions require an `admin` profile, while
-`agency-create-staff` requires an agency-owner profile. The functions accept
+secret key. Admin functions require an `admin` profile, while the agency staff
+functions require an agency-owner profile. The functions accept
 browser requests from `https://ppdlimbang.github.io` by default.
 
 An agency owner can create staff accounts from **Tetapan Sistem > Akaun Pegawai
@@ -64,6 +65,10 @@ Akaun Pengguna Pegawai**.
 Agency owners can also choose an avatar when creating a staff account. The
 selected avatar appears in the staff account list and in the navigation header
 when that staff member signs in.
+
+Agency owners can use **Edit** beside a staff account to replace its avatar or
+set a new password. Leaving the new-password field empty preserves the current
+password.
 
 ## 3. Enable GitHub Pages
 
