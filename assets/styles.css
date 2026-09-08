@@ -3376,6 +3376,11 @@ body[data-page="movement-log"] th {
   font-size: .73rem;
 }
 
+body[data-page="movement-log"] th:nth-child(3),
+body[data-page="movement-log"] th:nth-child(6) {
+  text-align: center;
+}
+
 body[data-page="movement-log"] td {
   padding-block: 20px;
   vertical-align: middle;
@@ -3526,6 +3531,7 @@ body[data-page="movement-log"] .table-pagination .button:disabled {
   align-items: center;
   gap: 7px;
 }
+body[data-page="movement-log"] .movement-log-actions { justify-content: center; }
 .button.movement-log-delete-button {
   border-color: rgba(244, 63, 94, .24);
   color: #e11d48;
