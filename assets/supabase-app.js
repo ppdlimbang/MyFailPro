@@ -855,7 +855,7 @@ async function initMovementLog() {
         create("td", { text: record.catatan || "Tiada catatan" })
       ]));
     });
-    count.textContent = `${records.length} rekod`;
+    count.textContent = `${records.length} fail`;
     empty.classList.toggle("hidden", records.length > 0);
     pagination.classList.toggle("hidden", records.length <= pageSize);
     pageInfo.textContent = records.length ? `${startIndex + 1}–${endIndex} daripada ${records.length} rekod` : "0 rekod";
@@ -884,10 +884,16 @@ async function initMovementLog() {
         if (!/performed_by|performed_by_name|performed_by_email/i.test(error.message)) throw error;
         rows = await rest("movements", `select=${baseColumns}&${filters}`);
       }
-      records = rows.map(mapMovement);
+      const latestByFile = new Map();
+      rows.map(mapMovement)
+        .filter(record => record.dari.toLocaleLowerCase("ms") !== "sistem pendaftaran")
+        .forEach(record => {
+          if (!latestByFile.has(record.idFail)) latestByFile.set(record.idFail, record);
+        });
+      records = [...latestByFile.values()];
       currentPage = 1;
       const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
-      subtitle.textContent = `Pergerakan fail yang direkodkan pada ${selectedLabel}.`;
+      subtitle.textContent = `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
       render();
     } catch (error) {
       records = [];
