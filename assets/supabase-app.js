@@ -1260,25 +1260,23 @@ async function initSettings() {
     const renderStaffUsers = () => {
       accountRows.replaceChildren();
       if (!state.staffUsers.length) {
-        accountRows.append(create("tr", {}, create("td", { colspan: "4", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
+        accountRows.append(create("tr", {}, create("td", { colspan: "5", className: "empty-row", text: "Belum ada akaun pengguna pegawai." })));
         return;
       }
       state.staffUsers.forEach(person => {
         const avatar = avatarPresentation(person.avatarKey, person.name);
         accountRows.append(create("tr", {}, [
-        create("td", {}, create("div", { className: "staff-name-cell" }, [
-          create("div", { className: "staff-user-identity" }, [
-            create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
-            create("span", { text: person.name })
-          ]),
-          create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${person.name}`, onclick: () => openStaffAccountEditor(person) })
+        create("td", {}, create("div", { className: "staff-user-identity" }, [
+          create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
+          create("span", { text: person.name })
         ])),
         create("td", { text: person.email }),
         create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
         create("td", {}, create("div", { className: "staff-usage-log" }, [
           create("strong", { text: state.staffUsageAvailable ? `${person.loginCount} kali log masuk` : "Belum tersedia" }),
           create("span", { text: state.staffUsageAvailable && person.lastLoginAt ? `Terakhir: ${formatDate(person.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
-        ]))
+        ])),
+        create("td", { className: "staff-account-actions" }, create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${person.name}`, onclick: () => openStaffAccountEditor(person) }))
         ]));
       });
     };
