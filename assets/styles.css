@@ -3427,7 +3427,7 @@ body[data-page="movement-log"] .movement-log-panel .panel-head {
 
 body[data-page="movement-log"] .movement-log-filter {
   display: grid;
-  grid-template-columns: auto minmax(180px, 220px) auto auto;
+  grid-template-columns: auto minmax(180px, 220px) auto auto auto;
   align-items: center;
   gap: 10px;
 }
@@ -3455,17 +3455,17 @@ body[data-page="movement-log"] table {
 }
 
 body[data-page="movement-log"] th:nth-child(1),
-body[data-page="movement-log"] td:nth-child(1) { width: 13%; }
+body[data-page="movement-log"] td:nth-child(1) { width: 14%; }
 body[data-page="movement-log"] th:nth-child(2),
-body[data-page="movement-log"] td:nth-child(2) { width: 21%; }
+body[data-page="movement-log"] td:nth-child(2) { width: 24%; }
 body[data-page="movement-log"] th:nth-child(3),
 body[data-page="movement-log"] td:nth-child(3) { width: 20%; }
 body[data-page="movement-log"] th:nth-child(4),
-body[data-page="movement-log"] td:nth-child(4) { width: 18%; }
+body[data-page="movement-log"] td:nth-child(4) { width: 20%; }
 body[data-page="movement-log"] th:nth-child(5),
 body[data-page="movement-log"] td:nth-child(5) { width: 10%; }
 body[data-page="movement-log"] th:nth-child(6),
-body[data-page="movement-log"] td:nth-child(6) { width: 18%; }
+body[data-page="movement-log"] td:nth-child(6) { width: 12%; }
 
 body[data-page="movement-log"] th,
 body[data-page="movement-log"] td {
@@ -3625,30 +3625,15 @@ body[data-page="movement-log"] .table-pagination .button:disabled {
   gap: 16px;
 }
 .history-entry-copy { min-width: 0; }
-.history-entry-actions {
+.history-entry-actions,
+.movement-log-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
 }
 body[data-page="movement-log"] .movement-log-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-}
-body[data-page="movement-log"] .movement-log-actions .button {
-  width: 100%;
-  min-width: 0;
-  white-space: nowrap;
-}
-.button.movement-file-view-button {
-  border-color: transparent;
-  color: #fff;
-  background: linear-gradient(135deg, #6d4aff, #7c3aed);
-}
-.button.movement-file-view-button:hover {
-  color: #fff;
-  background: linear-gradient(135deg, #5b36f2, #6d28d9);
+  justify-content: center;
 }
 .button.movement-log-delete-button {
   border-color: rgba(244, 63, 94, .24);
@@ -3667,7 +3652,7 @@ body[data-page="movement-log"] .movement-log-actions .button {
   }
 
   body[data-page="movement-log"] .movement-log-filter {
-    grid-template-columns: auto minmax(180px, 1fr) auto;
+    grid-template-columns: auto minmax(180px, 1fr) auto auto;
   }
 
   body[data-page="movement-log"] .movement-log-filter .archive-count {
@@ -3676,7 +3661,7 @@ body[data-page="movement-log"] .movement-log-actions .button {
   }
 
   body[data-page="movement-log"] table {
-    min-width: 1200px;
+    min-width: 1120px;
     table-layout: auto;
   }
 
