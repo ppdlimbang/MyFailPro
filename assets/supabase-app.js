@@ -1078,22 +1078,29 @@ async function initMovementLog() {
   await loadFiles();
   const form = document.querySelector("#movementLogFilter");
   const dateInput = document.querySelector("#movementLogDate");
+  const showLogButton = document.querySelector("#showMovementLog");
+  const showAssignedButton = document.querySelector("#showAssignedFiles");
   const body = document.querySelector("#movementLogRows");
   const empty = document.querySelector("#emptyMovementLog");
+  const emptyTitle = document.querySelector("#emptyMovementLogTitle");
+  const emptyCopy = document.querySelector("#emptyMovementLogCopy");
   const count = document.querySelector("#movementLogCount");
   const subtitle = document.querySelector("#movementLogSubtitle");
+  const listTitle = document.querySelector("#movementListTitle");
+  const listCopy = document.querySelector("#movementListCopy");
+  const caption = document.querySelector("#movementLogCaption");
+  const userHeading = document.querySelector("#movementUserHeading");
   const pagination = document.querySelector("#movementLogPagination");
   const pageInfo = document.querySelector("#movementLogPageInfo");
   const previous = document.querySelector("#movementLogPrevious");
   const next = document.querySelector("#movementLogNext");
-  const assignedPanel = document.querySelector("#assignedFilesPanel");
-  const assignedBody = document.querySelector("#assignedFilesRows");
-  const assignedEmpty = document.querySelector("#emptyAssignedFiles");
-  const assignedCount = document.querySelector("#assignedFilesCount");
   const fileById = new Map(state.files.map(file => [file.id, file]));
   const pageSize = 12;
   let records = [];
   let currentPage = 1;
+  let viewMode = "log";
+
+  showAssignedButton.classList.toggle("hidden", currentUser.role !== "staff");
 
   const malaysiaDateValue = () => {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -1104,6 +1111,37 @@ async function initMovementLog() {
     }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
+  };
+
+  const updateView = selectedLabel => {
+    const assignedView = viewMode === "assigned";
+    showLogButton.classList.toggle("secondary", assignedView);
+    showAssignedButton.classList.toggle("secondary", !assignedView);
+    showLogButton.setAttribute("aria-pressed", String(!assignedView));
+    showAssignedButton.setAttribute("aria-pressed", String(assignedView));
+    listTitle.textContent = assignedView ? "Fail Diterima Saya" : "Senarai Pergerakan";
+    listCopy.textContent = assignedView
+      ? "Fail yang sedang berada dalam pegangan anda, tanpa mengira tarikh penyerahan."
+      : "Pilih tarikh untuk melihat Pindah Keberadaan terakhir dan pengguna yang melakukannya.";
+    caption.textContent = assignedView
+      ? "Fail yang sedang diserahkan kepada pengguna agensi"
+      : "Log pergerakan fail mengikut tarikh dan pengguna pindahan terakhir";
+    userHeading.textContent = assignedView ? "Diserahkan Oleh" : "Pengguna Terakhir";
+    userHeading.title = assignedView
+      ? "Pengguna yang menyerahkan fail kepada anda"
+      : "Pengguna yang membuat perubahan Pindah Keberadaan";
+    emptyTitle.textContent = assignedView ? "Tiada fail dalam pegangan anda" : "Tiada pindahan direkodkan";
+    emptyCopy.textContent = assignedView
+      ? "Fail akan dipaparkan di sini apabila pengguna lain memindahkannya kepada anda."
+      : "Tiada tindakan Pindah Keberadaan pada tarikh yang dipilih.";
+    subtitle.textContent = assignedView
+      ? "Fail yang sedang diserahkan kepada akaun anda."
+      : `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
+  };
+
+  const refreshCurrentView = async () => {
+    if (viewMode === "assigned") await loadAssignedFiles();
+    else await loadMovements();
   };
 
   const render = () => {
@@ -1138,16 +1176,18 @@ async function initMovementLog() {
           ])
         ])),
         create("td", { text: record.catatan || "Tiada catatan" }),
-        create("td", {}, create("div", { className: "movement-log-actions" }, [
-          create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
-            if (file) Object.assign(file, updatedFile);
-            await Promise.all([loadMovements(), loadAssignedFiles()]);
-          }) }),
-          create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${fileReference}`, onclick: () => openMovementLogDelete(record, file, async updatedFile => {
-            if (file) Object.assign(file, updatedFile);
-            await Promise.all([loadMovements(), loadAssignedFiles()]);
-          }) })
-        ]))
+        create("td", {}, record.synthetic
+          ? create("span", { className: "record-meta", text: "Log tidak tersedia" })
+          : create("div", { className: "movement-log-actions" }, [
+            create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
+              if (file) Object.assign(file, updatedFile);
+              await refreshCurrentView();
+            }) }),
+            create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${fileReference}`, onclick: () => openMovementLogDelete(record, file, async updatedFile => {
+              if (file) Object.assign(file, updatedFile);
+              await refreshCurrentView();
+            }) })
+          ]))
       ]));
     });
     count.textContent = `${records.length} fail`;
@@ -1158,27 +1198,32 @@ async function initMovementLog() {
     next.disabled = currentPage === pageCount;
   };
 
-  const loadMovements = async () => {
+  async function movementRows(filters) {
+    const baseColumns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+    const actorColumns = `${baseColumns},performed_by,performed_by_name,performed_by_email`;
+    try {
+      return await rest("movements", `select=${actorColumns}&${filters}`);
+    } catch (error) {
+      if (!/performed_by|performed_by_name|performed_by_email/i.test(error.message)) throw error;
+      return rest("movements", `select=${baseColumns}&${filters}`);
+    }
+  }
+
+  async function loadMovements() {
     const selectedDate = dateInput.value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
       toast("Tarikh diperlukan", "Pilih tarikh log pergerakan yang ingin dipaparkan.", "error");
       return;
     }
-    const button = form.querySelector("button[type=submit]");
-    setBusy(button, true, "Memuatkan…");
+    viewMode = "log";
+    const start = new Date(`${selectedDate}T00:00:00+08:00`);
+    const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
+    updateView(selectedLabel);
+    setBusy(showLogButton, true, "Memuatkan…");
     try {
-      const start = new Date(`${selectedDate}T00:00:00+08:00`);
       const end = new Date(start.getTime() + 86400000);
-      const baseColumns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
-      const actorColumns = `${baseColumns},performed_by,performed_by_name,performed_by_email`;
       const filters = `moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
-      let rows;
-      try {
-        rows = await rest("movements", `select=${actorColumns}&${filters}`);
-      } catch (error) {
-        if (!/performed_by|performed_by_name|performed_by_email/i.test(error.message)) throw error;
-        rows = await rest("movements", `select=${baseColumns}&${filters}`);
-      }
+      const rows = await movementRows(filters);
       const latestByFile = new Map();
       rows.map(mapMovement)
         .filter(record => record.dari.toLocaleLowerCase("ms") !== "sistem pendaftaran")
@@ -1187,83 +1232,65 @@ async function initMovementLog() {
         });
       records = [...latestByFile.values()];
       currentPage = 1;
-      const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
-      subtitle.textContent = `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
       render();
     } catch (error) {
       records = [];
       render();
       toast("Log tidak dapat dimuatkan", error.message, "error");
-    } finally { setBusy(button, false); }
-  };
+    } finally { setBusy(showLogButton, false); }
+  }
 
-  const loadAssignedFiles = async () => {
-    if (currentUser.role !== "staff") {
-      assignedPanel.classList.add("hidden");
-      return;
-    }
-    assignedPanel.classList.remove("hidden");
+  async function loadAssignedFiles() {
+    if (currentUser.role !== "staff") return;
+    viewMode = "assigned";
+    updateView("");
+    setBusy(showAssignedButton, true, "Memuatkan…");
     const userName = normalizeRecipientName(currentUser.data?.nama);
     const assignedFiles = state.files
       .filter(file => normalizeRecipientName(file.pemegangTerkini) === userName)
       .sort((first, second) =>
         classificationCollator.compare(first.transaksi || "", second.transaksi || "") ||
         Number(first.jilid || 0) - Number(second.jilid || 0));
-    assignedBody.replaceChildren();
-    assignedCount.textContent = `${assignedFiles.length} fail`;
-    assignedEmpty.classList.toggle("hidden", assignedFiles.length > 0);
-    if (!assignedFiles.length) return;
-
     const latestMovementByFile = new Map();
     try {
-      const fileIds = assignedFiles.map(file => file.id).join(",");
-      const baseColumns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
-      const actorColumns = `${baseColumns},performed_by,performed_by_name,performed_by_email`;
-      const filters = `file_id=in.(${fileIds})&order=moved_at.desc`;
-      let rows;
-      try {
-        rows = await rest("movements", `select=${actorColumns}&${filters}`);
-      } catch (error) {
-        if (!/performed_by|performed_by_name|performed_by_email/i.test(error.message)) throw error;
-        rows = await rest("movements", `select=${baseColumns}&${filters}`);
+      if (!assignedFiles.length) {
+        records = [];
+        currentPage = 1;
+        render();
+        return;
       }
+      const fileIds = assignedFiles.map(file => file.id).join(",");
+      const filters = `file_id=in.(${fileIds})&order=moved_at.desc`;
+      const rows = await movementRows(filters);
       rows.map(mapMovement).forEach(record => {
         if (!latestMovementByFile.has(record.idFail)) latestMovementByFile.set(record.idFail, record);
       });
     } catch (error) {
       toast("Maklumat penyerahan tidak lengkap", error.message, "error");
+    } finally {
+      setBusy(showAssignedButton, false);
     }
-
-    assignedFiles.forEach(file => {
-      const movement = latestMovementByFile.get(file.id);
-      const actorName = movement?.penggunaNama || "Tidak direkodkan";
-      assignedBody.append(create("tr", {}, [
-        create("td", {}, [
-          create("div", { className: "record-title", text: `${file.transaksi} · Jilid ${file.jilid}` }),
-          create("div", { className: "record-meta", text: file.subAktiviti })
-        ]),
-        create("td", {}, movement
-          ? create("time", { datetime: movement.tarikh, text: formatDate(movement.tarikh, true) })
-          : create("span", { text: "Tidak direkodkan" })),
-        create("td", {}, create("span", { className: "movement-holder from", text: movement?.dari || "Tidak direkodkan" })),
-        create("td", {}, create("div", { className: "movement-user" }, [
-          create("span", { className: "movement-user-avatar", "aria-hidden": "true", text: avatarPresentation("initials", actorName).symbol }),
-          create("span", { className: "movement-user-copy" }, [
-            create("strong", { text: actorName }),
-            movement?.penggunaEmel ? create("small", { text: movement.penggunaEmel }) : null
-          ])
-        ])),
-        create("td", { text: movement?.catatan || "Tiada catatan" })
-      ]));
+    records = assignedFiles.map(file => latestMovementByFile.get(file.id) || {
+      idFail: file.id,
+      tarikh: file.tarikhDaftar,
+      dari: "Tidak direkodkan",
+      kepada: file.pemegangTerkini,
+      catatan: "Tiada catatan",
+      penggunaNama: "Tidak direkodkan",
+      penggunaEmel: "",
+      synthetic: true
     });
-  };
+    currentPage = 1;
+    render();
+  }
 
   const requestedDate = new URLSearchParams(location.search).get("date");
   dateInput.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : malaysiaDateValue();
   form.addEventListener("submit", event => { event.preventDefault(); loadMovements(); });
+  showAssignedButton.addEventListener("click", loadAssignedFiles);
   previous.addEventListener("click", () => { currentPage -= 1; render(); });
   next.addEventListener("click", () => { currentPage += 1; render(); });
-  await Promise.all([loadMovements(), loadAssignedFiles()]);
+  await loadMovements();
   markReady();
 }
 
