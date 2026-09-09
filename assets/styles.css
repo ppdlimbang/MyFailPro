@@ -2529,6 +2529,59 @@ body[data-page="dashboard"] .stats {
   padding-inline: 0;
 }
 
+body[data-page="dashboard"] .stats .stat {
+  overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+body[data-page="dashboard"] .stats .stat:hover {
+  transform: translateY(-3px);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(1) {
+  border-color: rgba(139, 92, 246, .28);
+  background: linear-gradient(135deg, rgba(237, 233, 254, .90), rgba(250, 245, 255, .68));
+  box-shadow: 0 17px 38px rgba(109, 74, 255, .14);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(2) {
+  border-color: rgba(20, 184, 166, .28);
+  background: linear-gradient(135deg, rgba(204, 251, 241, .88), rgba(240, 253, 250, .68));
+  box-shadow: 0 17px 38px rgba(13, 148, 136, .13);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(3) {
+  border-color: rgba(249, 115, 22, .28);
+  background: linear-gradient(135deg, rgba(255, 237, 213, .90), rgba(255, 247, 237, .70));
+  box-shadow: 0 17px 38px rgba(234, 88, 12, .13);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(1) .stat-icon {
+  color: #fff;
+  background: linear-gradient(145deg, #7c3aed, #5b21b6);
+  box-shadow: 0 11px 22px rgba(109, 40, 217, .24);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(2) .stat-icon {
+  color: #fff;
+  background: linear-gradient(145deg, #14b8a6, #047857);
+  box-shadow: 0 11px 22px rgba(13, 148, 136, .23);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(3) .stat-icon {
+  color: #fff;
+  background: linear-gradient(145deg, #fb923c, #ea580c);
+  box-shadow: 0 11px 22px rgba(234, 88, 12, .23);
+}
+
+body[data-page="dashboard"] .stats .stat:nth-child(1) strong { color: #5b21b6; }
+body[data-page="dashboard"] .stats .stat:nth-child(2) strong { color: #087f6c; }
+body[data-page="dashboard"] .stats .stat:nth-child(3) strong { color: #c2410c; }
+
+body[data-page="dashboard"] .stats .stat:nth-child(1) small { color: #6d4ac7; }
+body[data-page="dashboard"] .stats .stat:nth-child(2) small { color: #087f6c; }
+body[data-page="dashboard"] .stats .stat:nth-child(3) small { color: #b45309; }
+
 body[data-page="register"] .page-head,
 body[data-page="register"] .main > .panel {
   width: min(1440px, 100%);
