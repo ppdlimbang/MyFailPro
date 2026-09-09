@@ -3427,7 +3427,7 @@ body[data-page="movement-log"] .movement-log-panel .panel-head {
 
 body[data-page="movement-log"] .movement-log-filter {
   display: grid;
-  grid-template-columns: auto minmax(180px, 220px) auto auto auto;
+  grid-template-columns: auto minmax(180px, 220px) auto auto;
   align-items: center;
   gap: 10px;
 }
@@ -3632,9 +3632,7 @@ body[data-page="movement-log"] .table-pagination .button:disabled {
   align-items: center;
   gap: 7px;
 }
-body[data-page="movement-log"] .movement-log-actions {
-  justify-content: center;
-}
+body[data-page="movement-log"] .movement-log-actions { justify-content: center; }
 .button.movement-log-delete-button {
   border-color: rgba(244, 63, 94, .24);
   color: #e11d48;
@@ -3652,7 +3650,7 @@ body[data-page="movement-log"] .movement-log-actions {
   }
 
   body[data-page="movement-log"] .movement-log-filter {
-    grid-template-columns: auto minmax(180px, 1fr) auto auto;
+    grid-template-columns: auto minmax(180px, 1fr) auto;
   }
 
   body[data-page="movement-log"] .movement-log-filter .archive-count {

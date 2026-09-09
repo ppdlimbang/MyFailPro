@@ -678,13 +678,13 @@ function notificationFileField(label, value, className = "") {
   ]);
 }
 
-async function openNotificationFile(item, sourceModal = null) {
+async function openNotificationFile(item, notificationModal) {
   const modal = ensureNotificationFileModal();
   const reference = modal.querySelector("[data-file-reference]");
   const content = modal.querySelector("#notificationFileContent");
   reference.textContent = `${item.transactionCode} (Jilid ${item.volume})`;
   content.replaceChildren(create("div", { className: "notification-file-loading", text: "Memuatkan butiran fail…" }));
-  if (sourceModal) closeModal(sourceModal);
+  closeModal(notificationModal);
   showModal("#notificationFileModal");
 
   try {
@@ -1078,18 +1078,10 @@ async function initMovementLog() {
   await loadFiles();
   const form = document.querySelector("#movementLogFilter");
   const dateInput = document.querySelector("#movementLogDate");
-  const showLogButton = document.querySelector("#showMovementLog");
-  const showReceivedButton = document.querySelector("#showReceivedFiles");
   const body = document.querySelector("#movementLogRows");
   const empty = document.querySelector("#emptyMovementLog");
-  const emptyTitle = document.querySelector("#emptyMovementLogTitle");
-  const emptyCopy = document.querySelector("#emptyMovementLogCopy");
   const count = document.querySelector("#movementLogCount");
   const subtitle = document.querySelector("#movementLogSubtitle");
-  const listTitle = document.querySelector("#movementListTitle");
-  const listCopy = document.querySelector("#movementListCopy");
-  const caption = document.querySelector("#movementLogCaption");
-  const userHeading = document.querySelector("#movementUserHeading");
   const pagination = document.querySelector("#movementLogPagination");
   const pageInfo = document.querySelector("#movementLogPageInfo");
   const previous = document.querySelector("#movementLogPrevious");
@@ -1098,9 +1090,6 @@ async function initMovementLog() {
   const pageSize = 12;
   let records = [];
   let currentPage = 1;
-  let viewMode = "log";
-
-  showReceivedButton.classList.toggle("hidden", currentUser.role !== "staff");
 
   const malaysiaDateValue = () => {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -1111,42 +1100,6 @@ async function initMovementLog() {
     }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
-  };
-
-  const selectedDateRange = () => {
-    const selectedDate = dateInput.value;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
-      toast("Tarikh diperlukan", "Pilih tarikh yang ingin dipaparkan.", "error");
-      return null;
-    }
-    const start = new Date(`${selectedDate}T00:00:00+08:00`);
-    return { start, end: new Date(start.getTime() + 86400000) };
-  };
-
-  const updateViewLabels = selectedLabel => {
-    const receivedView = viewMode === "received";
-    showLogButton.classList.toggle("secondary", receivedView);
-    showReceivedButton.classList.toggle("secondary", !receivedView);
-    showLogButton.setAttribute("aria-pressed", String(!receivedView));
-    showReceivedButton.setAttribute("aria-pressed", String(receivedView));
-    listTitle.textContent = receivedView ? "Fail Diterima Saya" : "Senarai Pergerakan";
-    listCopy.textContent = receivedView
-      ? "Fail yang diserahkan kepada anda oleh pengguna lain pada tarikh pilihan."
-      : "Pilih tarikh untuk melihat Pindah Keberadaan terakhir dan pengguna yang melakukannya.";
-    caption.textContent = receivedView
-      ? "Fail yang diterima oleh pengguna semasa daripada pengguna lain"
-      : "Log pergerakan fail mengikut tarikh dan pengguna pindahan terakhir";
-    userHeading.textContent = receivedView ? "Diserahkan Oleh" : "Pengguna Terakhir";
-    userHeading.title = receivedView
-      ? "Pengguna lain yang menyerahkan fail kepada anda"
-      : "Pengguna yang membuat perubahan Pindah Keberadaan";
-    emptyTitle.textContent = receivedView ? "Tiada fail diterima" : "Tiada pindahan direkodkan";
-    emptyCopy.textContent = receivedView
-      ? "Tiada pengguna lain menyerahkan fail kepada anda pada tarikh yang dipilih."
-      : "Tiada tindakan Pindah Keberadaan pada tarikh yang dipilih.";
-    subtitle.textContent = receivedView
-      ? `Fail yang diserahkan kepada anda pada ${selectedLabel}.`
-      : `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
   };
 
   const render = () => {
@@ -1165,24 +1118,6 @@ async function initMovementLog() {
         timeStyle: "short",
         timeZone: "Asia/Kuching"
       }).format(new Date(record.tarikh));
-      const actions = viewMode === "received"
-        ? create("div", { className: "movement-log-actions" }, create("button", {
-          className: "button small",
-          type: "button",
-          text: "Lihat Fail",
-          "aria-label": `Lihat fail diterima ${fileReference}`,
-          onclick: () => openNotificationFile(record.notification)
-        }))
-        : create("div", { className: "movement-log-actions" }, [
-          create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
-            if (file) Object.assign(file, updatedFile);
-            await loadMovements();
-          }) }),
-          create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${fileReference}`, onclick: () => openMovementLogDelete(record, file, async updatedFile => {
-            if (file) Object.assign(file, updatedFile);
-            await loadMovements();
-          }) })
-        ]);
       body.append(create("tr", {}, [
         create("td", {}, create("time", { datetime: record.tarikh, text: movementTime })),
         create("td", {}, [create("div", { className: "record-title", text: fileReference }), create("div", { className: "record-meta", text: fileDetail })]),
@@ -1198,11 +1133,20 @@ async function initMovementLog() {
             record.penggunaEmel ? create("small", { text: record.penggunaEmel }) : create("small", { text: "Log terdahulu" })
           ])
         ])),
-        create("td", { text: record.catatan || (viewMode === "received" ? "Fail diserahkan kepada anda" : "Tiada catatan") }),
-        create("td", {}, actions)
+        create("td", { text: record.catatan || "Tiada catatan" }),
+        create("td", {}, create("div", { className: "movement-log-actions" }, [
+          create("button", { className: "button secondary small", type: "button", text: "Edit", "aria-label": `Edit log ${fileReference}`, onclick: () => openMovementLogEditor(record, file, async (_updatedRecord, updatedFile) => {
+            if (file) Object.assign(file, updatedFile);
+            await loadMovements();
+          }) }),
+          create("button", { className: "button secondary small movement-log-delete-button", type: "button", text: "Padam", "aria-label": `Padam log ${fileReference}`, onclick: () => openMovementLogDelete(record, file, async updatedFile => {
+            if (file) Object.assign(file, updatedFile);
+            await loadMovements();
+          }) })
+        ]))
       ]));
     });
-    count.textContent = viewMode === "received" ? `${records.length} diterima` : `${records.length} fail`;
+    count.textContent = `${records.length} fail`;
     empty.classList.toggle("hidden", records.length > 0);
     pagination.classList.toggle("hidden", records.length <= pageSize);
     pageInfo.textContent = records.length ? `${startIndex + 1}–${endIndex} daripada ${records.length} rekod` : "0 rekod";
@@ -1211,16 +1155,19 @@ async function initMovementLog() {
   };
 
   const loadMovements = async () => {
-    const range = selectedDateRange();
-    if (!range) return;
-    viewMode = "log";
-    const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(range.start);
-    updateViewLabels(selectedLabel);
-    setBusy(showLogButton, true, "Memuatkan…");
+    const selectedDate = dateInput.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      toast("Tarikh diperlukan", "Pilih tarikh log pergerakan yang ingin dipaparkan.", "error");
+      return;
+    }
+    const button = form.querySelector("button[type=submit]");
+    setBusy(button, true, "Memuatkan…");
     try {
+      const start = new Date(`${selectedDate}T00:00:00+08:00`);
+      const end = new Date(start.getTime() + 86400000);
       const baseColumns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
       const actorColumns = `${baseColumns},performed_by,performed_by_name,performed_by_email`;
-      const filters = `moved_at=gte.${encodeURIComponent(range.start.toISOString())}&moved_at=lt.${encodeURIComponent(range.end.toISOString())}&order=moved_at.desc`;
+      const filters = `moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
       let rows;
       try {
         rows = await rest("movements", `select=${actorColumns}&${filters}`);
@@ -1236,53 +1183,19 @@ async function initMovementLog() {
         });
       records = [...latestByFile.values()];
       currentPage = 1;
+      const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(start);
+      subtitle.textContent = `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
       render();
     } catch (error) {
       records = [];
       render();
       toast("Log tidak dapat dimuatkan", error.message, "error");
-    } finally { setBusy(showLogButton, false); }
-  };
-
-  const loadReceivedFiles = async () => {
-    if (currentUser.role !== "staff") return;
-    const range = selectedDateRange();
-    if (!range) return;
-    viewMode = "received";
-    const selectedLabel = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full", timeZone: "Asia/Kuching" }).format(range.start);
-    updateViewLabels(selectedLabel);
-    setBusy(showReceivedButton, true, "Memuatkan…");
-    try {
-      const columns = "id,file_id,actor_name,actor_email,transaction_code,volume,from_holder,to_holder,moved_at,read_at,created_at";
-      const filters = `recipient_id=eq.${encodeURIComponent(currentUser.id)}&moved_at=gte.${encodeURIComponent(range.start.toISOString())}&moved_at=lt.${encodeURIComponent(range.end.toISOString())}&select=${columns}&order=moved_at.desc`;
-      const notifications = (await rest("file_notifications", filters)).map(mapFileNotification);
-      records = notifications.map(item => ({
-        id: item.id,
-        idFail: item.fileId,
-        tarikh: item.movedAt,
-        dari: item.fromHolder,
-        kepada: item.toHolder,
-        catatan: "Fail diserahkan kepada anda",
-        penggunaNama: item.actorName,
-        penggunaEmel: item.actorEmail,
-        notification: item
-      }));
-      currentPage = 1;
-      render();
-    } catch (error) {
-      records = [];
-      render();
-      const message = /file_notifications|schema cache/i.test(error.message)
-        ? "Jalankan migrasi Supabase 20260908030000_add_file_notifications.sql."
-        : error.message;
-      toast("Fail diterima tidak dapat dimuatkan", message, "error");
-    } finally { setBusy(showReceivedButton, false); }
+    } finally { setBusy(button, false); }
   };
 
   const requestedDate = new URLSearchParams(location.search).get("date");
   dateInput.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : malaysiaDateValue();
   form.addEventListener("submit", event => { event.preventDefault(); loadMovements(); });
-  showReceivedButton.addEventListener("click", loadReceivedFiles);
   previous.addEventListener("click", () => { currentPage -= 1; render(); });
   next.addEventListener("click", () => { currentPage += 1; render(); });
   await loadMovements();
