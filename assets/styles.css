@@ -3419,6 +3419,31 @@ body[data-page="movement-log"] .movement-log-panel {
   overflow: hidden;
 }
 
+body[data-page="movement-log"] .assigned-files-panel {
+  width: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+body[data-page="movement-log"] .assigned-files-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+body[data-page="movement-log"] .assigned-files-panel .archive-count {
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  border: 1px solid rgba(109, 74, 255, .16);
+  border-radius: 999px;
+  color: #5b3fc7;
+  background: rgba(237, 233, 254, .68);
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 body[data-page="movement-log"] .movement-log-panel .panel-head {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
@@ -3471,6 +3496,28 @@ body[data-page="movement-log"] th,
 body[data-page="movement-log"] td {
   padding-inline: 22px;
 }
+
+body[data-page="movement-log"] .assigned-files-panel .table-wrap {
+  max-height: 520px;
+  overflow: auto;
+}
+
+body[data-page="movement-log"] .assigned-files-panel table {
+  min-width: 900px;
+}
+
+body[data-page="movement-log"] .assigned-files-panel th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+}
+
+body[data-page="movement-log"] .assigned-files-panel :is(th, td):nth-child(1) { width: 32%; }
+body[data-page="movement-log"] .assigned-files-panel :is(th, td):nth-child(2) { width: 18%; }
+body[data-page="movement-log"] .assigned-files-panel :is(th, td):nth-child(3) { width: 16%; }
+body[data-page="movement-log"] .assigned-files-panel :is(th, td):nth-child(4) { width: 22%; }
+body[data-page="movement-log"] .assigned-files-panel :is(th, td):nth-child(5) { width: 12%; }
 
 body[data-page="movement-log"] th {
   padding-block: 18px;
@@ -3668,6 +3715,10 @@ body[data-page="movement-log"] .movement-log-actions { justify-content: center; 
   body[data-page="movement-log"] td:nth-child(n) {
     width: auto;
   }
+
+  body[data-page="movement-log"] .assigned-files-panel table {
+    min-width: 900px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -3688,6 +3739,11 @@ body[data-page="movement-log"] .movement-log-actions { justify-content: center; 
 
   body[data-page="movement-log"] .page-head .button.secondary {
     width: 100%;
+  }
+
+  body[data-page="movement-log"] .assigned-files-panel .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   body[data-page="movement-log"] .movement-log-filter {
