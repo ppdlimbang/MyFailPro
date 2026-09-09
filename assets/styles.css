@@ -3617,6 +3617,7 @@ body[data-page="movement-log"] .table-pagination .button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
+.movement-log-edit-grid .field + .field { margin-top: 0; }
 .movement-log-edit-grid + .field { margin-top: 17px; }
 .history li {
   display: flex;
