@@ -1075,7 +1075,7 @@ async function initDashboard() {
 
 async function initMovementLog() {
   if (!await initShell()) return;
-  await loadFiles();
+  await Promise.all([loadFiles(), loadSettings(), loadRecipientUsers(), loadAgencies()]);
   const form = document.querySelector("#movementLogFilter");
   const dateInput = document.querySelector("#movementLogDate");
   const showLogButton = document.querySelector("#showMovementLog");
@@ -1400,10 +1400,9 @@ function ensureMovementLogEditor() {
         create("div", {}, [create("h2", { id: "movementLogEditTitle", text: "Edit Log Pergerakan" }), create("p", { "data-file-reference": "" })]),
         create("button", { className: "icon-button", type: "button", "data-close": "", "aria-label": "Tutup", text: "×" })
       ]),
-      create("datalist", { id: "movementHolderSuggestions" }),
       create("div", { className: "movement-log-edit-grid" }, [
-        create("div", { className: "field" }, [create("label", { for: "movementLogFrom", text: "Daripada" }), create("input", { className: "input", id: "movementLogFrom", name: "from", list: "movementHolderSuggestions", required: "", autocomplete: "off" })]),
-        create("div", { className: "field" }, [create("label", { for: "movementLogTo", text: "Kepada" }), create("input", { className: "input", id: "movementLogTo", name: "to", list: "movementHolderSuggestions", required: "", autocomplete: "off" })])
+        create("div", { className: "field" }, [create("label", { for: "movementLogFrom", text: "Daripada" }), create("select", { className: "input", id: "movementLogFrom", name: "from", required: "" })]),
+        create("div", { className: "field" }, [create("label", { for: "movementLogTo", text: "Kepada" }), create("select", { className: "input", id: "movementLogTo", name: "to", required: "" })])
       ]),
       create("div", { className: "field" }, [create("label", { for: "movementLogTime", text: "Tarikh dan masa" }), create("input", { className: "input", id: "movementLogTime", name: "movedAt", type: "datetime-local", required: "" })]),
       create("div", { className: "field" }, [create("label", { for: "movementLogNote", text: "Catatan" }), create("textarea", { className: "input", id: "movementLogNote", name: "note", rows: "3", placeholder: "Masukkan catatan jika perlu" })]),
@@ -1447,8 +1446,9 @@ function movementMutationError(error, functionName) {
 
 function openMovementLogEditor(record, file, onSaved) {
   const modal = ensureMovementLogEditor();
-  const suggestions = modal.querySelector("#movementHolderSuggestions");
-  suggestions.replaceChildren(...movementHolderSuggestions(record).map(value => create("option", { value })));
+  const holders = movementHolderSuggestions(record);
+  fillSelect(modal.elements.from, holders, "Pilih keberadaan asal…");
+  fillSelect(modal.elements.to, holders, "Pilih keberadaan baharu…");
   modal.querySelector("[data-file-reference]").textContent = `${file?.transaksi || "Rekod fail"}${file ? ` (Jilid ${file.jilid})` : ""}`;
   modal.elements.from.value = record.dari;
   modal.elements.to.value = record.kepada;
