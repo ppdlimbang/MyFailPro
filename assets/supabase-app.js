@@ -992,9 +992,26 @@ async function initDashboard() {
     return { page, records: records.slice(start, end) };
   };
   const updateStats = () => {
-    document.querySelector("#statTotal").textContent = state.files.length;
-    document.querySelector("#statArchive").textContent = state.files.filter(f => f.pemegangTerkini === "Bilik Fail").length;
-    document.querySelector("#statMoving").textContent = state.files.filter(f => f.pemegangTerkini !== "Bilik Fail").length;
+    const total = state.files.length;
+    const archive = state.files.filter(file => file.pemegangTerkini === "Bilik Fail").length;
+    const moving = total - archive;
+    const numberFormat = new Intl.NumberFormat("ms-MY");
+    const percentFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
+    document.querySelector("#statTotal").textContent = numberFormat.format(total);
+    document.querySelector("#statArchive").textContent = numberFormat.format(archive);
+    document.querySelector("#statMoving").textContent = numberFormat.format(moving);
+    const distribution = document.querySelector("#statDistribution");
+    if (distribution) distribution.textContent = total
+      ? `${numberFormat.format(archive)} di bilik fail · ${numberFormat.format(moving)} beredar`
+      : "Belum ada rekod fail";
+    [["archive", archive, "#statArchiveShare"], ["moving", moving, "#statMovingShare"]].forEach(([key, value, selector]) => {
+      const share = total ? value / total : 0;
+      const label = document.querySelector(selector);
+      if (label) label.textContent = percentFormat.format(share);
+      document.querySelectorAll(`[data-stat-share="${key}"]`).forEach(meter => {
+        meter.style.width = `${share * 100}%`;
+      });
+    });
   };
   const deleteAction = (file, refresh) => create("button", {
     className: "icon-button delete-file-button",
