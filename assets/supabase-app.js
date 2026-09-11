@@ -1077,6 +1077,7 @@ async function initMovementLog() {
   if (!await initShell()) return;
   await Promise.all([loadFiles(), loadSettings(), loadRecipientUsers(), loadAgencies()]);
   const form = document.querySelector("#movementLogFilter");
+  const searchInput = document.querySelector("#movementLogSearch");
   const dateInput = document.querySelector("#movementLogDate");
   const showLogButton = document.querySelector("#showMovementLog");
   const showAssignedButton = document.querySelector("#showAssignedFiles");
@@ -1099,6 +1100,8 @@ async function initMovementLog() {
   let records = [];
   let currentPage = 1;
   let viewMode = "log";
+  let searchTimer;
+  let requestSequence = 0;
 
   showAssignedButton.classList.toggle("hidden", currentUser.role !== "staff");
 
@@ -1113,34 +1116,44 @@ async function initMovementLog() {
     return `${values.year}-${values.month}-${values.day}`;
   };
 
-  const updateView = selectedLabel => {
+  const updateView = (selectedLabel, searchTerm = "") => {
     const assignedView = viewMode === "assigned";
-    showLogButton.classList.toggle("secondary", assignedView);
+    const searchView = viewMode === "search";
+    showLogButton.classList.toggle("secondary", assignedView || searchView);
     showAssignedButton.classList.toggle("secondary", !assignedView);
-    showLogButton.setAttribute("aria-pressed", String(!assignedView));
+    showLogButton.setAttribute("aria-pressed", String(!assignedView && !searchView));
     showAssignedButton.setAttribute("aria-pressed", String(assignedView));
-    listTitle.textContent = assignedView ? "Fail Diterima Saya" : "Senarai Pergerakan";
+    listTitle.textContent = assignedView ? "Fail Diterima Saya" : searchView ? "Hasil Carian Pergerakan" : "Senarai Pergerakan";
     listCopy.textContent = assignedView
       ? "Fail yang sedang berada dalam pegangan anda, tanpa mengira tarikh penyerahan."
-      : "Pilih tarikh untuk melihat Pindah Keberadaan terakhir dan pengguna yang melakukannya.";
+      : searchView
+        ? `Carian “${searchTerm}” merangkumi semua tarikh log pergerakan.`
+        : "Pilih tarikh untuk melihat Pindah Keberadaan terakhir dan pengguna yang melakukannya.";
     caption.textContent = assignedView
       ? "Fail yang sedang diserahkan kepada pengguna agensi"
-      : "Log pergerakan fail mengikut tarikh dan pengguna pindahan terakhir";
+      : searchView
+        ? "Hasil carian log pergerakan bagi semua tarikh"
+        : "Log pergerakan fail mengikut tarikh dan pengguna pindahan terakhir";
     userHeading.textContent = assignedView ? "Diserahkan Oleh" : "Pengguna Terakhir";
     userHeading.title = assignedView
       ? "Pengguna yang menyerahkan fail kepada anda"
       : "Pengguna yang membuat perubahan Pindah Keberadaan";
-    emptyTitle.textContent = assignedView ? "Tiada fail dalam pegangan anda" : "Tiada pindahan direkodkan";
+    emptyTitle.textContent = assignedView ? "Tiada fail dalam pegangan anda" : searchView ? "Tiada hasil carian" : "Tiada pindahan direkodkan";
     emptyCopy.textContent = assignedView
       ? "Fail akan dipaparkan di sini apabila pengguna lain memindahkannya kepada anda."
-      : "Tiada tindakan Pindah Keberadaan pada tarikh yang dipilih.";
+      : searchView
+        ? "Cuba kata carian lain seperti nombor fail, nama pengguna, penerima atau catatan."
+        : "Tiada tindakan Pindah Keberadaan pada tarikh yang dipilih.";
     subtitle.textContent = assignedView
       ? "Fail yang sedang diserahkan kepada akaun anda."
-      : `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
+      : searchView
+        ? `Hasil carian log pergerakan bagi “${searchTerm}” tanpa had tarikh.`
+        : `Pindah Keberadaan terakhir setiap fail yang direkodkan pada ${selectedLabel}.`;
   };
 
   const refreshCurrentView = async () => {
     if (viewMode === "assigned") await loadAssignedFiles();
+    else if (viewMode === "search") await searchMovements();
     else await loadMovements();
   };
 
@@ -1210,6 +1223,7 @@ async function initMovementLog() {
   }
 
   async function loadMovements() {
+    const requestId = ++requestSequence;
     const selectedDate = dateInput.value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
       toast("Tarikh diperlukan", "Pilih tarikh log pergerakan yang ingin dipaparkan.", "error");
@@ -1224,6 +1238,7 @@ async function initMovementLog() {
       const end = new Date(start.getTime() + 86400000);
       const filters = `moved_at=gte.${encodeURIComponent(start.toISOString())}&moved_at=lt.${encodeURIComponent(end.toISOString())}&order=moved_at.desc`;
       const rows = await movementRows(filters);
+      if (requestId !== requestSequence) return;
       const latestByFile = new Map();
       rows.map(mapMovement)
         .filter(record => record.dari.toLocaleLowerCase("ms") !== "sistem pendaftaran")
@@ -1234,14 +1249,62 @@ async function initMovementLog() {
       currentPage = 1;
       render();
     } catch (error) {
+      if (requestId !== requestSequence) return;
       records = [];
       render();
       toast("Log tidak dapat dimuatkan", error.message, "error");
     } finally { setBusy(showLogButton, false); }
   }
 
+  function movementSearchValue(record) {
+    const file = fileById.get(record.idFail);
+    return [
+      file?.transaksi,
+      file?.subAktiviti,
+      file?.aktiviti,
+      file?.fungsi,
+      file?.jilid ? `jilid ${file.jilid}` : "",
+      record.dari,
+      record.kepada,
+      record.penggunaNama,
+      record.penggunaEmel,
+      record.catatan,
+      formatDate(record.tarikh, true)
+    ].filter(Boolean).join(" ").toLocaleLowerCase("ms");
+  }
+
+  async function searchMovements() {
+    const term = searchInput.value.trim();
+    if (!term) {
+      await loadMovements();
+      return;
+    }
+    const requestId = ++requestSequence;
+    viewMode = "search";
+    updateView("", term);
+    searchInput.setAttribute("aria-busy", "true");
+    try {
+      const rows = await movementRows("order=moved_at.desc");
+      if (requestId !== requestSequence) return;
+      const normalizedTerm = term.toLocaleLowerCase("ms");
+      records = rows.map(mapMovement)
+        .filter(record => record.dari.toLocaleLowerCase("ms") !== "sistem pendaftaran")
+        .filter(record => movementSearchValue(record).includes(normalizedTerm));
+      currentPage = 1;
+      render();
+    } catch (error) {
+      if (requestId !== requestSequence) return;
+      records = [];
+      render();
+      toast("Carian tidak dapat dimuatkan", error.message, "error");
+    } finally {
+      if (requestId === requestSequence) searchInput.removeAttribute("aria-busy");
+    }
+  }
+
   async function loadAssignedFiles() {
     if (currentUser.role !== "staff") return;
+    const requestId = ++requestSequence;
     viewMode = "assigned";
     updateView("");
     setBusy(showAssignedButton, true, "Memuatkan…");
@@ -1262,14 +1325,17 @@ async function initMovementLog() {
       const fileIds = assignedFiles.map(file => file.id).join(",");
       const filters = `file_id=in.(${fileIds})&order=moved_at.desc`;
       const rows = await movementRows(filters);
+      if (requestId !== requestSequence) return;
       rows.map(mapMovement).forEach(record => {
         if (!latestMovementByFile.has(record.idFail)) latestMovementByFile.set(record.idFail, record);
       });
     } catch (error) {
+      if (requestId !== requestSequence) return;
       toast("Maklumat penyerahan tidak lengkap", error.message, "error");
     } finally {
       setBusy(showAssignedButton, false);
     }
+    if (requestId !== requestSequence) return;
     records = assignedFiles.map(file => latestMovementByFile.get(file.id) || {
       idFail: file.id,
       tarikh: file.tarikhDaftar,
@@ -1286,8 +1352,27 @@ async function initMovementLog() {
 
   const requestedDate = new URLSearchParams(location.search).get("date");
   dateInput.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : malaysiaDateValue();
-  form.addEventListener("submit", event => { event.preventDefault(); loadMovements(); });
-  showAssignedButton.addEventListener("click", loadAssignedFiles);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    clearTimeout(searchTimer);
+    searchInput.value = "";
+    loadMovements();
+  });
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(searchMovements, 280);
+  });
+  searchInput.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    clearTimeout(searchTimer);
+    searchMovements();
+  });
+  showAssignedButton.addEventListener("click", () => {
+    clearTimeout(searchTimer);
+    searchInput.value = "";
+    loadAssignedFiles();
+  });
   previous.addEventListener("click", () => { currentPage -= 1; render(); });
   next.addEventListener("click", () => { currentPage += 1; render(); });
   await loadMovements();
