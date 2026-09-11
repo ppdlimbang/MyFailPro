@@ -345,6 +345,8 @@ function renderShell(user) {
     el.dataset.userTooltip = `${displayName} · ${roleLabel}`;
     el.title = `${displayName} — ${roleLabel}`;
     el.tabIndex = 0;
+    el.removeAttribute("aria-hidden");
+    el.setAttribute("role", "img");
     el.setAttribute("aria-label", `${displayName}, ${roleLabel}`);
   });
   const date = document.querySelector("[data-current-date]");

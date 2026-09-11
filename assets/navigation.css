@@ -1,0 +1,297 @@
+/* Shared navigation: one layout for branding, tabs and account controls. */
+body:not([data-page="login"]) .topbar {
+  background: rgba(255, 255, 255, .92);
+  border-bottom: 1px solid #e7e3f1;
+  box-shadow: 0 5px 24px rgba(44, 31, 77, .055);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+body:not([data-page="login"]) .topbar .topbar-inner.container {
+  width: min(1800px, calc(100% - 64px));
+  max-width: 1800px;
+  min-height: 90px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 0;
+}
+
+body:not([data-page="login"]) .topbar .brand {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  border-radius: 8px;
+}
+
+body:not([data-page="login"]) .topbar .brand-symbol {
+  width: 43px;
+  height: 48px;
+  flex: 0 0 43px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-size: 56px 56px;
+  box-shadow: none;
+}
+
+body:not([data-page="login"]) .topbar .brand-copy strong {
+  color: #211935;
+  font-size: 1.2rem;
+  letter-spacing: -.045em;
+}
+body:not([data-page="login"]) .topbar .brand-copy small {
+  color: #7a728a;
+  font-size: .57rem;
+  letter-spacing: .065em;
+  margin-top: 5px;
+}
+
+body:not([data-page="login"]) .topbar .nav {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 5px;
+  gap: 4px;
+  border: 1px solid #ece8f4;
+  border-radius: 18px;
+  background: #f5f3fa;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .9);
+  overflow: visible;
+}
+
+body:not([data-page="login"]) .topbar .nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 13px;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  color: #635b73;
+  background: transparent;
+  box-shadow: none;
+  font-size: .77rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+body:not([data-page="login"]) .topbar .nav a:hover {
+  color: #3c245f;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(44, 31, 77, .05);
+}
+
+body:not([data-page="login"]) .topbar .nav a[aria-current="page"] {
+  color: #fff;
+  font-weight: 700;
+  border-color: rgba(255, 255, 255, .22);
+  background: linear-gradient(120deg, #6525ce, #8245e8);
+  box-shadow: 0 4px 10px rgba(109, 40, 217, .19), inset 0 1px rgba(255, 255, 255, .17);
+}
+
+body:not([data-page="login"]) .topbar .nav a .nav-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  transform: none;
+  box-shadow: none;
+}
+body:not([data-page="login"]) .topbar .nav a .nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+body:not([data-page="login"]) .topbar .nav a[aria-current="page"] .nav-icon {
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+}
+
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box {
+  grid-column: 3;
+  grid-row: 1;
+  width: auto;
+  min-width: 0;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 22px;
+  border-left: 1px solid #e9e4f1;
+  box-shadow: none;
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .logout-button {
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid #e8e2f0;
+  border-radius: 13px;
+  color: #6c5b82;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(44, 31, 77, .025);
+  font-weight: 600;
+  font-size: .73rem;
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .logout-button:hover {
+  color: #b42343;
+  border-color: #fecdd3;
+  background: #fff1f3;
+}
+
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .user-avatar {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: #6735bb;
+  background: linear-gradient(145deg, #ede5ff, #e0d4f7);
+  box-shadow: 0 0 0 1px #e4dbee, 0 3px 8px rgba(87, 53, 126, .07);
+}
+body:not([data-page="login"]) .topbar .user-avatar::after {
+  z-index: 2;
+  max-width: min(280px, calc(100vw - 110px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .user-avatar.avatar-emoji {
+  font-size: 1.2rem;
+}
+
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box > .topbar-notification-button {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+  border: 1px solid #f3deaa;
+  border-radius: 13px;
+  color: #ae6a07;
+  background: linear-gradient(145deg, #fffcf3, #fff1cb);
+  box-shadow: 0 2px 5px rgba(174, 106, 7, .05);
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box > .topbar-notification-button svg {
+  width: 22px;
+  height: 22px;
+  fill: #fbc65d;
+  stroke: #b87a11;
+  stroke-width: 1.7;
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box > .topbar-notification-button:hover {
+  border-color: #e7c379;
+  background: #ffeab2;
+  box-shadow: 0 3px 8px rgba(174, 106, 7, .12);
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box > .topbar-notification-button span {
+  top: -5px;
+  right: -5px;
+  min-width: 19px;
+  height: 19px;
+  box-shadow: none;
+}
+
+body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible {
+  outline: 3px solid #b79beb;
+  outline-offset: 3px;
+}
+
+@media (max-width: 1480px) {
+  body:not([data-page="login"]) .topbar .topbar-inner.container {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px 20px;
+  }
+  body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box {
+    grid-column: 2;
+    padding-left: 0;
+    border-left: 0;
+  }
+  body:not([data-page="login"]) .topbar .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    width: 100%;
+  }
+  body:not([data-page="login"]) .topbar .nav a { flex: 1 1 0; }
+}
+
+@media (max-width: 780px) {
+  body:not([data-page="login"]) .topbar .topbar-inner.container {
+    width: calc(100% - 32px);
+    gap: 12px;
+    padding-block: 12px;
+  }
+  body:not([data-page="login"]) .topbar .brand-copy small { display: none; }
+  body:not([data-page="login"]) .topbar .nav { gap: 3px; }
+  body:not([data-page="login"]) .topbar .nav a { padding-inline: 8px; font-size: .72rem; gap: 7px; }
+  body:not([data-page="login"]) .topbar .nav a span:last-child {
+    min-width: 0;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+@media (max-width: 680px) {
+  body:not([data-page="login"]) .topbar .topbar-inner.container {
+    width: calc(100% - 24px);
+    gap: 12px 8px;
+  }
+  body:not([data-page="login"]) .topbar .brand { gap: 7px; }
+  body:not([data-page="login"]) .topbar .brand-symbol {
+    width: 32px;
+    height: 38px;
+    flex-basis: 32px;
+    background-size: 42px 42px;
+  }
+  body:not([data-page="login"]) .topbar .brand-copy strong { font-size: 1rem; }
+  body:not([data-page="login"]) .topbar .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 5px;
+    gap: 4px;
+    border-radius: 16px;
+  }
+  body:not([data-page="login"]) .topbar .nav a {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 46px;
+    padding: 7px 8px;
+    gap: 7px;
+    font-size: .7rem;
+    white-space: normal;
+  }
+  body:not([data-page="login"]) .topbar .nav a span:last-child { white-space: normal; }
+  body:not([data-page="login"]) .topbar .nav a .nav-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+  body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box { gap: 6px; }
+  body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .logout-button {
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .logout-button span { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not([data-page="login"]) .topbar a:active,
+  body:not([data-page="login"]) .topbar button:active { transform: none; }
+}
