@@ -30,13 +30,12 @@ body:not([data-page="login"]) .topbar .brand {
 }
 
 body:not([data-page="login"]) .topbar .brand-symbol {
-  width: 43px;
+  width: 48px;
   height: 48px;
-  flex: 0 0 43px;
+  flex: 0 0 48px;
   border: 0;
   border-radius: 0;
   background-color: transparent;
-  background-size: 56px 56px;
   box-shadow: none;
 }
 
@@ -254,10 +253,9 @@ body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible
   }
   body:not([data-page="login"]) .topbar .brand { gap: 7px; }
   body:not([data-page="login"]) .topbar .brand-symbol {
-    width: 32px;
-    height: 38px;
-    flex-basis: 32px;
-    background-size: 42px 42px;
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
   }
   body:not([data-page="login"]) .topbar .brand-copy strong { font-size: 1rem; }
   body:not([data-page="login"]) .topbar .nav {

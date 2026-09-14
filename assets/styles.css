@@ -1997,14 +1997,15 @@ body:not([data-page="login"]) .brand {
   padding: 0;
 }
 body:not([data-page="login"]) .brand-symbol {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 0;
   background-color: transparent;
   background-image: url("../file.png?v=20260914-03");
-  background-position: center;
+  /* Frame the artwork within this PNG's transparent canvas without stretching it. */
+  background-position: center 30.5%;
   background-repeat: no-repeat;
-  background-size: 58px 58px;
+  background-size: 320% auto;
   box-shadow: none;
 }
 body:not([data-page="login"]) .brand-symbol svg { display: none; }
