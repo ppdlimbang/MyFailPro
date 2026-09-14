@@ -1132,7 +1132,7 @@ async function initDashboard() {
         create("td", {}, create("span", {
           className: `badge ${inFileRoom ? "archive" : "moving"}`, text: file.pemegangTerkini
         })),
-        !closed ? create("td", {}, lastMovementDate) : null,
+        create("td", {}, lastMovementDate),
         create("td", {}, create("div", { className: "actions" }, [
           !closed ? action(file, "Pindah", "M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3", openMovement, true) : null,
           editButton,
