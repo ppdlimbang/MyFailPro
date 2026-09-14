@@ -1702,6 +1702,35 @@ async function initRegister() {
   const form = document.querySelector("#registerFile");
   const duplicateStatus = document.querySelector("#duplicateStatus");
   const ids = ["fungsi", "aktiviti", "subAktiviti", "transaksi"];
+  const classificationCode = value => String(value || "").trim().match(/^(\d+(?:[-/]\d+)*)/)?.[1] || "";
+  const hasChildCode = (value, parentCode) => {
+    const code = classificationCode(value);
+    return Boolean(parentCode && (code === parentCode || code.startsWith(`${parentCode}-`) || code.startsWith(`${parentCode}/`)));
+  };
+  const selectValue = (select, value) => {
+    select.value = value || "";
+    if (value && select.value !== value) select.append(create("option", { value, text: value }));
+    select.value = value || "";
+  };
+  const findByCode = (values, targetCode) => values.find(value => classificationCode(value) === targetCode) || "";
+  const transactionParents = value => {
+    const transactionCode = classificationCode(value);
+    const codeParts = transactionCode.split("/");
+    const activityCode = codeParts[0] || "";
+    const subActivityCode = codeParts.length > 1 ? codeParts.slice(0, -1).join("/") : "";
+    const functionCode = activityCode.split("-")[0] || "";
+    return {
+      fungsi: findByCode(settings.fungsi, functionCode),
+      aktiviti: findByCode(settings.aktiviti, activityCode),
+      subAktiviti: findByCode(settings.subAktiviti, subActivityCode)
+    };
+  };
+  const fillFilteredSelect = (key, parentValue, select = form.elements[key]) => {
+    const parentCode = classificationCode(parentValue);
+    const values = parentCode ? (settings[key] || []).filter(value => hasChildCode(value, parentCode)) : [];
+    fillSelect(select, values);
+    return values;
+  };
   const findDuplicate = data => {
     const transaction = String(data.transaksi || "").trim().toLowerCase();
     const volume = Number(data.jilid);
@@ -1721,10 +1750,35 @@ async function initRegister() {
     return duplicate;
   };
   ids.forEach(id => fillSelect(form.elements[id], settings[id] || []));
-  form.elements.fungsi.addEventListener("change", () => fillSelect(form.elements.aktiviti, settings.aktiviti.filter(v => v.startsWith(form.elements.fungsi.value.split(" ")[0]))));
-  form.elements.aktiviti.addEventListener("change", () => fillSelect(form.elements.subAktiviti, settings.subAktiviti.filter(v => v.startsWith(form.elements.aktiviti.value.split(" ")[0]))));
-  form.elements.subAktiviti.addEventListener("change", () => { fillSelect(form.elements.transaksi, settings.transaksi.filter(v => v.startsWith(form.elements.subAktiviti.value.split(" ")[0]))); updateDuplicateStatus(); });
-  form.elements.transaksi.addEventListener("change", updateDuplicateStatus);
+  form.elements.fungsi.addEventListener("change", () => {
+    fillFilteredSelect("aktiviti", form.elements.fungsi.value);
+    fillSelect(form.elements.subAktiviti, []);
+    fillSelect(form.elements.transaksi, []);
+    updateDuplicateStatus();
+  });
+  form.elements.aktiviti.addEventListener("change", () => {
+    fillFilteredSelect("subAktiviti", form.elements.aktiviti.value);
+    fillSelect(form.elements.transaksi, []);
+    updateDuplicateStatus();
+  });
+  form.elements.subAktiviti.addEventListener("change", () => {
+    fillFilteredSelect("transaksi", form.elements.subAktiviti.value);
+    updateDuplicateStatus();
+  });
+  form.elements.transaksi.addEventListener("change", () => {
+    const selectedTransaction = form.elements.transaksi.value;
+    const parents = transactionParents(selectedTransaction);
+    if (selectedTransaction && parents.fungsi) {
+      selectValue(form.elements.fungsi, parents.fungsi);
+      fillFilteredSelect("aktiviti", parents.fungsi);
+      selectValue(form.elements.aktiviti, parents.aktiviti);
+      fillFilteredSelect("subAktiviti", parents.aktiviti);
+      selectValue(form.elements.subAktiviti, parents.subAktiviti);
+      fillFilteredSelect("transaksi", parents.subAktiviti);
+      selectValue(form.elements.transaksi, selectedTransaction);
+    }
+    updateDuplicateStatus();
+  });
   form.elements.jilid.addEventListener("input", updateDuplicateStatus);
   form.addEventListener("reset", () => setTimeout(() => { ids.forEach(id => fillSelect(form.elements[id], id === "fungsi" ? settings.fungsi : [])); form.elements.jilid.value = 1; updateDuplicateStatus(); }, 0));
   form.addEventListener("submit", async event => {
