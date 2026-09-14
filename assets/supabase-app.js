@@ -37,6 +37,7 @@ let session;
 let currentUser;
 const state = {
   files: [],
+  lastMovementDates: new Map(),
   agencies: [],
   staffUsers: [],
   recipientUsers: [],
@@ -589,6 +590,23 @@ async function loadFiles() {
   state.files = rows.map(mapFile);
 }
 
+async function loadLastMovementDates() {
+  const rows = await rest("movements", "select=file_id,moved_at&order=moved_at.desc,created_at.desc,id.desc");
+  const dates = new Map();
+  (rows || []).forEach(row => {
+    if (row.file_id && row.moved_at && !dates.has(row.file_id)) dates.set(row.file_id, row.moved_at);
+  });
+  state.lastMovementDates = dates;
+}
+
+async function refreshLastMovementDate(fileId) {
+  const rows = await rest("movements", `file_id=eq.${encodeURIComponent(fileId)}&select=file_id,moved_at&order=moved_at.desc,created_at.desc,id.desc&limit=1`);
+  const latest = rows?.[0]?.moved_at || "";
+  if (latest) state.lastMovementDates.set(fileId, latest);
+  else state.lastMovementDates.delete(fileId);
+  return latest;
+}
+
 async function loadAgencies() {
   if (currentUser.role !== "admin") { state.agencies = []; return; }
   const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,created_at&order=name.asc");
@@ -960,7 +978,7 @@ async function initLogin() {
 
 async function initDashboard() {
   if (!await initShell()) return;
-  await Promise.all([loadSettings(), loadFiles(), loadAgencies(), loadRecipientUsers()]);
+  await Promise.all([loadSettings(), loadFiles(), loadLastMovementDates(), loadAgencies(), loadRecipientUsers()]);
   const body = document.querySelector("#fileRows");
   const archiveBody = document.querySelector("#archiveRows");
   const search = document.querySelector("#searchFile");
@@ -1091,6 +1109,13 @@ async function initDashboard() {
           create("time", { datetime: file.tarikhTutup, text: formatDate(file.tarikhTutup) })
         ]) : null
       ]);
+      const lastMovementAt = state.lastMovementDates.get(file.id);
+      const lastMovementDate = lastMovementAt
+        ? create("div", { className: "file-last-movement" }, [
+          tableIcon("M12 8v5l3 2M21 12a9 9 0 1 1-3-6.7"),
+          create("time", { datetime: lastMovementAt, text: formatDate(lastMovementAt, true) })
+        ])
+        : create("span", { className: "muted", text: "Tiada log" });
       const inFileRoom = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const editButton = action(file, "Edit", "m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z", openEdit);
       if (closed) editButton.title = "Ubah tarikh atau buka semula fail";
@@ -1107,6 +1132,7 @@ async function initDashboard() {
         create("td", {}, create("span", {
           className: `badge ${inFileRoom ? "archive" : "moving"}`, text: file.pemegangTerkini
         })),
+        !closed ? create("td", {}, lastMovementDate) : null,
         create("td", {}, create("div", { className: "actions" }, [
           !closed ? action(file, "Pindah", "M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3", openMovement, true) : null,
           editButton,
@@ -1471,13 +1497,15 @@ function openMovement(file, refresh) {
     if (normalizeRecipientName(from) === normalizeRecipientName(to) && !note) { toast("Tiada perubahan", "Pilih penerima baharu atau masukkan catatan.", "error"); return; }
     setBusy(button, true, "Menyimpan…");
     try {
+      const movedAtIso = new Date(movedAt).toISOString();
       const result = await moveFile(file, {
         p_file_id: file.id,
         p_to_holder: to,
-        p_moved_at: new Date(movedAt).toISOString(),
+        p_moved_at: movedAtIso,
         p_note: note
       });
       Object.assign(file, mapFile(result.file));
+      state.lastMovementDates.set(file.id, result.movement?.moved_at || movedAtIso);
       closeModal(modal);
       refresh();
       toast("Berjaya", `Fail kini bersama ${to}.`);
@@ -1659,6 +1687,7 @@ async function openHistory(file, refresh = () => {}) {
       records.forEach(record => {
         const actionCallback = async updatedFile => {
           Object.assign(file, updatedFile);
+          await refreshLastMovementDate(file.id);
           refresh();
           await reload();
         };
