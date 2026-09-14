@@ -6,9 +6,9 @@
   <meta name="description" content="Sistem pengurusan dan pergerakan fail PPD Limbang">
   <title>Log Masuk · MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
-  <link rel="stylesheet" href="assets/styles.css?v=20260914-04">
+  <link rel="stylesheet" href="assets/styles.css?v=20260914-05">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20260908-32" defer></script>
+  <script src="assets/supabase-app.js?v=20260914-03" defer></script>
 </head>
 <body data-page="login">
   <main class="login-page">
@@ -34,7 +34,13 @@
           </div>
           <div class="field hidden" id="passwordField">
             <label class="sr-only" for="loginPassword">Katalaluan</label>
-            <input class="input login-primary-input" type="password" id="loginPassword" autocomplete="current-password" placeholder="Masukkan katalaluan">
+            <div class="password-control">
+              <input class="input login-primary-input" type="password" id="loginPassword" autocomplete="current-password" placeholder="Masukkan katalaluan">
+              <button class="password-toggle" type="button" aria-label="Lihat kata laluan" aria-pressed="false" data-password-toggle>
+                <svg class="password-toggle-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.1 12s3.4-6.4 9.9-6.4S21.9 12 21.9 12 18.5 18.4 12 18.4 2.1 12 2.1 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="password-toggle-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"/><path d="M10.7 5.8A9.6 9.6 0 0 1 12 5.6c6.5 0 9.9 6.4 9.9 6.4a18.7 18.7 0 0 1-3.2 4.1"/><path d="M6.6 6.8A18.6 18.6 0 0 0 2.1 12s3.4 6.4 9.9 6.4a9.4 9.4 0 0 0 4.2-1"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg>
+              </button>
+            </div>
           </div>
           <button class="button login-submit" type="submit"><span data-login-button-label>Seterusnya</span></button>
         </form>

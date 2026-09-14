@@ -871,9 +871,19 @@ async function initLogin() {
   const emailInput = document.querySelector("#loginEmail");
   const passwordInput = document.querySelector("#loginPassword");
   const passwordField = document.querySelector("#passwordField");
+  const passwordToggle = document.querySelector("[data-password-toggle]");
   const submitButton = form.querySelector("button[type=submit]");
   const submitLabel = submitButton.querySelector("[data-login-button-label]");
   let passwordStep = recoveryMode;
+
+  passwordToggle?.addEventListener("click", () => {
+    const visible = passwordInput.type === "text";
+    passwordInput.type = visible ? "password" : "text";
+    passwordToggle.classList.toggle("is-visible", !visible);
+    passwordToggle.setAttribute("aria-pressed", String(!visible));
+    passwordToggle.setAttribute("aria-label", visible ? "Lihat kata laluan" : "Sembunyikan kata laluan");
+    passwordInput.focus();
+  });
 
   if (recoveryMode) {
     emailField.classList.add("hidden");
