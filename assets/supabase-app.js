@@ -472,43 +472,60 @@ function initRevealAnimations() {
   ].join(",");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const canObserve = "IntersectionObserver" in window && !reducedMotion;
-  const loginPage = document.body.dataset.page === "login";
-  const delayStep = loginPage ? 70 : 35;
-  const delaySlots = loginPage ? 5 : 4;
+  if (!canObserve) return;
   const observed = new WeakSet();
-  let initialOrder = 0;
 
-  const observer = canObserve ? new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("is-visible");
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: 0.12, rootMargin: "0px 0px -36px 0px" }) : null;
+  const observer = new IntersectionObserver(entries => {
+    // Stagger only the elements entering view together, in document order.
+    entries.filter(entry => entry.isIntersecting)
+      .sort((a, b) => a.target.compareDocumentPosition(b.target) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+      .forEach((entry, index) => {
+        entry.target.style.setProperty("--reveal-delay", `${Math.min(index, 4) * 75}ms`);
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+  // A small threshold also reveals panels taller than the viewport.
+  }, { threshold: 0, rootMargin: "0px 0px -24px 0px" });
 
-  function register(element, dynamic = false) {
+  function register(element) {
     if (!(element instanceof Element) || observed.has(element)) return;
+    if (element.closest(".modal")) return;
     observed.add(element);
-    if (!canObserve) return;
-    const siblingIndex = Array.from(element.parentElement?.children || []).indexOf(element);
-    const order = dynamic ? Math.max(0, siblingIndex) : initialOrder++;
-    element.style.setProperty("--reveal-delay", `${Math.min(order % delaySlots, delaySlots - 1) * delayStep}ms`);
     element.classList.add("reveal-item");
     observer.observe(element);
   }
 
-  function scan(root, dynamic = false) {
-    if (root instanceof Element && root.matches(selector)) register(root, dynamic);
-    root.querySelectorAll?.(selector).forEach(element => register(element, dynamic));
+  function scan(root) {
+    if (root instanceof Element && root.matches(selector)) register(root);
+    root.querySelectorAll?.(selector).forEach(register);
   }
 
-  if (canObserve) document.documentElement.classList.add("reveal-enabled");
+  document.documentElement.classList.add("reveal-enabled");
   scan(document);
 
   const mutationObserver = new MutationObserver(mutations => {
-    mutations.forEach(mutation => mutation.addedNodes.forEach(node => scan(node, true)));
+    mutations.forEach(mutation => {
+      mutation.removedNodes.forEach(node => {
+        const release = element => {
+          observer.unobserve(element);
+          observed.delete(element);
+        };
+        if (node instanceof Element) release(node);
+        node.querySelectorAll?.(".reveal-item").forEach(release);
+      });
+      mutation.addedNodes.forEach(scan);
+    });
   });
   mutationObserver.observe(document.body, { childList: true, subtree: true });
+  document.addEventListener("focusin", event => {
+    // Keyboard navigation must never focus an invisible control.
+    for (let element = event.target; element instanceof Element; element = element.parentElement) {
+      if (!element.classList.contains("reveal-item")) continue;
+      element.style.setProperty("--reveal-delay", "0ms");
+      element.classList.add("is-visible");
+      observer.unobserve(element);
+    }
+  });
 }
 
 function mapSettings(row) {
