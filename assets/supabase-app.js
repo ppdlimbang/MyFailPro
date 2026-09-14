@@ -1099,16 +1099,12 @@ async function initDashboard() {
       const parts = reference.match(/^(\d+(?:[-/]\d+)+)\s*(.*)$/);
       const code = parts && parts[2] ? parts[1] : "";
       const title = code ? parts[2] : reference;
-      const dates = create("div", { className: `file-dates${closed ? " file-dates-closed" : ""}` }, [
-        create("div", { className: "file-date" }, [
-          closed ? create("span", { className: "file-date-label", text: "Buka" }) : tableIcon("M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"),
-          create("time", { datetime: file.tarikhBuka, text: formatDate(file.tarikhBuka) })
-        ]),
-        closed ? create("div", { className: "file-date" }, [
-          create("span", { className: "file-date-label", text: "Tutup" }),
-          create("time", { datetime: file.tarikhTutup, text: formatDate(file.tarikhTutup) })
-        ]) : null
+      const dateIcon = "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z";
+      const dateElement = date => create("div", { className: "file-date" }, [
+        tableIcon(dateIcon),
+        create("time", { datetime: date, text: formatDate(date) })
       ]);
+      const dates = create("div", { className: "file-dates" }, dateElement(file.tarikhBuka));
       const lastMovementAt = state.lastMovementDates.get(file.id);
       const lastMovementDate = lastMovementAt
         ? create("div", { className: "file-last-movement" }, [
@@ -1119,7 +1115,7 @@ async function initDashboard() {
       const inFileRoom = file.pemegangTerkini.toLowerCase() === "bilik fail";
       const editButton = action(file, "Edit", "m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z", openEdit);
       if (closed) editButton.title = "Ubah tarikh atau buka semula fail";
-      return create("tr", {}, [
+      const rowCells = [
         create("td", {}, [
           create("div", { className: "file-reference" }, [
             code ? create("span", { className: "file-code", text: code }) : null,
@@ -1128,18 +1124,24 @@ async function initDashboard() {
           create("div", { className: "record-title", text: title }),
           create("div", { className: "record-meta", text: file.subAktiviti })
         ]),
-        create("td", {}, dates),
+        create("td", {}, closed ? dateElement(file.tarikhBuka) : dates)
+      ];
+      if (closed) rowCells.push(create("td", {}, dateElement(file.tarikhTutup)));
+      rowCells.push(
         create("td", {}, create("span", {
           className: `badge ${inFileRoom ? "archive" : "moving"}`, text: file.pemegangTerkini
-        })),
-        create("td", {}, lastMovementDate),
+        }))
+      );
+      if (!closed) rowCells.push(create("td", {}, lastMovementDate));
+      rowCells.push(
         create("td", {}, create("div", { className: "actions" }, [
           !closed ? action(file, "Pindah", "M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3", openMovement, true) : null,
           editButton,
           action(file, "Log", "M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2", openHistory),
           deleteAction(file, render)
         ]))
-      ]);
+      );
+      return create("tr", {}, rowCells);
     };
     activeResult.records.forEach(file => body.append(renderFileRow(file, false)));
     archiveResult.records.forEach(file => archiveBody.append(renderFileRow(file, true)));
