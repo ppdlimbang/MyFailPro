@@ -1187,7 +1187,8 @@ async function initMovementLog() {
   let searchTimer;
   let requestSequence = 0;
 
-  showAssignedButton.classList.toggle("hidden", currentUser.role !== "staff");
+  const canViewAssignedFiles = ["agency", "staff"].includes(currentUser.role);
+  showAssignedButton.classList.toggle("hidden", !canViewAssignedFiles);
 
   const malaysiaDateValue = () => {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -1207,9 +1208,11 @@ async function initMovementLog() {
     showAssignedButton.classList.toggle("secondary", !assignedView);
     showLogButton.setAttribute("aria-pressed", String(!assignedView && !searchView));
     showAssignedButton.setAttribute("aria-pressed", String(assignedView));
+    dateInput.disabled = assignedView;
+    searchInput.placeholder = assignedView ? "Cari fail diterima…" : "Cari semua tarikh…";
     listTitle.textContent = assignedView ? "Fail Diterima Saya" : searchView ? "Hasil Carian Pergerakan" : "Senarai Pergerakan";
     listCopy.textContent = assignedView
-      ? "Fail yang sedang berada dalam pegangan anda, tanpa mengira tarikh penyerahan."
+      ? "Fail yang diserahkan oleh pengguna lain dan masih dalam pegangan anda, tanpa had tarikh."
       : searchView
         ? `Carian “${searchTerm}” merangkumi semua tarikh log pergerakan.`
         : "Pilih tarikh untuk melihat Pindah Keberadaan terakhir dan pengguna yang melakukannya.";
@@ -1307,6 +1310,7 @@ async function initMovementLog() {
   }
 
   async function loadMovements() {
+    dateInput.disabled = false;
     const requestId = ++requestSequence;
     const selectedDate = dateInput.value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
@@ -1387,51 +1391,56 @@ async function initMovementLog() {
   }
 
   async function loadAssignedFiles() {
-    if (currentUser.role !== "staff") return;
+    if (!canViewAssignedFiles) return;
     const requestId = ++requestSequence;
     viewMode = "assigned";
     updateView("");
     setBusy(showAssignedButton, true, "Memuatkan…");
-    const userName = normalizeRecipientName(currentUser.data?.nama);
-    const assignedFiles = state.files
-      .filter(file => normalizeRecipientName(file.pemegangTerkini) === userName)
-      .sort((first, second) =>
-        classificationCollator.compare(first.transaksi || "", second.transaksi || "") ||
-        Number(first.jilid || 0) - Number(second.jilid || 0));
-    const latestMovementByFile = new Map();
     try {
+      await loadFiles();
+      if (requestId !== requestSequence) return;
+      fileById.clear();
+      state.files.forEach(file => fileById.set(file.id, file));
+      const userName = normalizeRecipientName(currentUser.data?.nama);
+      const assignedFiles = state.files.filter(file => userName && normalizeRecipientName(file.pemegangTerkini) === userName);
+      const latestMovementByFile = new Map();
       if (!assignedFiles.length) {
         records = [];
         currentPage = 1;
         render();
         return;
       }
-      const fileIds = assignedFiles.map(file => file.id).join(",");
-      const filters = `file_id=in.(${fileIds})&order=moved_at.desc`;
-      const rows = await movementRows(filters);
-      if (requestId !== requestSequence) return;
-      rows.map(mapMovement).forEach(record => {
-        if (!latestMovementByFile.has(record.idFail)) latestMovementByFile.set(record.idFail, record);
-      });
+      // Small batches keep URLs bounded; pagination includes older handovers too.
+      for (let index = 0; index < assignedFiles.length; index += 50) {
+        const fileIds = assignedFiles.slice(index, index + 50).map(file => file.id).join(",");
+        let offset = 0;
+        while (true) {
+          const rows = await movementRows(`file_id=in.(${fileIds})&order=moved_at.desc,id.desc&limit=500&offset=${offset}`);
+          if (requestId !== requestSequence) return;
+          rows.map(mapMovement).forEach(record => {
+            if (!latestMovementByFile.has(record.idFail)) latestMovementByFile.set(record.idFail, record);
+          });
+          if (rows.length < 500) break;
+          offset += rows.length;
+        }
+      }
+      const term = searchInput.value.trim().toLocaleLowerCase("ms");
+      records = [...latestMovementByFile.values()].filter(record =>
+        normalizeRecipientName(record.kepada) === userName &&
+        normalizeRecipientName(record.dari) !== "sistem pendaftaran" &&
+        record.penggunaId && record.penggunaId !== currentUser.id &&
+        (!term || movementSearchValue(record).includes(term))
+      ).sort((first, second) => new Date(second.tarikh) - new Date(first.tarikh));
+      currentPage = 1;
+      render();
     } catch (error) {
       if (requestId !== requestSequence) return;
-      toast("Maklumat penyerahan tidak lengkap", error.message, "error");
+      records = [];
+      render();
+      toast("Fail diterima tidak dapat dimuatkan", error.message, "error");
     } finally {
       setBusy(showAssignedButton, false);
     }
-    if (requestId !== requestSequence) return;
-    records = assignedFiles.map(file => latestMovementByFile.get(file.id) || {
-      idFail: file.id,
-      tarikh: file.tarikhDaftar,
-      dari: "Tidak direkodkan",
-      kepada: file.pemegangTerkini,
-      catatan: "Tiada catatan",
-      penggunaNama: "Tidak direkodkan",
-      penggunaEmel: "",
-      synthetic: true
-    });
-    currentPage = 1;
-    render();
   }
 
   const requestedDate = new URLSearchParams(location.search).get("date");
@@ -1444,13 +1453,14 @@ async function initMovementLog() {
   });
   searchInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(searchMovements, 280);
+    searchTimer = setTimeout(() => viewMode === "assigned" ? loadAssignedFiles() : searchMovements(), 280);
   });
   searchInput.addEventListener("keydown", event => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     clearTimeout(searchTimer);
-    searchMovements();
+    if (viewMode === "assigned") loadAssignedFiles();
+    else searchMovements();
   });
   showAssignedButton.addEventListener("click", () => {
     clearTimeout(searchTimer);
