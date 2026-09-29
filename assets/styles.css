@@ -2541,7 +2541,8 @@ body:not([data-page="login"]) .notice {
 
 /* Keep every dashboard section on one consistent content axis. */
 body[data-page="dashboard"] .page-head,
-body[data-page="dashboard"] .stats {
+body[data-page="dashboard"] .stats,
+body[data-page="dashboard"] .file-location-filter {
   width: min(1440px, 100%);
   margin-inline: auto;
 }
