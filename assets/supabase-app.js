@@ -984,6 +984,12 @@ async function initDashboard() {
   const search = document.querySelector("#searchFile");
   const archiveSearch = document.querySelector("#searchArchive");
   const filter = document.querySelector("#filterFungsi");
+  const locationCards = document.querySelectorAll("[data-file-location]");
+  const locationSummary = document.querySelector("#fileLocationSummary");
+  let locationFilter = "all";
+  const isInFileRoom = file => normalizeRecipientName(file.pemegangTerkini) === "bilik fail";
+  const matchesLocation = file => locationFilter === "all" ||
+    (locationFilter === "room" ? isInFileRoom(file) : !isInFileRoom(file));
   const pageSize = 6;
   let activePage = 1;
   let archivePage = 1;
@@ -1023,7 +1029,7 @@ async function initDashboard() {
   };
   const updateStats = () => {
     const total = state.files.length;
-    const archive = state.files.filter(file => file.pemegangTerkini === "Bilik Fail").length;
+    const archive = state.files.filter(isInFileRoom).length;
     const moving = total - archive;
     const numberFormat = new Intl.NumberFormat("ms-MY");
     const percentFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
@@ -1059,10 +1065,10 @@ async function initDashboard() {
     const selected = filter.value;
     const totalArchived = state.files.filter(file => Boolean(file.tarikhTutup)).length;
     const activeFiles = state.files
-      .filter(file => !file.tarikhTutup && matchesSearch(file, term) && (!selected || file.fungsi === selected))
+      .filter(file => !file.tarikhTutup && matchesLocation(file) && matchesSearch(file, term) && (!selected || file.fungsi === selected))
       .sort(compareByTransaction);
     const archivedFiles = state.files
-      .filter(file => Boolean(file.tarikhTutup) && matchesSearch(file, archiveTerm))
+      .filter(file => Boolean(file.tarikhTutup) && matchesLocation(file) && matchesSearch(file, archiveTerm))
       .sort(compareByTransaction);
     const activeResult = pagedRecords(activeFiles, activePage, pagination.active);
     const archiveResult = pagedRecords(archivedFiles, archivePage, pagination.archive);
@@ -1073,16 +1079,20 @@ async function initDashboard() {
     document.querySelector("#emptyFiles").classList.toggle("hidden", activeFiles.length > 0);
     document.querySelector("#emptyArchive").classList.toggle("hidden", archivedFiles.length > 0);
     const activeCount = document.querySelector("#activeFileCount");
-    if (activeCount) activeCount.textContent = term || selected
+    if (activeCount) activeCount.textContent = term || selected || locationFilter !== "all"
       ? `${activeFiles.length} daripada ${state.files.length - totalArchived} rekod`
       : `${activeFiles.length} rekod`;
-    document.querySelector("#archiveCount").textContent = archiveTerm
+    document.querySelector("#archiveCount").textContent = archiveTerm || locationFilter !== "all"
       ? `${archivedFiles.length} daripada ${totalArchived} rekod`
       : `${totalArchived} rekod`;
-    document.querySelector("#emptyArchiveTitle").textContent = archiveTerm ? "Tiada arkib ditemui" : "Belum ada fail ditutup";
-    document.querySelector("#emptyArchiveCopy").textContent = archiveTerm
-      ? "Ubah kata carian untuk melihat rekod arkib lain."
+    document.querySelector("#emptyArchiveTitle").textContent = archiveTerm || locationFilter !== "all" ? "Tiada arkib ditemui" : "Belum ada fail ditutup";
+    document.querySelector("#emptyArchiveCopy").textContent = archiveTerm || locationFilter !== "all"
+      ? "Ubah carian atau pilih kad Jumlah Fail untuk melihat rekod arkib lain."
       : "Fail akan dipindahkan ke arkib secara automatik apabila Tarikh Tutup diisi.";
+    locationCards.forEach(card => card.setAttribute("aria-pressed", String(card.dataset.fileLocation === locationFilter)));
+    document.querySelector("#fileLocationFilter").classList.toggle("hidden", locationFilter === "all");
+    locationSummary.textContent = locationFilter === "all" ? "" :
+      `${locationFilter === "room" ? "Di bilik fail" : "Sedang beredar"}: ${activeFiles.length} fail aktif · ${archivedFiles.length} fail ditutup`;
     const tableIcon = path => create("svg", {
       viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
       "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true"
@@ -1112,7 +1122,7 @@ async function initDashboard() {
           create("time", { datetime: lastMovementAt, text: formatDate(lastMovementAt, true) })
         ])
         : create("span", { className: "muted", text: "Tiada log" });
-      const inFileRoom = file.pemegangTerkini.toLowerCase() === "bilik fail";
+      const inFileRoom = isInFileRoom(file);
       const editButton = action(file, "Edit", "m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z", openEdit);
       if (closed) editButton.title = "Ubah tarikh atau buka semula fail";
       const rowCells = [
@@ -1146,6 +1156,27 @@ async function initDashboard() {
     activeResult.records.forEach(file => body.append(renderFileRow(file, false)));
     archiveResult.records.forEach(file => archiveBody.append(renderFileRow(file, true)));
   };
+  const selectLocation = location => {
+    locationFilter = location;
+    search.value = "";
+    archiveSearch.value = "";
+    filter.value = "";
+    activePage = 1;
+    archivePage = 1;
+    render();
+  };
+  locationCards.forEach(card => {
+    card.addEventListener("click", () => selectLocation(card.dataset.fileLocation));
+    card.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      selectLocation(card.dataset.fileLocation);
+    });
+  });
+  document.querySelector("#clearFileLocation").addEventListener("click", () => {
+    selectLocation("all");
+    document.querySelector('[data-file-location="all"]').focus();
+  });
   search.addEventListener("input", () => { activePage = 1; render(); });
   archiveSearch.addEventListener("input", () => { archivePage = 1; render(); });
   filter.addEventListener("change", () => { activePage = 1; render(); });

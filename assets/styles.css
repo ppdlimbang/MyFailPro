@@ -2575,6 +2575,36 @@ body[data-page="dashboard"] .stats .stat:hover {
   box-shadow: 0 18px 34px rgba(49, 46, 129, .13);
 }
 
+body[data-page="dashboard"] .stats [data-file-location] {
+  cursor: pointer;
+}
+
+body[data-page="dashboard"] .stats [data-file-location][aria-pressed="true"] {
+  outline: 3px solid var(--stat-accent);
+  outline-offset: 3px;
+}
+
+body[data-page="dashboard"] .stats [data-file-location]:focus-visible {
+  outline: 3px solid #1e293b;
+  outline-offset: 5px;
+}
+
+.file-location-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 18px;
+  border: 1px solid #ddd6fe;
+  border-radius: 16px;
+  background: #faf8ff;
+  color: #51416d;
+}
+
+.file-location-filter p { margin: 0; font-size: .85rem; font-weight: 600; }
+
 body[data-page="dashboard"] .stats .stat.stat-total {
   border-color: rgba(255, 255, 255, .3);
   background: linear-gradient(120deg, #5b21b6, #7136dc 62%, #8652e9);
