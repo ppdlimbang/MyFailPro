@@ -1,0 +1,59 @@
+name: Apply PeD Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20261102000000_add_ped_correspondence.sql"
+      - ".github/workflows/apply-ped-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-ped-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_DATABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ucneczznmwkyeemkdoxw
+      MIGRATION_FILE: supabase/migrations/20261102000000_add_ped_correspondence.sql
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify database token
+        run: test -n "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Apply PeD migration
+        run: |
+          jq -Rs '{ query: . }' "$MIGRATION_FILE" > "$RUNNER_TEMP/migration.json"
+          status=$(curl --silent --show-error \
+            --request POST \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary "@$RUNNER_TEMP/migration.json" \
+            --output "$RUNNER_TEMP/migration-result.json" \
+            --write-out '%{http_code}')
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            message=$(jq -r '.message // .error // "Supabase menolak migrasi PeD."' "$RUNNER_TEMP/migration-result.json")
+            echo "::error title=PeD migration rejected::$message (HTTP $status)"
+            exit 1
+          fi
+
+      - name: Verify PeD schema
+        run: |
+          jq -n --arg query "select to_regclass('public.ped_correspondence') is not null as table_ready, to_regprocedure('public.can_access_ped()') is not null as access_function_ready" '{ query: $query, read_only: true }' > "$RUNNER_TEMP/verify.json"
+          curl --silent --show-error --fail-with-body \
+            --request POST \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary "@$RUNNER_TEMP/verify.json" \
+            --output "$RUNNER_TEMP/verify-result.json"
+          jq -e '.[0].table_ready == true and .[0].access_function_ready == true' "$RUNNER_TEMP/verify-result.json" > /dev/null
