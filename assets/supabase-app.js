@@ -2929,7 +2929,7 @@ async function initPed() {
     const statuses = [...meta.statuses];
     if (record?.status && !statuses.includes(record.status)) statuses.push(record.status);
     statusSelect.replaceChildren(...statuses.map(status => create("option", { value: status, text: status })));
-    statusSelect.value = record?.status || meta.defaultStatus;
+    statusSelect.value = record?.status || "";
     refreshPedPicker(statusSelect);
     setPedPickerRequired(statusSelect, true);
 
@@ -2938,13 +2938,13 @@ async function initPed() {
     });
     setMultiValues(document.querySelector("#pedDepartmentSectors"), record?.departmentSectors || []);
     setMultiValues(document.querySelector("#pedAssignedOfficers"), record?.assignedOfficers || []);
-    setSelectValue(document.querySelector("#pedSchoolSector"), record?.schoolSector || pedFormOptions.schoolSectors[0]);
+    setSelectValue(document.querySelector("#pedSchoolSector"), record?.schoolSector || "");
     document.querySelector("#pedAssignedTo").value = record?.assignedTo || "";
     document.querySelector("#pedOfficeReferenceFile").value = record?.officeReferenceFile || "";
     document.querySelector("#pedRegistryFileNumber").value = record?.registryFileNumber || "";
     document.querySelector("#pedAgencyNotes").value = category === "agency_in" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolNotes").value = category === "school_in" ? record?.notes || "" : "";
-    setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || pedFormOptions.sectors[0]);
+    setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || "");
     const deliveryMethodsSelect = document.querySelector("#pedDeliveryMethods");
     setMultiValues(deliveryMethodsSelect, record?.deliveryMethods || []);
     document.querySelector("#pedOutgoingNotes").value = category === "outgoing" ? record?.notes || "" : "";
@@ -2967,11 +2967,18 @@ async function initPed() {
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     showModal("#pedModal");
     setTimeout(() => {
-      const needsDeliveryMethod = category === "outgoing" && !deliveryMethodsSelect.selectedOptions.length;
-      const firstField = category === "school_in" ? schoolNameSelect : needsDeliveryMethod ? deliveryMethodsSelect : partyInput;
-      const picker = pedPickerStates.get(firstField);
+      const categoryDropdowns = {
+        agency_in: [document.querySelector("#pedDepartmentSectors"), document.querySelector("#pedAssignedOfficers"), statusSelect],
+        school_in: [schoolNameSelect, document.querySelector("#pedSchoolSector"), document.querySelector("#pedAssignedTo"), statusSelect],
+        outgoing: [document.querySelector("#pedOriginSector"), deliveryMethodsSelect, statusSelect]
+      }[category] || [];
+      const unselectedDropdown = categoryDropdowns.find(select => select.multiple
+        ? !select.selectedOptions.length
+        : !select.value);
+      const picker = pedPickerStates.get(unselectedDropdown);
+      const firstField = unselectedDropdown || (category === "school_in" ? schoolNameSelect : partyInput);
       (picker?.input || firstField).focus();
-      if (needsDeliveryMethod && picker) picker.show();
+      if (picker) picker.show();
     }, 0);
   };
 
