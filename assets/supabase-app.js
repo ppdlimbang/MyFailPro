@@ -2570,12 +2570,14 @@ async function initPed() {
   let selectedAttachment = null;
   let clearExistingAttachment = false;
 
+  const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   fillSelect(schoolNameSelect, pedFormOptions.schools, "Pilih sekolah");
   fillSelect(document.querySelector("#pedSchoolSector"), pedFormOptions.schoolSectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedOriginSector"), pedFormOptions.sectors, "Pilih sektor");
+  fillSelect(document.querySelector("#pedAssignedTo"), recipientDirectoryNames, "Pilih pegawai");
   [
     ["#pedDepartmentSectors", pedFormOptions.sectors],
-    ["#pedAssignedOfficers", [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))]],
+    ["#pedAssignedOfficers", recipientDirectoryNames],
     ["#pedDeliveryMethods", pedFormOptions.deliveryMethods]
   ].forEach(([selector, values]) => {
     document.querySelector(selector).replaceChildren(...values.map(value => create("option", { value, text: value })));
