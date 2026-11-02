@@ -10,8 +10,12 @@ body[data-page="ped"]:not(.auth-ready)::after {
   font-weight: 700;
 }
 
-body[data-page="ped"] .main.container { width: min(1420px, calc(100% - 64px)); }
-body[data-page="ped"] .page-head { min-height: 158px; }
+body[data-page="ped"] .main.container { width: min(1440px, calc(100% - 64px)); }
+body[data-page="ped"] .page-head {
+  width: 100%;
+  min-height: 0;
+  margin: 0 auto 28px;
+}
 
 .ped-coming-soon {
   display: flex;
