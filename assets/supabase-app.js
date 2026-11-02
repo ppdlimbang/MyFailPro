@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-08");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-10");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -643,7 +643,7 @@ async function loadAgencies() {
 function canAccessPed(user = currentUser) {
   const agencyType = String(user?.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
   return user?.role === "admin"
-    || (user?.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
+    || (user?.role === "agency" && ["jabatan", "agensi"].includes(agencyType));
 }
 
 function mapPedRecord(row) {
@@ -662,8 +662,17 @@ function mapPedRecord(row) {
 
 async function loadPedRecords() {
   const columns = "id,owner_id,category,correspondence_date,reference_number,correspondent,subject,status,created_at";
-  const rows = await rest("ped_correspondence", `select=${columns}&order=correspondence_date.desc,created_at.desc`);
-  state.pedRecords = (rows || []).map(mapPedRecord);
+  const fetchSize = 1000;
+  const rows = [];
+  let offset = 0;
+  while (true) {
+    const page = await rest("ped_correspondence", `select=${columns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
+    if (!page?.length) break;
+    rows.push(...page);
+    if (page.length < fetchSize) break;
+    offset += page.length;
+  }
+  state.pedRecords = rows.map(mapPedRecord);
 }
 
 async function loadRecipientUsers() {
@@ -2445,6 +2454,11 @@ async function initPed() {
   await loadPedRecords();
 
   const search = document.querySelector("#pedSearch");
+  const statusFilter = document.querySelector("#pedStatusFilter");
+  const dateFrom = document.querySelector("#pedDateFrom");
+  const dateTo = document.querySelector("#pedDateTo");
+  const pageSize = 10;
+  const tableState = Object.fromEntries(Object.keys(pedCategoryMeta).map(category => [category, { page: 0, dateAscending: false }]));
   const form = document.querySelector("#pedForm");
   const modal = document.querySelector("#pedModal");
   const modalTitle = document.querySelector("#pedModalTitle");
@@ -2454,6 +2468,9 @@ async function initPed() {
 
   const render = () => {
     const term = String(search.value || "").trim().toLocaleLowerCase("ms-MY");
+    const selectedStatus = statusFilter.value;
+    const from = dateFrom.value;
+    const to = dateTo.value;
     const totalLetters = state.pedRecords.length;
     const shareFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
     Object.keys(pedCategoryMeta).forEach(category => {
@@ -2467,24 +2484,50 @@ async function initPed() {
       const statMeter = document.querySelector(`[data-ped-stat-meter="${category}"]`);
       if (statShare) statShare.textContent = shareFormat.format(share);
       if (statMeter) statMeter.style.width = `${share * 100}%`;
-      const records = categoryRecords.filter(record => !term || [
-        record.reference,
-        record.correspondent,
-        record.subject,
-        record.status
-      ].some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term)));
+      const stateForTable = tableState[category];
+      const records = categoryRecords.filter(record => {
+        const matchesSearch = !term || [record.reference, record.correspondent, record.subject, record.status]
+          .some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term));
+        return matchesSearch
+          && (!selectedStatus || record.status === selectedStatus)
+          && (!from || record.date >= from)
+          && (!to || record.date <= to);
+      }).sort((a, b) => {
+        const compared = String(a.date || "").localeCompare(String(b.date || ""))
+          || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+        return stateForTable.dateAscending ? compared : -compared;
+      });
+
+      const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
+      stateForTable.page = Math.min(stateForTable.page, totalPages - 1);
+      const start = stateForTable.page * pageSize;
+      const pageRecords = records.slice(start, start + pageSize);
+      const pageInfo = document.querySelector(`[data-ped-page-info="${category}"]`);
+      const pagination = document.querySelector(`[data-ped-pagination="${category}"]`);
+      const previous = pagination.querySelector('[data-direction="previous"]');
+      const next = pagination.querySelector('[data-direction="next"]');
+      const sortButton = document.querySelector(`[data-ped-sort="${category}"]`);
 
       count.textContent = String(records.length);
+      pageInfo.textContent = records.length
+        ? `Paparan ${start + 1}–${Math.min(start + pageSize, records.length)} daripada ${records.length} · halaman ${stateForTable.page + 1}/${totalPages}`
+        : `${records.length} rekod`;
+      previous.disabled = stateForTable.page === 0;
+      next.disabled = stateForTable.page >= totalPages - 1;
+      pagination.classList.toggle("hidden", records.length <= pageSize);
+      sortButton.textContent = `${pedCategoryMeta[category].date} ${stateForTable.dateAscending ? "↑" : "↓"}`;
       body.replaceChildren();
       if (!records.length) {
         body.append(create("tr", { className: "ped-empty-row" }, create("td", {
           colspan: "6",
-          text: term ? "Tiada rekod yang sepadan dengan carian." : "Belum ada rekod surat dalam kategori ini."
+          text: term || selectedStatus || from || to
+            ? "Tiada rekod yang sepadan dengan carian atau tapisan."
+            : "Belum ada rekod surat dalam kategori ini."
         })));
         return;
       }
 
-      records.forEach(record => {
+      pageRecords.forEach(record => {
         const edit = create("button", { className: "button secondary small", type: "button", text: "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${record.reference}`, text: "Padam" });
@@ -2534,7 +2577,28 @@ async function initPed() {
   document.querySelectorAll("[data-add-ped]").forEach(button => {
     button.addEventListener("click", () => openEditor(button.dataset.addPed));
   });
-  search.addEventListener("input", render);
+  const resetPages = () => Object.values(tableState).forEach(table => { table.page = 0; });
+  search.addEventListener("input", () => { resetPages(); render(); });
+  [statusFilter, dateFrom, dateTo].forEach(control => control.addEventListener("change", () => { resetPages(); render(); }));
+  document.querySelector("#pedClearFilters").addEventListener("click", () => {
+    search.value = "";
+    statusFilter.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
+    resetPages();
+    render();
+  });
+  document.querySelectorAll("[data-ped-sort]").forEach(button => button.addEventListener("click", () => {
+    const table = tableState[button.dataset.pedSort];
+    table.dateAscending = !table.dateAscending;
+    table.page = 0;
+    render();
+  }));
+  document.querySelectorAll("[data-ped-page]").forEach(button => button.addEventListener("click", () => {
+    const table = tableState[button.dataset.pedPage];
+    table.page += button.dataset.direction === "next" ? 1 : -1;
+    render();
+  }));
   form.addEventListener("submit", async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
