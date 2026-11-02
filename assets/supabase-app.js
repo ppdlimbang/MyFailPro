@@ -2520,20 +2520,6 @@ const pedFormOptions = {
     "SEKTOR PERANCANGAN", "PPD", "SEKTOR PENTAKSIRAN & PEPERIKSAAN", "SEKTOR KAUNSELING",
     "PASUKAN TEKNIKAL ICT SEKOLAH"
   ],
-  officers: [
-    "ASMAYATI BINTI GHAZALI", "PATRICK ANAK LUKONG", "NOOR AZIMAH BINTI WAHAB", "MOHD SHAHRIN BIN BASNI",
-    "HJH. DAYANG LELAWATI BINTI ABANG JALIL", "SITI NAQIAH BINTI LAJIM", "WARDAH WYDIA JIM ABDULLAH",
-    "BENJAMIN YEO EE SENG", "NOORAIZAH BINTI JUNAIDI", "HJ. AWANG ZAINALABIDIN BIN USOP",
-    "MOHAMAD HIRMAN BIN APONG", "MOHD SHAHROL BIN MATRIMAU", "MOHAMAD ZULKIPLI BIN PERALI",
-    "AISYAH KHAIRANI HUMAIRA BULI", "SELLY BUJA", "SERAU ANAK BANGIT", "MOHD SHAHRIZAN BIN ZAINI",
-    "MARY AJANG", "SEBASTIAN KODY DUMA", "SITI MARIAM BINTI SALLEH", "ROSNITA BINTI DRAHMAN",
-    "ROZNISA BINTI SAPAR", "MARLINA BINTI ZAINI", "YUSAIRY BIN YAHYA", "NORAQILAH BINTI ZULKIFLI ABD RAHMAN",
-    "SHAH RIZAN BIN SUIF", "NORRINA BINTI NORDANI", "COLLIN ANAK IRINE", "SURAYA BINTI HABIBOLLAH",
-    "MAHANI BINTI MONTEL", "JOSEPH ANAK TINDAN", "ERWAN BIN NAIM @ AHMAD", "SITI NOOR NAZIERAH BINTI ADAN",
-    "VIANA KIRI", "MOHAMAD ALIFF BIN ZAKARIA", "SHAFIK AZIZI BIN RAHMAN", "ROSITA BINTI ROSLI",
-    "HAJI MAT ZINAN BIN HAJI WAHIT", "PAMELA ANAK LANIE", "KARTINI BINTI AHKOP @ YAKOP",
-    "MAYANI BINTI JASINI", "MASINAH BINTI AWANG DAMIT", "HASMANIZA BINTI RASIDI", "TINAH BINTI MAT DAYANG @ MAT"
-  ],
   deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL"]
 };
 
@@ -2557,7 +2543,7 @@ async function initPed() {
   document.querySelector("#pedComingSoon").classList.add("hidden");
   document.querySelector("#pedWorkspace").classList.remove("hidden");
   markReady();
-  await loadPedRecords();
+  await Promise.all([loadPedRecords(), loadSettings()]);
 
   const search = document.querySelector("#pedSearch");
   const statusFilter = document.querySelector("#pedStatusFilter");
@@ -2589,7 +2575,7 @@ async function initPed() {
   fillSelect(document.querySelector("#pedOriginSector"), pedFormOptions.sectors, "Pilih sektor");
   [
     ["#pedDepartmentSectors", pedFormOptions.sectors],
-    ["#pedAssignedOfficers", pedFormOptions.officers],
+    ["#pedAssignedOfficers", [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))]],
     ["#pedDeliveryMethods", pedFormOptions.deliveryMethods]
   ].forEach(([selector, values]) => {
     document.querySelector(selector).replaceChildren(...values.map(value => create("option", { value, text: value })));
