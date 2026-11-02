@@ -2450,12 +2450,19 @@ async function initPed() {
 
   const render = () => {
     const term = String(search.value || "").trim().toLocaleLowerCase("ms-MY");
+    const totalLetters = state.pedRecords.length;
+    const shareFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
     Object.keys(pedCategoryMeta).forEach(category => {
       const body = document.querySelector(`[data-ped-rows="${category}"]`);
       const count = document.querySelector(`[data-ped-count="${category}"]`);
       const categoryRecords = state.pedRecords.filter(record => record.category === category);
       const statCount = document.querySelector(`[data-ped-stat-count="${category}"]`);
       if (statCount) statCount.textContent = String(categoryRecords.length);
+      const share = totalLetters ? categoryRecords.length / totalLetters : 0;
+      const statShare = document.querySelector(`[data-ped-stat-share="${category}"]`);
+      const statMeter = document.querySelector(`[data-ped-stat-meter="${category}"]`);
+      if (statShare) statShare.textContent = shareFormat.format(share);
+      if (statMeter) statMeter.style.width = `${share * 100}%`;
       const records = categoryRecords.filter(record => !term || [
         record.reference,
         record.correspondent,
