@@ -324,6 +324,8 @@ function renderShell(user) {
   const shellNavigation = topbarInner?.querySelector(".nav");
   const settingsNavigation = topbarInner?.querySelector(".nav-settings");
   if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
+  const adminNavigation = shellNavigation?.querySelector('a[href="admin.html"]');
+  if (adminNavigation) adminNavigation.classList.toggle("hidden", user.role !== "admin");
   const agencyType = String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
   const canAccessPed = user.role === "admin" || (user.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
   let pedNavigation = shellNavigation?.querySelector('[href="ped.html"]');
@@ -414,9 +416,13 @@ async function consumeAuthRedirect() {
 
 async function requireAuth(adminOnly = false) {
   const user = currentUser || await restoreAuth();
-  if (!user || (adminOnly && user.role !== "admin")) {
+  if (!user) {
     saveSession(null);
     location.replace("MyFailPro.html");
+    return null;
+  }
+  if (adminOnly && user.role !== "admin") {
+    location.replace("dashboard.html");
     return null;
   }
   return user;
