@@ -2543,7 +2543,18 @@ async function initPed() {
   document.querySelector("#pedComingSoon").classList.add("hidden");
   document.querySelector("#pedWorkspace").classList.remove("hidden");
   markReady();
-  await Promise.all([loadPedRecords(), loadSettings()]);
+  const pedLoadWarnings = [];
+  const [recordsResult, settingsResult] = await Promise.allSettled([loadPedRecords(), loadSettings()]);
+  if (recordsResult.status === "rejected") {
+    state.pedRecords = [];
+    pedLoadWarnings.push(`Rekod surat: ${recordsResult.reason?.message || "tidak dapat dimuatkan"}`);
+    console.error("Rekod PeD tidak dapat dimuatkan.", recordsResult.reason);
+  }
+  if (settingsResult.status === "rejected") {
+    state.settings = { pegawai: [] };
+    pedLoadWarnings.push(`Direktori pegawai: ${settingsResult.reason?.message || "tidak dapat dimuatkan"}`);
+    console.error("Direktori pegawai untuk PeD tidak dapat dimuatkan.", settingsResult.reason);
+  }
 
   const search = document.querySelector("#pedSearch");
   const statusFilter = document.querySelector("#pedStatusFilter");
@@ -2773,7 +2784,7 @@ async function initPed() {
   };
   const setPedPickerRequired = (select, required) => {
     const picker = pedPickerStates.get(select);
-    if (!picker) return;
+    if (!picker) { select.required = required; return; }
     picker.required = required;
     refreshPedPicker(select);
   };
@@ -3080,6 +3091,9 @@ async function initPed() {
   });
 
   render();
+  if (pedLoadWarnings.length) {
+    toast("Data PeD belum lengkap", `${pedLoadWarnings.join("; ")}. Butang tambah rekod masih boleh digunakan.`, "error");
+  }
 }
 
 async function initAdmin() {
