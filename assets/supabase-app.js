@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-07");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-08");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -641,7 +641,9 @@ async function loadAgencies() {
 }
 
 function canAccessPed(user = currentUser) {
-  return user?.role === "admin";
+  const agencyType = String(user?.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
+  return user?.role === "admin"
+    || (user?.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
 }
 
 function mapPedRecord(row) {
