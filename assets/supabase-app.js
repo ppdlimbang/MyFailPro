@@ -56,7 +56,10 @@ function create(tag, options = {}, children = []) {
     ? document.createElementNS("http://www.w3.org/2000/svg", tag)
     : document.createElement(tag);
   Object.entries(options).forEach(([key, value]) => {
-    if (key === "className") node.className = value;
+    if (key === "className") {
+      if (SVG_TAGS.has(tag)) node.setAttribute("class", value);
+      else node.className = value;
+    }
     else if (key === "text") node.textContent = value;
     else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
     else node.setAttribute(key, value);
@@ -2962,11 +2965,20 @@ async function initPed() {
     dateLabel.textContent = meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     showModal("#pedModal");
-    setTimeout(() => (category === "school_in" ? schoolNameSelect : partyInput).focus(), 0);
+    setTimeout(() => {
+      const firstField = category === "school_in" ? schoolNameSelect : partyInput;
+      (pedPickerStates.get(firstField)?.input || firstField).focus();
+    }, 0);
   };
 
   document.querySelectorAll("[data-add-ped]").forEach(button => {
-    button.addEventListener("click", () => openEditor(button.dataset.addPed));
+    button.addEventListener("click", () => {
+      try { openEditor(button.dataset.addPed); }
+      catch (error) {
+        console.error("Borang PeD tidak dapat dibuka.", error);
+        toast("Borang tidak dapat dibuka", error.message || "Sila muat semula halaman PeD.", "error");
+      }
+    });
   });
   attachmentInput.addEventListener("change", () => {
     const file = attachmentInput.files?.[0] || null;
