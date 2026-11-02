@@ -192,6 +192,7 @@ body[data-page="ped"] .page-head {
 .ped-filter-controls { display: grid; grid-template-columns: minmax(220px, 1.7fr) minmax(145px, .8fr) repeat(2, minmax(145px, 1fr)) auto; align-items: end; gap: 10px; }
 .ped-filter-field { display: grid; gap: 6px; color: var(--text-muted); font-size: .68rem; font-weight: 750; }
 .ped-filter-field .input { width: 100%; min-width: 0; background: #fff; }
+.ped-filter-controls .input { font-size: .88rem; font-weight: 500; }
 .ped-filter-controls > .button { white-space: nowrap; }
 .ped-search { position: relative; display: block; }
 .ped-search svg {
@@ -308,6 +309,7 @@ body[data-page="ped"] .ped-delete { color: var(--cream); border-color: var(--ink
 .ped-picker-clear { color: var(--text-soft); border-bottom: 1px solid var(--border); border-radius: 5px; }
 .ped-picker-empty { padding: 12px; color: var(--text-soft); font-size: .82rem; }
 .ped-picker-selected { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ped-picker-selected:empty { display: none; }
 .ped-picker-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 5px 3px 10px; border: 1px solid var(--border-blue); border-radius: 999px; color: var(--purple-deep); background: var(--lavender); font-size: .72rem; line-height: 1.4; }
 .ped-picker-chip > span { overflow-wrap: anywhere; }
 .ped-picker-chip button { display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; border: 0; border-radius: 50%; color: inherit; background: rgba(109, 74, 255, .12); font: inherit; cursor: pointer; }
