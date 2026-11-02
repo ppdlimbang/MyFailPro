@@ -326,10 +326,8 @@ function renderShell(user) {
   if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
   const adminNavigation = shellNavigation?.querySelector('a[href="admin.html"]');
   if (adminNavigation) adminNavigation.classList.toggle("hidden", user.role !== "admin");
-  const agencyType = String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
-  const canAccessPed = user.role === "admin" || (user.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
   let pedNavigation = shellNavigation?.querySelector('[href="ped.html"]');
-  if (shellNavigation && canAccessPed && !pedNavigation) {
+  if (shellNavigation && !pedNavigation) {
     pedNavigation = create("a", { href: "ped.html", "data-ped-nav": "" }, [
       create("span", { className: "nav-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
         create("path", { d: "M5 3h14v18H5Z" }),
@@ -339,8 +337,7 @@ function renderShell(user) {
     ]);
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
-  if (pedNavigation && !canAccessPed) pedNavigation.remove();
-  else if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
+  if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
     if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
@@ -642,8 +639,7 @@ async function loadAgencies() {
 }
 
 function canAccessPed(user = currentUser) {
-  const agencyType = String(user?.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
-  return user?.role === "admin" || (user?.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
+  return user?.role === "admin";
 }
 
 function mapPedRecord(row) {
@@ -2433,10 +2429,13 @@ async function initPed() {
   const user = await initShell();
   if (!user) return;
   if (!canAccessPed(user)) {
-    location.replace("dashboard.html");
+    document.querySelector("#pedComingSoon").classList.remove("hidden");
+    document.querySelector("#pedIntro").textContent = "Ruang baharu untuk pengurusan surat anda.";
+    markReady();
     return;
   }
 
+  document.querySelector("#pedWorkspace").classList.remove("hidden");
   markReady();
   await loadPedRecords();
 

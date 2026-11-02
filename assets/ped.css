@@ -13,6 +13,37 @@ body[data-page="ped"]:not(.auth-ready)::after {
 body[data-page="ped"] .main.container { width: min(1420px, calc(100% - 64px)); }
 body[data-page="ped"] .page-head { min-height: 158px; }
 
+.ped-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: clamp(32px, 6vw, 72px) 24px;
+  border: 1px solid #e4dcf5;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at 50% 0%, #eee5ff 0%, transparent 65%), #fff;
+  box-shadow: 0 18px 42px rgba(67, 39, 109, .1);
+  text-align: center;
+}
+.ped-coming-soon-icon {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 6px;
+  border: 1px solid #ded0fa;
+  border-radius: 32px;
+  color: #7136dc;
+  background: linear-gradient(145deg, #fff, #eee5ff);
+  box-shadow: 0 12px 28px rgba(113, 54, 220, .12);
+}
+.ped-coming-soon-icon svg { width: 66px; height: 66px; }
+.ped-coming-soon-badge { padding: 6px 13px; border-radius: 99px; color: #6840a6; background: #ede5fb; font-size: .72rem; font-weight: 750; }
+.ped-coming-soon h2 { margin: 0; color: #54219c; font-size: clamp(1.8rem, 5vw, 3.2rem); font-weight: 900; letter-spacing: .07em; line-height: 1.15; }
+.ped-coming-soon p { max-width: 490px; margin: 0; color: #655a78; font-size: .98rem; line-height: 1.7; }
+.ped-coming-soon-note { max-width: 470px; color: #8a8196; font-size: .8rem; line-height: 1.6; }
+.ped-coming-soon .button { margin-top: 9px; max-width: 100%; }
+
 .ped-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
