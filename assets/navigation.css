@@ -108,6 +108,12 @@ body:not([data-page="login"]) .topbar .nav a[aria-current="page"] {
   box-shadow: 0 4px 10px rgba(109, 40, 217, .19), inset 0 1px rgba(255, 255, 255, .17);
 }
 
+body:not([data-page="login"]) .topbar .nav a[href="ped.html"] .nav-icon {
+  color: #0f8c8f;
+  background: #d9f5f2;
+  box-shadow: inset 0 0 0 1px rgba(15, 140, 143, .13);
+}
+
 body:not([data-page="login"]) .topbar .nav a .nav-icon {
   width: 30px;
   height: 30px;

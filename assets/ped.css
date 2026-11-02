@@ -1,0 +1,143 @@
+body[data-page="ped"]:not(.auth-ready) .app-shell { visibility: hidden; }
+body[data-page="ped"]:not(.auth-ready)::after {
+  content: "Mengesahkan akses PeD…";
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #64557a;
+  background: #f7f5fb;
+  font-weight: 700;
+}
+
+body[data-page="ped"] .main.container { width: min(1420px, calc(100% - 64px)); }
+body[data-page="ped"] .page-head { min-height: 158px; }
+
+.ped-overview { margin-bottom: 22px; }
+.ped-search-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 460px);
+  align-items: center;
+  gap: 28px;
+  padding: 23px 26px;
+  border: 1px solid #ded8eb;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(247, 243, 255, .96));
+  box-shadow: 0 14px 34px rgba(53, 37, 86, .09);
+}
+.ped-search-card .eyebrow { color: #6f3fc5; font-size: .66rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.ped-search-card h2 { margin: 4px 0; color: #211935; font-size: 1.22rem; }
+.ped-search-card p { margin: 0; color: #776e86; font-size: .84rem; }
+.ped-search { position: relative; display: block; }
+.ped-search svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 15px;
+  width: 19px;
+  height: 19px;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: #786b8d;
+  stroke-width: 1.8;
+}
+body[data-page="ped"] .ped-search .input { width: 100%; padding-left: 45px; background: #fff; }
+
+.ped-table-stack { display: grid; gap: 22px; }
+body[data-page="ped"] .ped-panel { overflow: hidden; }
+body[data-page="ped"] .ped-panel .panel-head { align-items: center; gap: 18px; }
+.ped-panel-heading, .ped-panel-actions, .ped-row-actions { display: flex; align-items: center; }
+.ped-panel-heading { min-width: 0; gap: 13px; }
+.ped-panel-actions { flex: 0 0 auto; gap: 12px; }
+.ped-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 13px;
+  color: #1f6bd4;
+  background: #e3efff;
+  box-shadow: inset 0 0 0 1px rgba(31, 107, 212, .09);
+}
+.ped-panel-icon.school { color: #0b8b75; background: #ddf7ef; box-shadow: inset 0 0 0 1px rgba(11, 139, 117, .09); }
+.ped-panel-icon.outgoing { color: #ba6a0b; background: #fff0d7; box-shadow: inset 0 0 0 1px rgba(186, 106, 11, .1); }
+.ped-panel-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ped-count {
+  padding: 7px 11px;
+  border: 1px solid #e1dbea;
+  border-radius: 999px;
+  color: #756b83;
+  background: #faf8fc;
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ped-count strong { color: #4f2b82; }
+body[data-page="ped"] .table-wrap { outline: none; }
+body[data-page="ped"] .table-wrap:focus-visible { box-shadow: inset 0 0 0 3px rgba(111, 63, 197, .18); }
+body[data-page="ped"] table { min-width: 1080px; table-layout: fixed; }
+body[data-page="ped"] th:nth-child(1), body[data-page="ped"] td:nth-child(1) { width: 12%; }
+body[data-page="ped"] th:nth-child(2), body[data-page="ped"] td:nth-child(2) { width: 17%; }
+body[data-page="ped"] th:nth-child(3), body[data-page="ped"] td:nth-child(3) { width: 19%; }
+body[data-page="ped"] th:nth-child(4), body[data-page="ped"] td:nth-child(4) { width: 27%; }
+body[data-page="ped"] th:nth-child(5), body[data-page="ped"] td:nth-child(5) { width: 11%; }
+body[data-page="ped"] th:nth-child(6), body[data-page="ped"] td:nth-child(6) { width: 14%; text-align: right; }
+body[data-page="ped"] td { vertical-align: middle; overflow-wrap: anywhere; }
+.ped-reference { color: #35234f; font-weight: 800; }
+.ped-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid #f1d5a5;
+  border-radius: 999px;
+  color: #9a5b08;
+  background: #fff7e8;
+  font-size: .69rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.ped-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ped-status.status-dalam-tindakan { color: #185eb8; border-color: #c5dcfa; background: #edf5ff; }
+.ped-status.status-selesai { color: #08765f; border-color: #bce7da; background: #eaf9f4; }
+.ped-row-actions { justify-content: flex-end; gap: 7px; }
+body[data-page="ped"] .ped-row-actions .button { padding-inline: 11px; }
+body[data-page="ped"] .ped-delete { color: #b42335; border-color: #f3cbd1; background: #fff5f6; }
+.ped-empty-row td { padding: 38px 24px !important; color: #8a8196; text-align: center !important; font-style: italic; }
+
+.ped-modal-card { width: min(650px, calc(100% - 32px)); padding: 0; }
+.ped-modal-card .modal-head { margin: 0; padding: 24px 26px 18px; border-bottom: 1px solid #ece8f2; }
+.ped-modal-card .panel-body { padding: 22px 26px 26px; }
+.ped-modal-card .field + .field { margin-top: 0; }
+.ped-modal-card textarea.input { min-height: 94px; resize: vertical; padding-top: 13px; }
+.ped-modal-card .form-actions { justify-content: flex-end; }
+
+body:not([data-page="login"]) .nav a[href="ped.html"] {
+  --tab-icon-color: #0f8c8f;
+  --tab-icon-bg: #d9f5f2;
+  --tab-icon-border: rgba(15, 140, 143, .13);
+}
+
+@media (max-width: 900px) {
+  .ped-search-card { grid-template-columns: 1fr; gap: 18px; }
+  .ped-panel-actions { width: 100%; justify-content: space-between; }
+  body[data-page="ped"] .ped-panel .panel-head { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 680px) {
+  body[data-page="ped"] .main.container { width: calc(100% - 24px); }
+  .ped-search-card { padding: 19px; }
+  .ped-panel-heading { align-items: flex-start; }
+  .ped-panel-actions { align-items: stretch; flex-direction: column; }
+  .ped-panel-actions .button { width: 100%; }
+  .ped-count { align-self: flex-start; }
+  body[data-page="ped"] .modal { align-items: start; padding: 12px; overflow-y: auto; }
+  .ped-modal-card { width: 100%; max-height: calc(100dvh - 24px); }
+  .ped-modal-card .modal-head { padding: 18px 20px 14px; }
+  .ped-modal-card .panel-body { padding: 16px 20px 20px; }
+  .ped-modal-card .form-grid { grid-template-columns: 1fr; gap: 12px; }
+  .ped-modal-card .span-2 { grid-column: auto; }
+  .ped-modal-card .form-actions { flex-direction: column-reverse; }
+  .ped-modal-card .form-actions .button { width: 100%; }
+}

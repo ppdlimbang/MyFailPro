@@ -45,6 +45,7 @@ const state = {
   notificationsAvailable: true,
   staffUsageAvailable: true,
   staffAvatarsAvailable: true,
+  pedRecords: [],
   settings: null
 };
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
@@ -323,6 +324,21 @@ function renderShell(user) {
   const shellNavigation = topbarInner?.querySelector(".nav");
   const settingsNavigation = topbarInner?.querySelector(".nav-settings");
   if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
+  const agencyType = String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
+  const canAccessPed = user.role === "admin" || (user.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
+  let pedNavigation = shellNavigation?.querySelector('[href="ped.html"]');
+  if (shellNavigation && canAccessPed && !pedNavigation) {
+    pedNavigation = create("a", { href: "ped.html", "data-ped-nav": "" }, [
+      create("span", { className: "nav-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
+        create("path", { d: "M5 3h14v18H5Z" }),
+        create("path", { d: "M8 7h8M8 11h8M8 15h5" })
+      ])),
+      create("span", { text: "PeD" })
+    ]);
+    shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
+  }
+  if (pedNavigation && !canAccessPed) pedNavigation.remove();
+  else if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
     if (shellUserBox.parentElement !== topbarInner) topbarInner.append(shellUserBox);
@@ -611,6 +627,31 @@ async function loadAgencies() {
   if (currentUser.role !== "admin") { state.agencies = []; return; }
   const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,created_at&order=name.asc");
   state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, createdAt: row.created_at }));
+}
+
+function canAccessPed(user = currentUser) {
+  const agencyType = String(user?.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
+  return user?.role === "admin" || (user?.role === "agency" && ["pejabat", "jabatan"].includes(agencyType));
+}
+
+function mapPedRecord(row) {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    category: row.category,
+    date: row.correspondence_date,
+    reference: row.reference_number,
+    correspondent: row.correspondent,
+    subject: row.subject,
+    status: row.status,
+    createdAt: row.created_at
+  };
+}
+
+async function loadPedRecords() {
+  const columns = "id,owner_id,category,correspondence_date,reference_number,correspondent,subject,status,created_at";
+  const rows = await rest("ped_correspondence", `select=${columns}&order=correspondence_date.desc,created_at.desc`);
+  state.pedRecords = (rows || []).map(mapPedRecord);
 }
 
 async function loadRecipientUsers() {
@@ -2370,6 +2411,146 @@ async function callAdminFunction(name, payload, retry = true) {
   return response.json();
 }
 
+const pedCategoryMeta = {
+  agency_in: { title: "Surat Masuk Jabatan dan Agensi", party: "Daripada", date: "Tarikh Terima" },
+  school_in: { title: "Surat Masuk Sekolah", party: "Daripada", date: "Tarikh Terima" },
+  outgoing: { title: "Surat Keluar", party: "Kepada", date: "Tarikh Surat" }
+};
+
+async function initPed() {
+  const user = await initShell();
+  if (!user) return;
+  if (!canAccessPed(user)) {
+    location.replace("dashboard.html");
+    return;
+  }
+
+  markReady();
+  await loadPedRecords();
+
+  const search = document.querySelector("#pedSearch");
+  const form = document.querySelector("#pedForm");
+  const modal = document.querySelector("#pedModal");
+  const modalTitle = document.querySelector("#pedModalTitle");
+  const partyLabel = document.querySelector("#pedCorrespondentLabel");
+  const dateLabel = document.querySelector("#pedDateLabel");
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  const render = () => {
+    const term = String(search.value || "").trim().toLocaleLowerCase("ms-MY");
+    Object.keys(pedCategoryMeta).forEach(category => {
+      const body = document.querySelector(`[data-ped-rows="${category}"]`);
+      const count = document.querySelector(`[data-ped-count="${category}"]`);
+      const records = state.pedRecords.filter(record => record.category === category && (!term || [
+        record.reference,
+        record.correspondent,
+        record.subject,
+        record.status
+      ].some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term))));
+
+      count.textContent = String(records.length);
+      body.replaceChildren();
+      if (!records.length) {
+        body.append(create("tr", { className: "ped-empty-row" }, create("td", {
+          colspan: "6",
+          text: term ? "Tiada rekod yang sepadan dengan carian." : "Belum ada rekod surat dalam kategori ini."
+        })));
+        return;
+      }
+
+      records.forEach(record => {
+        const edit = create("button", { className: "button secondary small", type: "button", text: "Kemas kini" });
+        edit.addEventListener("click", () => openEditor(record.category, record));
+        const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${record.reference}`, text: "Padam" });
+        remove.addEventListener("click", async () => {
+          if (!confirm(`Padam rekod ${record.reference}?`)) return;
+          setBusy(remove, true, "Memadamâ€¦");
+          try {
+            await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, { method: "DELETE" });
+            state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
+            render();
+            toast("Rekod dipadam", "Rekod surat telah dikeluarkan daripada PeD.");
+          } catch (error) {
+            toast("Tidak berjaya", error.message, "error");
+            setBusy(remove, false);
+          }
+        });
+        body.append(create("tr", {}, [
+          create("td", { text: formatDate(record.date) }),
+          create("td", {}, create("strong", { className: "ped-reference", text: record.reference })),
+          create("td", { text: record.correspondent }),
+          create("td", { text: record.subject }),
+          create("td", {}, create("span", { className: `ped-status status-${record.status.toLocaleLowerCase("ms-MY").replace(/\s+/g, "-")}`, text: record.status })),
+          create("td", {}, create("div", { className: "actions ped-row-actions" }, [edit, remove]))
+        ]));
+      });
+    });
+  };
+
+  const openEditor = (category, record = null) => {
+    const meta = pedCategoryMeta[category];
+    form.reset();
+    form.elements.id.value = record?.id || "";
+    form.elements.category.value = category;
+    form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
+    form.elements.reference_number.value = record?.reference || "";
+    form.elements.correspondent.value = record?.correspondent || "";
+    form.elements.subject.value = record?.subject || "";
+    form.elements.status.value = record?.status || "Baru";
+    modalTitle.textContent = record ? `Kemas Kini ${meta.title}` : `Tambah ${meta.title}`;
+    partyLabel.textContent = meta.party;
+    dateLabel.textContent = meta.date;
+    submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
+    showModal("#pedModal");
+    setTimeout(() => form.elements.reference_number.focus(), 0);
+  };
+
+  document.querySelectorAll("[data-add-ped]").forEach(button => {
+    button.addEventListener("click", () => openEditor(button.dataset.addPed));
+  });
+  search.addEventListener("input", render);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    const recordId = data.id;
+    const payload = {
+      category: data.category,
+      correspondence_date: data.correspondence_date,
+      reference_number: data.reference_number.trim(),
+      correspondent: data.correspondent.trim(),
+      subject: data.subject.trim(),
+      status: data.status
+    };
+    setBusy(submitButton, true, "Menyimpanâ€¦");
+    try {
+      const rows = recordId
+        ? await rest("ped_correspondence", `id=eq.${encodeURIComponent(recordId)}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(payload)
+        })
+        : await rest("ped_correspondence", "", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({ ...payload, owner_id: workspaceOwnerId() })
+        });
+      const saved = mapPedRecord(rows[0]);
+      state.pedRecords = recordId
+        ? state.pedRecords.map(record => record.id === saved.id ? saved : record)
+        : [saved, ...state.pedRecords];
+      closeModal(modal);
+      render();
+      toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", `${saved.reference} telah disimpan dalam PeD.`);
+    } catch (error) {
+      toast("Tidak berjaya", error.message, "error");
+    } finally {
+      setBusy(submitButton, false);
+    }
+  });
+
+  render();
+}
+
 async function initAdmin() {
   if (!await initShell(true)) return;
   markReady();
@@ -2432,6 +2613,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await loadConfig();
     const page = document.body.dataset.page;
-    await ({ login: initLogin, dashboard: initDashboard, "movement-log": initMovementLog, register: initRegister, settings: initSettings, admin: initAdmin }[page] || (async () => {}))();
+    await ({ login: initLogin, dashboard: initDashboard, "movement-log": initMovementLog, register: initRegister, settings: initSettings, ped: initPed, admin: initAdmin }[page] || (async () => {}))();
   } catch (error) { showFatal(error); }
 });

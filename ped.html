@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Pengurusan surat PeD MyFailPro">
+  <title>PeD · MyFailPro</title>
+  <link rel="icon" type="image/png" href="file.png?v=20260914-03">
+  <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
+  <link rel="stylesheet" href="assets/navigation.css?v=20261102-01">
+  <link rel="stylesheet" href="assets/ped.css?v=20261102-01">
+  <script src="assets/runtime-config.js?v=20260904-14" defer></script>
+  <script src="assets/supabase-app.js?v=20261102-01" defer></script>
+</head>
+<body data-page="ped">
+<div class="app-shell">
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="dashboard.html" aria-label="MyFailPro, laman utama">
+        <span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h7l2 2h9v10H3V7Z"/><path d="M3 10h18"/></svg></span>
+        <span class="brand-copy"><strong>MyFailPro</strong><small>Sistem Pengurusan Fail</small></span>
+      </a>
+      <nav class="nav" aria-label="Navigasi utama">
+        <a href="dashboard.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span><span>Paparan Utama</span></a>
+        <a href="daftar.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6Z"/><path d="M15 3v5h4M9 12h7M9 16h7"/></svg></span><span>Daftar Fail</span></a>
+        <a href="log-pergerakan.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3"/></svg></span><span>Pergerakan Fail</span></a>
+        <a href="admin.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M17 11v6M14 14h6"/></svg></span><span>Pengguna</span></a>
+      </nav>
+      <a class="nav-settings" href="tetapan.html"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.6 2.1-1.7 1L5.1 6.1l-2.5 4.3L4 12l-1.4 1.6 2.5 4.3 2.1-.1 1.7 1 .6 2.2h5l.6-2.2 1.7-1 2.1.1 2.5-4.3L20 12l1.4-1.6-2.5-4.3-2.1.1-1.7-1L14.5 3Z"/><circle cx="12" cy="12" r="3"/></svg></span><span>Tetapan Sistem</span></a>
+      <div class="user-box">
+        <button class="notification-button" type="button" aria-label="Pemberitahuan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="hidden"></span></button>
+        <div class="user-copy"><strong data-user-name></strong><span data-user-role></span></div>
+        <span class="user-avatar" data-user-avatar aria-hidden="true">MP</span>
+        <button class="logout-button" type="button" data-logout aria-label="Log keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/></svg><span>Log keluar</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main container">
+    <div class="page-head">
+      <div class="page-head-copy"><span class="eyebrow">Pengurusan dokumen elektronik</span><h1>PeD</h1><p>Daftar dan urus surat masuk serta surat keluar Pejabat atau Jabatan dalam satu ruang kerja.</p></div>
+      <span class="date-chip" data-current-date></span>
+    </div>
+
+    <section class="ped-overview" aria-label="Ringkasan PeD">
+      <div class="ped-search-card">
+        <div><span class="eyebrow">Carian pantas</span><h2>Rekod Persuratan</h2><p>Cari mengikut nombor rujukan, pengirim, penerima, perkara atau status.</p></div>
+        <label class="ped-search"><span class="sr-only">Cari rekod PeD</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input class="input" id="pedSearch" type="search" placeholder="Cari rekod surat…" autocomplete="off"></label>
+      </div>
+    </section>
+
+    <div class="ped-table-stack">
+      <section class="panel ped-panel" aria-labelledby="pedAgencyTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon agency" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span><div class="panel-title"><h2 id="pedAgencyTitle">Surat Masuk Jabatan dan Agensi</h2><p>Surat rasmi yang diterima daripada jabatan atau agensi luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="agency_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="agency_in">Tambah Rekod</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk jabatan dan agensi"><table><thead><tr><th>Tarikh Terima</th><th>No. Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="agency_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
+      </section>
+
+      <section class="panel ped-panel" aria-labelledby="pedSchoolTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><div class="panel-title"><h2 id="pedSchoolTitle">Surat Masuk Sekolah</h2><p>Surat rasmi yang diterima daripada sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_in">Tambah Rekod</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk sekolah"><table><thead><tr><th>Tarikh Terima</th><th>No. Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="school_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
+      </section>
+
+      <section class="panel ped-panel" aria-labelledby="pedOutgoingTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span><div class="panel-title"><h2 id="pedOutgoingTitle">Surat Keluar</h2><p>Surat rasmi yang dihantar kepada penerima luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="outgoing">0</strong> rekod</span><button class="button small" type="button" data-add-ped="outgoing">Tambah Rekod</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual surat keluar"><table><thead><tr><th>Tarikh Surat</th><th>No. Rujukan</th><th>Kepada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="outgoing"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal hidden" id="pedModal" role="dialog" aria-modal="true" aria-labelledby="pedModalTitle">
+  <form class="modal-card ped-modal-card" id="pedForm">
+    <div class="modal-head"><div><span class="eyebrow">Rekod PeD</span><h2 id="pedModalTitle">Tambah Rekod Surat</h2></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div>
+    <div class="panel-body form-grid">
+      <input name="id" type="hidden"><input name="category" type="hidden">
+      <div class="field"><label id="pedDateLabel" for="pedDate">Tarikh</label><input class="input" id="pedDate" name="correspondence_date" type="date" required></div>
+      <div class="field"><label for="pedReference">Nombor rujukan</label><input class="input" id="pedReference" name="reference_number" placeholder="Contoh: PPDL/100-1/2/3" required></div>
+      <div class="field span-2"><label id="pedCorrespondentLabel" for="pedCorrespondent">Daripada</label><input class="input" id="pedCorrespondent" name="correspondent" placeholder="Nama jabatan, agensi, sekolah atau penerima" required></div>
+      <div class="field span-2"><label for="pedSubject">Perkara</label><textarea class="input" id="pedSubject" name="subject" rows="3" placeholder="Tajuk atau perkara surat" required></textarea></div>
+      <div class="field span-2"><label for="pedStatus">Status</label><select class="input" id="pedStatus" name="status" required><option>Baru</option><option>Dalam Tindakan</option><option>Selesai</option></select></div>
+      <div class="form-actions span-2"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Rekod</button></div>
+    </div>
+  </form>
+</div>
+</body>
+</html>
