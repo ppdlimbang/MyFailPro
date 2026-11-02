@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-12");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-13");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -433,7 +433,7 @@ async function requireAuth(adminOnly = false) {
   return user;
 }
 
-async function initShell(adminOnly = false) {
+async function initShell(adminOnly = false, { deferNotifications = false } = {}) {
   const user = await requireAuth(adminOnly);
   if (!user) return null;
   renderShell(user);
@@ -442,7 +442,11 @@ async function initShell(adminOnly = false) {
     try { await authRequest("logout", { method: "POST", headers: { authorization: `Bearer ${session.access_token}` } }); }
     finally { saveSession(null); location.replace("MyFailPro.html"); }
   }));
-  await initNotifications();
+  if (deferNotifications) {
+    void initNotifications().catch(error => console.warn("Notifikasi tidak dapat dimulakan.", error));
+  } else {
+    await initNotifications();
+  }
   return user;
 }
 
@@ -2433,14 +2437,15 @@ const pedCategoryMeta = {
 };
 
 async function initPed() {
-  const shellUser = await initShell();
+  const shellUser = await initShell(false, { deferNotifications: true });
   if (!shellUser) return;
   // The shell may have been rendered from sessionStorage before this page loads.
   // Refresh the authorization profile so changed agency types and roles take effect.
-  const user = await loadProfile(shellUser.id);
+  const [user, hasPedAccess] = await Promise.all([
+    loadProfile(shellUser.id),
+    rpc("can_access_ped", {})
+  ]);
   renderShell(user);
-  // Ask the database policy function so the visible UI uses the same access rule as RLS.
-  const hasPedAccess = await rpc("can_access_ped", {});
   if (!hasPedAccess) {
     document.querySelector("#pedComingSoon").classList.remove("hidden");
     document.querySelector("#pedIntro").textContent = "Ruang baharu untuk pengurusan surat anda.";
