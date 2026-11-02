@@ -374,8 +374,14 @@ function renderShell(user) {
 
 function renderCachedShell() {
   try {
+    const cachedSession = readSession();
     const cached = JSON.parse(sessionStorage.getItem(PROFILE_KEY));
-    if (cached?.id && cached?.role) renderShell(cached);
+    const sessionUserId = cachedSession?.user?.id;
+    if (cached?.id && cached?.role && cachedSession?.access_token && sessionUserId === cached.id) {
+      session = cachedSession;
+      currentUser = cached;
+      renderShell(cached);
+    }
   } catch { sessionStorage.removeItem(PROFILE_KEY); }
 }
 
