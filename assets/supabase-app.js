@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-13");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-14");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -433,7 +433,7 @@ async function requireAuth(adminOnly = false) {
   return user;
 }
 
-async function initShell(adminOnly = false, { deferNotifications = false } = {}) {
+async function initShell(adminOnly = false) {
   const user = await requireAuth(adminOnly);
   if (!user) return null;
   renderShell(user);
@@ -442,11 +442,7 @@ async function initShell(adminOnly = false, { deferNotifications = false } = {})
     try { await authRequest("logout", { method: "POST", headers: { authorization: `Bearer ${session.access_token}` } }); }
     finally { saveSession(null); location.replace("MyFailPro.html"); }
   }));
-  if (deferNotifications) {
-    void initNotifications().catch(error => console.warn("Notifikasi tidak dapat dimulakan.", error));
-  } else {
-    await initNotifications();
-  }
+  void initNotifications().catch(error => console.warn("Notifikasi tidak dapat dimulakan.", error));
   return user;
 }
 
@@ -2437,7 +2433,7 @@ const pedCategoryMeta = {
 };
 
 async function initPed() {
-  const shellUser = await initShell(false, { deferNotifications: true });
+  const shellUser = await initShell();
   if (!shellUser) return;
   // The shell may have been rendered from sessionStorage before this page loads.
   // Refresh the authorization profile so changed agency types and roles take effect.
