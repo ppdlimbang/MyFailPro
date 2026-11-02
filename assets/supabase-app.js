@@ -326,7 +326,7 @@ function renderShell(user) {
   if (shellNavigation && settingsNavigation?.parentElement !== shellNavigation) shellNavigation.append(settingsNavigation);
   const adminNavigation = shellNavigation?.querySelector('a[href="admin.html"]');
   if (adminNavigation) adminNavigation.classList.toggle("hidden", user.role !== "admin");
-  let pedNavigation = shellNavigation?.querySelector('[href="ped.html"]');
+  let pedNavigation = shellNavigation?.querySelector('[data-ped-nav], a[href^="ped.html"]');
   if (shellNavigation && !pedNavigation) {
     pedNavigation = create("a", { href: "ped.html", "data-ped-nav": "" }, [
       create("span", { className: "nav-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
@@ -337,6 +337,8 @@ function renderShell(user) {
     ]);
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
+  // Version the document URL too: older cached PeD pages redirect non-admins.
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-07");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2435,6 +2437,7 @@ async function initPed() {
     return;
   }
 
+  document.querySelector("#pedComingSoon").classList.add("hidden");
   document.querySelector("#pedWorkspace").classList.remove("hidden");
   markReady();
   await loadPedRecords();

@@ -227,7 +227,7 @@ body[data-page="ped"] .ped-delete { color: #b42335; border-color: #f3cbd1; backg
 .ped-modal-card textarea.input { min-height: 94px; resize: vertical; padding-top: 13px; }
 .ped-modal-card .form-actions { justify-content: flex-end; }
 
-body:not([data-page="login"]) .nav a[href="ped.html"] {
+body:not([data-page="login"]) .nav a[data-ped-nav] {
   --tab-icon-color: #0f8c8f;
   --tab-icon-bg: #d9f5f2;
   --tab-icon-border: rgba(15, 140, 143, .13);
