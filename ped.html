@@ -8,9 +8,9 @@
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
   <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-01">
-  <link rel="stylesheet" href="assets/ped.css?v=20261102-01">
+  <link rel="stylesheet" href="assets/ped.css?v=20261102-02">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261102-03" defer></script>
+  <script src="assets/supabase-app.js?v=20261102-04" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -41,6 +41,24 @@
       <div class="page-head-copy"><span class="eyebrow">Pengurusan dokumen elektronik</span><h1>PeD</h1><p>Daftar dan urus surat masuk serta surat keluar Pejabat atau Jabatan dalam satu ruang kerja.</p></div>
       <span class="date-chip" data-current-date></span>
     </div>
+
+    <section class="ped-stats" aria-label="Ringkasan jumlah surat PeD">
+      <article class="ped-stat ped-stat-agency">
+        <div class="ped-stat-head"><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span><small>Surat Masuk</small></div>
+        <div class="ped-stat-value"><strong data-ped-stat-count="agency_in" aria-live="polite">0</strong><span>surat</span></div>
+        <p>Jabatan dan Agensi</p>
+      </article>
+      <article class="ped-stat ped-stat-school">
+        <div class="ped-stat-head"><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><small>Surat Masuk</small></div>
+        <div class="ped-stat-value"><strong data-ped-stat-count="school_in" aria-live="polite">0</strong><span>surat</span></div>
+        <p>Sekolah</p>
+      </article>
+      <article class="ped-stat ped-stat-outgoing">
+        <div class="ped-stat-head"><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span><small>Surat Keluar</small></div>
+        <div class="ped-stat-value"><strong data-ped-stat-count="outgoing" aria-live="polite">0</strong><span>surat</span></div>
+        <p>Semua penerima</p>
+      </article>
+    </section>
 
     <section class="ped-overview" aria-label="Ringkasan PeD">
       <div class="ped-search-card">

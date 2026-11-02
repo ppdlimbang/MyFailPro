@@ -2453,12 +2453,15 @@ async function initPed() {
     Object.keys(pedCategoryMeta).forEach(category => {
       const body = document.querySelector(`[data-ped-rows="${category}"]`);
       const count = document.querySelector(`[data-ped-count="${category}"]`);
-      const records = state.pedRecords.filter(record => record.category === category && (!term || [
+      const categoryRecords = state.pedRecords.filter(record => record.category === category);
+      const statCount = document.querySelector(`[data-ped-stat-count="${category}"]`);
+      if (statCount) statCount.textContent = String(categoryRecords.length);
+      const records = categoryRecords.filter(record => !term || [
         record.reference,
         record.correspondent,
         record.subject,
         record.status
-      ].some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term))));
+      ].some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term)));
 
       count.textContent = String(records.length);
       body.replaceChildren();
