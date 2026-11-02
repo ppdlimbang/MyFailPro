@@ -2547,7 +2547,7 @@ async function initPed() {
   document.querySelector("#pedWorkspace").classList.remove("hidden");
   markReady();
   const pedLoadWarnings = [];
-  const [recordsResult, settingsResult] = await Promise.allSettled([loadPedRecords(), loadSettings()]);
+  const [recordsResult, settingsResult, filesResult] = await Promise.allSettled([loadPedRecords(), loadSettings(), loadFiles()]);
   if (recordsResult.status === "rejected") {
     state.pedRecords = [];
     pedLoadWarnings.push(`Rekod surat: ${recordsResult.reason?.message || "tidak dapat dimuatkan"}`);
@@ -2557,6 +2557,11 @@ async function initPed() {
     state.settings = { pegawai: [] };
     pedLoadWarnings.push(`Direktori pegawai: ${settingsResult.reason?.message || "tidak dapat dimuatkan"}`);
     console.error("Direktori pegawai untuk PeD tidak dapat dimuatkan.", settingsResult.reason);
+  }
+  if (filesResult.status === "rejected") {
+    state.files = [];
+    pedLoadWarnings.push(`Senarai fail berdaftar: ${filesResult.reason?.message || "tidak dapat dimuatkan"}`);
+    console.error("Fail rujukan PeD tidak dapat dimuatkan.", filesResult.reason);
   }
 
   const search = document.querySelector("#pedSearch");
@@ -2585,7 +2590,9 @@ async function initPed() {
   let clearExistingAttachment = false;
 
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
+  const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
   fillSelect(schoolNameSelect, pedFormOptions.schools, "Pilih sekolah");
+  fillSelect(officeReferenceFileSelect, state.files.map(file => `${file.transaksi} (Jilid ${file.jilid})`), "Pilih fail yang telah didaftarkan");
   fillSelect(document.querySelector("#pedSchoolSector"), pedFormOptions.schoolSectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedOriginSector"), pedFormOptions.sectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedAssignedTo"), recipientDirectoryNames, "Pilih pegawai");
@@ -2791,7 +2798,7 @@ async function initPed() {
     picker.required = required;
     refreshPedPicker(select);
   };
-  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
   document.addEventListener("pointerdown", event => {
     pedPickerStates.forEach(picker => { if (picker.open && !picker.input.closest(".ped-picker").contains(event.target)) picker.close(); });
   });
@@ -2940,7 +2947,7 @@ async function initPed() {
     setMultiValues(document.querySelector("#pedAssignedOfficers"), record?.assignedOfficers || []);
     setSelectValue(document.querySelector("#pedSchoolSector"), record?.schoolSector || "");
     document.querySelector("#pedAssignedTo").value = record?.assignedTo || "";
-    document.querySelector("#pedOfficeReferenceFile").value = record?.officeReferenceFile || "";
+    setSelectValue(officeReferenceFileSelect, record?.officeReferenceFile || "");
     document.querySelector("#pedRegistryFileNumber").value = record?.registryFileNumber || "";
     document.querySelector("#pedAgencyNotes").value = category === "agency_in" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolNotes").value = category === "school_in" ? record?.notes || "" : "";
@@ -3050,7 +3057,7 @@ async function initPed() {
       assigned_officers: category === "agency_in" ? selectedValues("#pedAssignedOfficers") : [],
       school_sector: category === "school_in" ? document.querySelector("#pedSchoolSector").value : "",
       assigned_to: category === "school_in" ? document.querySelector("#pedAssignedTo").value.trim() : "",
-      office_reference_file: category === "agency_in" ? document.querySelector("#pedOfficeReferenceFile").value.trim() : "",
+      office_reference_file: category === "agency_in" ? officeReferenceFileSelect.value : "",
       registry_file_number: category === "school_in" ? document.querySelector("#pedRegistryFileNumber").value.trim() : "",
       origin_sector: category === "outgoing" ? document.querySelector("#pedOriginSector").value : "",
       delivery_methods: category === "outgoing" ? selectedValues("#pedDeliveryMethods") : [],
