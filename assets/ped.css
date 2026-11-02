@@ -172,7 +172,7 @@ body[data-page="ped"] .page-head {
 .ped-stat-agency .ped-stat-value > span,
 .ped-stat-agency .ped-stat-footer { color: #eee6ff; }
 
-.ped-overview { margin-bottom: 22px; }
+.ped-overview { position: relative; z-index: 2; margin-bottom: 22px; }
 .ped-search-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
