@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-11");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-12");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -638,12 +638,6 @@ async function loadAgencies() {
   if (currentUser.role !== "admin") { state.agencies = []; return; }
   const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,created_at&order=name.asc");
   state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, createdAt: row.created_at }));
-}
-
-function canAccessPed(user = currentUser) {
-  const agencyType = String(user?.data?.jenis || "").trim().toLocaleLowerCase("ms-MY");
-  return user?.role === "admin"
-    || (user?.role === "agency" && ["jabatan", "agensi"].includes(agencyType));
 }
 
 function mapPedRecord(row) {
@@ -2445,7 +2439,9 @@ async function initPed() {
   // Refresh the authorization profile so changed agency types and roles take effect.
   const user = await loadProfile(shellUser.id);
   renderShell(user);
-  if (!canAccessPed(user)) {
+  // Ask the database policy function so the visible UI uses the same access rule as RLS.
+  const hasPedAccess = await rpc("can_access_ped", {});
+  if (!hasPedAccess) {
     document.querySelector("#pedComingSoon").classList.remove("hidden");
     document.querySelector("#pedIntro").textContent = "Ruang baharu untuk pengurusan surat anda.";
     markReady();
