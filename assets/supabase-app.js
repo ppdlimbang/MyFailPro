@@ -2966,20 +2966,6 @@ async function initPed() {
     dateLabel.textContent = meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     showModal("#pedModal");
-    setTimeout(() => {
-      const categoryDropdowns = {
-        agency_in: [document.querySelector("#pedDepartmentSectors"), document.querySelector("#pedAssignedOfficers"), statusSelect],
-        school_in: [schoolNameSelect, document.querySelector("#pedSchoolSector"), document.querySelector("#pedAssignedTo"), statusSelect],
-        outgoing: [document.querySelector("#pedOriginSector"), deliveryMethodsSelect, statusSelect]
-      }[category] || [];
-      const unselectedDropdown = categoryDropdowns.find(select => select.multiple
-        ? !select.selectedOptions.length
-        : !select.value);
-      const picker = pedPickerStates.get(unselectedDropdown);
-      const firstField = unselectedDropdown || (category === "school_in" ? schoolNameSelect : partyInput);
-      (picker?.input || firstField).focus();
-      if (picker) picker.show();
-    }, 0);
   };
 
   document.querySelectorAll("[data-add-ped]").forEach(button => {
