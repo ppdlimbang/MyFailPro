@@ -639,8 +639,8 @@ async function refreshLastMovementDate(fileId) {
 
 async function loadAgencies() {
   if (currentUser.role !== "admin") { state.agencies = []; return; }
-  const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,created_at&order=name.asc");
-  state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, createdAt: row.created_at }));
+  const rows = await rest("profiles", "role=eq.agency&select=id,email,name,agency_type,parent_agency_id,created_at&order=name.asc");
+  state.agencies = rows.map(row => ({ id: row.id, emel: row.email, nama: row.name, jenis: row.agency_type, parentAgencyId: row.parent_agency_id, createdAt: row.created_at }));
 }
 
 function mapPedRecord(row) {
@@ -3114,6 +3114,19 @@ async function initAdmin() {
   await loadAgencies();
   const form = document.querySelector("#agencyForm");
   const body = document.querySelector("#agencyRows");
+  const agencyType = document.querySelector("#agencyType");
+  const educationOfficeField = document.querySelector("#educationOfficeField");
+  const educationOffice = document.querySelector("#educationOffice");
+  const refreshEducationOffices = () => {
+    const offices = state.agencies.filter(item => item.jenis === "Pejabat");
+    educationOffice.replaceChildren(create("option", { value: "", text: offices.length ? "Pilih Pejabat Pendidikan…" : "Tiada akaun Pejabat didaftarkan" }));
+    offices.forEach(item => educationOffice.append(create("option", { value: item.id, text: item.nama })));
+    const isSchool = agencyType.value === "Sekolah";
+    educationOfficeField.classList.toggle("hidden", !isSchool);
+    educationOffice.required = isSchool;
+    if (!isSchool) educationOffice.value = "";
+  };
+  agencyType.addEventListener("change", refreshEducationOffices);
   const render = () => {
     body.replaceChildren();
     state.agencies.forEach(agency => {
@@ -3131,6 +3144,7 @@ async function initAdmin() {
         create("td", { text: agency.emel }),
         create("td", { text: agency.jenis }),
         create("td", { text: agency.nama }),
+        create("td", { text: state.agencies.find(item => item.id === agency.parentAgencyId)?.nama || "—" }),
         create("td", { text: "Supabase Auth" }),
         create("td", {}, remove)
       ]));
@@ -3142,7 +3156,7 @@ async function initAdmin() {
     const button = form.querySelector("button[type=submit]");
     setBusy(button, true, "Mencipta…");
     try {
-      await callAdminFunction("admin-create-user", { email: data.emel.trim().toLowerCase(), password: data.password, name: data.nama.trim(), agencyType: data.jenis });
+      await callAdminFunction("admin-create-user", { email: data.emel.trim().toLowerCase(), password: data.password, name: data.nama.trim(), agencyType: data.jenis, parentAgencyId: data.pejabat_pendidikan || null });
       await loadAgencies();
       form.reset();
       render();
@@ -3150,6 +3164,7 @@ async function initAdmin() {
     } catch (error) { toast("Tidak berjaya", error.message, "error"); }
     finally { setBusy(button, false); }
   });
+  refreshEducationOffices();
   render();
 }
 

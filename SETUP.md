@@ -21,6 +21,7 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260908050000_sync_staff_identity_updates.sql`
    - `supabase/migrations/20260908060000_title_case_staff_names.sql`
    - `supabase/migrations/20260908070000_manage_file_movement_logs.sql`
+   - `supabase/migrations/20260909000000_link_schools_to_education_offices.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 
@@ -104,6 +105,11 @@ before this rule was introduced.
 Workspace members can correct or delete erroneous movement logs. These actions
 run transactionally, refresh the file's current holder from the remaining
 history, and keep recipient notifications aligned with corrected movements.
+
+When creating a school account under **Pengurusan Pengguna**, the administrator
+selects a registered **Pejabat** account as its Pejabat Pendidikan. This link is
+stored on the school profile and appears in the agency account list for later
+data synchronization workflows.
 
 ## 3. Enable GitHub Pages
 

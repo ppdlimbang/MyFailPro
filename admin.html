@@ -10,10 +10,11 @@
     <section class="panel"><div class="panel-head"><div class="panel-title"><h2>Tambah Pengguna Agensi</h2><p>Akaun baharu akan disediakan melalui Supabase Authentication.</p></div></div><form class="panel-body form-grid" id="agencyForm">
       <div class="field"><label for="agencyEmail">Emel agensi</label><input class="input" id="agencyEmail" name="emel" type="email" autocomplete="email" placeholder="agensi@moe.gov.my" required></div>
       <div class="field"><label for="agencyType">Jenis agensi</label><select class="input" id="agencyType" name="jenis" required><option value="">Pilih jenis agensi…</option><option>Jabatan</option><option>Agensi</option><option>Pejabat</option><option>Sekolah</option></select></div>
+      <div class="field hidden" id="educationOfficeField"><label for="educationOffice">Pejabat Pendidikan</label><select class="input" id="educationOffice" name="pejabat_pendidikan"><option value="">Pilih Pejabat Pendidikan…</option></select><span class="field-hint">Pilih Pejabat Pendidikan yang telah didaftarkan untuk mengaitkan akaun sekolah.</span></div>
       <div class="field"><label for="agencyName">Nama agensi</label><input class="input" id="agencyName" name="nama" autocomplete="organization" placeholder="Nama rasmi agensi" required></div>
       <div class="field"><label for="agencyPassword">Katalaluan sementara</label><input class="input" id="agencyPassword" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 aksara" required><span class="field-hint">Kongsikan katalaluan kepada pengguna melalui saluran yang selamat.</span></div>
       <div class="form-actions span-2"><button class="button" type="submit">Tambah Pengguna</button></div>
-    </form><div class="table-wrap"><table><caption class="sr-only">Senarai akaun agensi</caption><thead><tr><th scope="col">Emel</th><th scope="col">Jenis</th><th scope="col">Nama</th><th scope="col">Sistem Akaun</th><th scope="col">Tindakan</th></tr></thead><tbody id="agencyRows"></tbody></table></div></section>
+    </form><div class="table-wrap"><table><caption class="sr-only">Senarai akaun agensi</caption><thead><tr><th scope="col">Emel</th><th scope="col">Jenis</th><th scope="col">Nama</th><th scope="col">Pejabat Pendidikan</th><th scope="col">Sistem Akaun</th><th scope="col">Tindakan</th></tr></thead><tbody id="agencyRows"></tbody></table></div></section>
   </main>
 </div>
 </body>
