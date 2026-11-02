@@ -338,7 +338,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-10");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-11");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2439,8 +2439,12 @@ const pedCategoryMeta = {
 };
 
 async function initPed() {
-  const user = await initShell();
-  if (!user) return;
+  const shellUser = await initShell();
+  if (!shellUser) return;
+  // The shell may have been rendered from sessionStorage before this page loads.
+  // Refresh the authorization profile so changed agency types and roles take effect.
+  const user = await loadProfile(shellUser.id);
+  renderShell(user);
   if (!canAccessPed(user)) {
     document.querySelector("#pedComingSoon").classList.remove("hidden");
     document.querySelector("#pedIntro").textContent = "Ruang baharu untuk pengurusan surat anda.";
