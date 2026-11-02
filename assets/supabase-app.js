@@ -2945,7 +2945,8 @@ async function initPed() {
     document.querySelector("#pedAgencyNotes").value = category === "agency_in" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolNotes").value = category === "school_in" ? record?.notes || "" : "";
     setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || pedFormOptions.sectors[0]);
-    setMultiValues(document.querySelector("#pedDeliveryMethods"), record?.deliveryMethods?.length ? record.deliveryMethods : [pedFormOptions.deliveryMethods[0]]);
+    const deliveryMethodsSelect = document.querySelector("#pedDeliveryMethods");
+    setMultiValues(deliveryMethodsSelect, record?.deliveryMethods || []);
     document.querySelector("#pedOutgoingNotes").value = category === "outgoing" ? record?.notes || "" : "";
     pedPickerStates.forEach((picker, select) => refreshPedPicker(select));
 
@@ -2966,8 +2967,11 @@ async function initPed() {
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     showModal("#pedModal");
     setTimeout(() => {
-      const firstField = category === "school_in" ? schoolNameSelect : partyInput;
-      (pedPickerStates.get(firstField)?.input || firstField).focus();
+      const needsDeliveryMethod = category === "outgoing" && !deliveryMethodsSelect.selectedOptions.length;
+      const firstField = category === "school_in" ? schoolNameSelect : needsDeliveryMethod ? deliveryMethodsSelect : partyInput;
+      const picker = pedPickerStates.get(firstField);
+      (picker?.input || firstField).focus();
+      if (needsDeliveryMethod && picker) picker.show();
     }, 0);
   };
 
