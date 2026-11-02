@@ -102,6 +102,72 @@ body[data-page="ped"] .page-head { min-height: 158px; }
 .ped-stat-meter { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(109, 74, 255, .12); }
 .ped-stat-meter > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--blue), var(--violet)); }
 
+/* Match the PeD summary cards to the three-card dashboard treatment. */
+.ped-stat {
+  --ped-stat-accent: #665df2;
+  --ped-stat-soft: #ede9fe;
+  min-height: 220px;
+  padding: 24px 26px 22px;
+  border: 1px solid rgba(255, 255, 255, .95);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .84);
+  box-shadow: 0 20px 50px rgba(52, 66, 87, .06);
+}
+.ped-stat::before { display: none; }
+.ped-stat::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  right: -82px;
+  bottom: 22px;
+  width: 210px;
+  height: 210px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgba(255, 255, 255, .04), 0 0 0 57px rgba(255, 255, 255, .025);
+  pointer-events: none;
+}
+.ped-stat-agency {
+  --ped-stat-accent: #fff;
+  --ped-stat-soft: rgba(255, 255, 255, .13);
+  border-color: rgba(255, 255, 255, .3);
+  background: linear-gradient(120deg, #5b21b6, #7136dc 62%, #8652e9);
+  box-shadow: 0 14px 30px rgba(91, 33, 182, .2), inset 0 1px rgba(255, 255, 255, .15);
+}
+.ped-stat-school {
+  --ped-stat-accent: #087f6c;
+  --ped-stat-soft: #d9f5ee;
+  border-color: #b8e4d9;
+  background: linear-gradient(120deg, #fafffd 30%, #e7f7f1);
+  box-shadow: 0 12px 28px rgba(13, 100, 85, .08);
+}
+.ped-stat-outgoing {
+  --ped-stat-accent: #c24e0e;
+  --ped-stat-soft: #ffecd9;
+  border-color: #f4d5b8;
+  background: linear-gradient(120deg, #fffdfa 30%, #fff0e2);
+  box-shadow: 0 12px 28px rgba(161, 79, 19, .08);
+}
+.ped-stat-head small { color: var(--ped-stat-accent); }
+.ped-stat-icon {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+  border-color: rgba(255, 255, 255, .65);
+  color: var(--ped-stat-accent);
+  background: var(--ped-stat-soft);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .65);
+}
+.ped-stat-value strong { color: var(--ped-stat-accent); font-size: clamp(2.5rem, 3.7vw, 3.25rem); }
+.ped-stat-value > span, .ped-stat-footer { color: #667085; }
+.ped-stat-share { color: var(--ped-stat-accent); background: var(--ped-stat-soft); }
+.ped-stat-meter { background: var(--ped-stat-soft); }
+.ped-stat-meter > span { background: var(--ped-stat-accent); }
+.ped-stat-agency .ped-stat-head small,
+.ped-stat-agency .ped-stat-value strong { color: #fff; }
+.ped-stat-agency .ped-stat-value > span,
+.ped-stat-agency .ped-stat-footer { color: #eee6ff; }
+
 .ped-overview { margin-bottom: 22px; }
 .ped-search-card {
   display: grid;
@@ -233,7 +299,7 @@ body:not([data-page="login"]) .nav a[data-ped-nav] {
 
 @media (max-width: 680px) {
   .ped-stats { grid-template-columns: 1fr; gap: 18px; padding: 3px; }
-  .ped-stat { min-height: 140px; padding: 20px 20px 18px 23px; border-radius: var(--radius-md); }
+  .ped-stat { min-height: 185px; padding: 20px; border-radius: 20px; }
   body[data-page="ped"] .main.container { width: calc(100% - 24px); }
   .ped-search-card { padding: 19px; }
   .ped-filter-controls { grid-template-columns: 1fr; }
