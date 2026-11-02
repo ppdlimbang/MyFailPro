@@ -285,6 +285,20 @@ body[data-page="ped"] .ped-delete { color: var(--cream); border-color: var(--ink
 .ped-modal-card .ped-multi-select { min-height: 128px; padding: 8px; }
 .ped-modal-card .ped-multi-select option { padding: 7px 9px; border-radius: 6px; }
 .ped-modal-card .ped-multi-select option:checked { color: #fff; background: #6d4aff linear-gradient(0deg, #6d4aff 0%, #6d4aff 100%); }
+.ped-picker-source { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+.ped-picker { position: relative; min-width: 0; }
+.ped-picker-search { width: 100%; }
+.ped-picker-menu { position: absolute; z-index: 80; inset: calc(100% + 6px) 0 auto; max-height: 260px; overflow: auto; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-solid); box-shadow: var(--shadow-lg); }
+.ped-picker-option { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 0; border-radius: 9px; color: var(--ink); background: transparent; text-align: left; font: inherit; font-size: .84rem; cursor: pointer; }
+.ped-picker-option:hover, .ped-picker-option:focus-visible { outline: 0; color: var(--purple-deep); background: var(--lavender); }
+.ped-picker-option.selected::after { content: "✓"; color: var(--purple); font-weight: 800; }
+.ped-picker-clear { color: var(--text-soft); border-bottom: 1px solid var(--border); border-radius: 5px; }
+.ped-picker-empty { padding: 12px; color: var(--text-soft); font-size: .82rem; }
+.ped-picker-selected { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ped-picker-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 5px 3px 10px; border: 1px solid var(--border-blue); border-radius: 999px; color: var(--purple-deep); background: var(--lavender); font-size: .72rem; line-height: 1.4; }
+.ped-picker-chip > span { overflow-wrap: anywhere; }
+.ped-picker-chip button { display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; border: 0; border-radius: 50%; color: inherit; background: rgba(109, 74, 255, .12); font: inherit; cursor: pointer; }
+.ped-picker-chip button:hover { color: #fff; background: var(--purple); }
 .ped-file-input { padding: 10px; }
 .ped-attachment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 

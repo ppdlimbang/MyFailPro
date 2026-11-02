@@ -2584,6 +2584,169 @@ async function initPed() {
   });
   const allStatuses = [...new Set(Object.values(pedCategoryMeta).flatMap(meta => meta.statuses))];
   fillSelect(statusFilter, allStatuses, "Semua status");
+
+  const pedPickerStates = new Map();
+  const refreshPedPicker = select => {
+    const picker = pedPickerStates.get(select);
+    if (!picker) return;
+    const selectedOptions = [...select.options].filter(option => option.selected && option.value);
+    picker.selected.replaceChildren();
+    if (picker.multiple) {
+      selectedOptions.forEach(option => {
+        const chip = create("span", { className: "ped-picker-chip" }, [
+          create("span", { text: option.textContent }),
+          create("button", { type: "button", text: "×", "aria-label": `Buang ${option.textContent}` })
+        ]);
+        chip.querySelector("button").addEventListener("click", () => {
+          option.selected = false;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        picker.selected.append(chip);
+      });
+      if (document.activeElement !== picker.input) picker.input.value = "";
+    } else if (document.activeElement !== picker.input) {
+      picker.input.value = selectedOptions[0]?.textContent || "";
+    }
+    picker.input.setCustomValidity(picker.required && !select.value ? "Sila pilih satu pilihan daripada senarai." : "");
+    if (picker.open) picker.renderMenu();
+  };
+  const mountPedPicker = select => {
+    const multiple = select.multiple;
+    const required = select.required;
+    select.required = false;
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
+    select.classList.add("ped-picker-source");
+    const wrapper = create("div", { className: "ped-picker" });
+    const input = create("input", {
+      className: "input ped-picker-search",
+      id: `${select.id}PickerSearch`,
+      type: "search",
+      role: "combobox",
+      "aria-label": select.labels?.[0]?.textContent.trim() || select.closest("label")?.textContent.trim() || "Pilihan",
+      "aria-autocomplete": "list",
+      "aria-haspopup": "listbox",
+      "aria-expanded": "false",
+      autocomplete: "off",
+      placeholder: multiple ? "Taip untuk mencari dan memilih…" : "Taip untuk mencari pilihan…"
+    });
+    if (select.labels?.[0]) select.labels[0].htmlFor = input.id;
+    const selected = create("div", { className: "ped-picker-selected", "aria-live": "polite" });
+    const menu = create("div", { className: "ped-picker-menu hidden", role: "listbox", id: `${select.id}PickerOptions` });
+    if (multiple) menu.setAttribute("aria-multiselectable", "true");
+    input.setAttribute("aria-controls", menu.id);
+    wrapper.append(input, selected, menu);
+    select.insertAdjacentElement("afterend", wrapper);
+
+    const picker = {
+      input, selected, menu, multiple, required,
+      open: false,
+      query: "",
+      renderMenu() {
+        const query = this.query.trim().toLocaleLowerCase("ms-MY");
+        const choices = [...select.options].filter(option => option.value && option.textContent.toLocaleLowerCase("ms-MY").includes(query));
+        menu.replaceChildren();
+        if (!multiple && select.value) {
+          const clear = create("button", { type: "button", className: "ped-picker-option ped-picker-clear", role: "option", text: "Buang pilihan" });
+          clear.addEventListener("mousedown", event => event.preventDefault());
+          clear.addEventListener("click", () => {
+            select.value = "";
+            this.query = "";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            this.close();
+            input.value = "";
+          });
+          menu.append(clear);
+        }
+        choices.forEach(option => {
+          const button = create("button", {
+            type: "button",
+            className: `ped-picker-option${option.selected ? " selected" : ""}`,
+            role: "option",
+            "aria-selected": String(option.selected),
+            text: option.textContent
+          });
+          button.addEventListener("mousedown", event => event.preventDefault());
+          button.addEventListener("click", () => {
+            if (multiple) {
+              option.selected = !option.selected;
+              this.query = input.value;
+              select.dispatchEvent(new Event("change", { bubbles: true }));
+              input.focus();
+            } else {
+              select.value = option.value;
+              this.query = "";
+              this.close();
+              input.value = option.textContent;
+              select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          });
+          menu.append(button);
+        });
+        if (!choices.length) menu.append(create("div", { className: "ped-picker-empty", text: "Tiada pilihan yang sepadan." }));
+      },
+      show() {
+        this.open = true;
+        wrapper.classList.add("is-open");
+        menu.classList.remove("hidden");
+        input.setAttribute("aria-expanded", "true");
+        this.renderMenu();
+      },
+      close() {
+        this.open = false;
+        this.query = "";
+        wrapper.classList.remove("is-open");
+        menu.classList.add("hidden");
+        input.setAttribute("aria-expanded", "false");
+        if (document.activeElement === input) input.blur();
+        refreshPedPicker(select);
+      }
+    };
+    pedPickerStates.set(select, picker);
+    input.addEventListener("focus", () => {
+      picker.query = "";
+      input.value = "";
+      picker.show();
+    });
+    input.addEventListener("input", () => {
+      picker.query = input.value;
+      if (!multiple) {
+        const exact = [...select.options].find(option => option.value && option.textContent.toLocaleLowerCase("ms-MY") === input.value.trim().toLocaleLowerCase("ms-MY"));
+        select.value = exact?.value || "";
+      }
+      refreshPedPicker(select);
+    });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Escape") { event.preventDefault(); picker.close(); input.blur(); }
+      if (event.key === "ArrowDown") { event.preventDefault(); menu.querySelector(".ped-picker-option:not(.ped-picker-clear)")?.focus(); }
+      if (event.key === "Enter" && picker.open) {
+        event.preventDefault();
+        menu.querySelector(".ped-picker-option:not(.ped-picker-clear)")?.click();
+      }
+    });
+    menu.addEventListener("keydown", event => {
+      if (event.key === "Escape") { event.preventDefault(); picker.close(); input.focus(); return; }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const options = [...menu.querySelectorAll(".ped-picker-option")];
+        const current = options.indexOf(document.activeElement);
+        const next = event.key === "ArrowDown" ? Math.min(options.length - 1, current + 1) : Math.max(0, current - 1);
+        options[next]?.focus();
+      }
+    });
+    select.addEventListener("change", () => refreshPedPicker(select));
+    refreshPedPicker(select);
+  };
+  const setPedPickerRequired = (select, required) => {
+    const picker = pedPickerStates.get(select);
+    if (!picker) return;
+    picker.required = required;
+    refreshPedPicker(select);
+  };
+  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  document.addEventListener("pointerdown", event => {
+    pedPickerStates.forEach(picker => { if (picker.open && !picker.input.closest(".ped-picker").contains(event.target)) picker.close(); });
+  });
   Object.entries(pedCategoryMeta).forEach(([category, meta]) => {
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
     table.querySelector("thead th:nth-child(2)").textContent = meta.referenceLabel;
@@ -2706,7 +2869,7 @@ async function initPed() {
     referenceInput.value = record?.reference || "";
     partyInput.value = record?.correspondent || "";
     schoolNameSelect.disabled = category !== "school_in";
-    schoolNameSelect.required = category === "school_in";
+    setPedPickerRequired(schoolNameSelect, category === "school_in");
     setSelectValue(schoolNameSelect, record?.schoolName || "");
     partyTextField.classList.toggle("hidden", category === "school_in");
     partyInput.disabled = category === "school_in";
@@ -2716,6 +2879,8 @@ async function initPed() {
     if (record?.status && !statuses.includes(record.status)) statuses.push(record.status);
     statusSelect.replaceChildren(...statuses.map(status => create("option", { value: status, text: status })));
     statusSelect.value = record?.status || meta.defaultStatus;
+    refreshPedPicker(statusSelect);
+    setPedPickerRequired(statusSelect, true);
 
     document.querySelectorAll("[data-ped-category-fields]").forEach(field => {
       field.classList.toggle("hidden", field.dataset.pedCategoryFields !== category);
@@ -2731,6 +2896,7 @@ async function initPed() {
     setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || pedFormOptions.sectors[0]);
     setMultiValues(document.querySelector("#pedDeliveryMethods"), record?.deliveryMethods?.length ? record.deliveryMethods : [pedFormOptions.deliveryMethods[0]]);
     document.querySelector("#pedOutgoingNotes").value = category === "outgoing" ? record?.notes || "" : "";
+    pedPickerStates.forEach((picker, select) => refreshPedPicker(select));
 
     selectedAttachment = null;
     clearExistingAttachment = false;
