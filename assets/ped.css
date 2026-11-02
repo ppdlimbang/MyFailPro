@@ -282,6 +282,11 @@ body[data-page="ped"] .ped-delete { color: var(--cream); border-color: var(--ink
 .ped-modal-card .field + .field { margin-top: 0; }
 .ped-modal-card textarea.input { min-height: 94px; resize: vertical; padding-top: 13px; }
 .ped-modal-card .form-actions { justify-content: flex-end; }
+.ped-modal-card .ped-multi-select { min-height: 128px; padding: 8px; }
+.ped-modal-card .ped-multi-select option { padding: 7px 9px; border-radius: 6px; }
+.ped-modal-card .ped-multi-select option:checked { color: #fff; background: #6d4aff linear-gradient(0deg, #6d4aff 0%, #6d4aff 100%); }
+.ped-file-input { padding: 10px; }
+.ped-attachment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 body:not([data-page="login"]) .nav a[data-ped-nav] {
   --tab-icon-color: #0f8c8f;
