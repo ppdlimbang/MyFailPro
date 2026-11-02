@@ -2585,6 +2585,32 @@ async function initPed() {
   const allStatuses = [...new Set(Object.values(pedCategoryMeta).flatMap(meta => meta.statuses))];
   fillSelect(statusFilter, allStatuses, "Semua status");
 
+  const pedStatusVisuals = {
+    baru: { tone: "new", paths: ["M6 2.8h5.5L16 7v10.2H5V2.8h1Z", "M11.5 3v4.5H16", "M8 11h5M8 14h5"] },
+    "belum diminit": { tone: "pending", paths: ["M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z", "M10 6v4.5l3 1.8"] },
+    "dalam proses": { tone: "processing", paths: ["M16.8 6.2A7 7 0 0 0 5 5.7L3.5 7.2", "M3.5 3.8v3.5H7", "M3.2 13.8A7 7 0 0 0 15 14.3l1.5-1.5", "M16.5 16.2v-3.5H13"] },
+    "dalam tindakan": { tone: "action", paths: ["M12 16.5a4.5 4.5 0 0 0-9 0", "M7.5 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M15 10.5v5", "M12.5 13h5"] },
+    "sudah diminit": { tone: "reviewed", paths: ["M10 2.7 12 4l2.5-.2 1 2.2 2 1.3-.6 2.5.6 2.5-2 1.3-1 2.2L12 15.6l-2 1.3-2.5-1.3-2.5.2-1-2.2-2-1.3.6-2.5L2 7.3l2-1.3 1-2.2L7.5 4l2.5-1.3Z", "m6.5 10 2.2 2.2 4.8-4.8"] },
+    dihantar: { tone: "sent", paths: ["m2.5 9.5 15-6-6 15-2.2-6.8-6.8-2.2Z", "m9.3 11.7 4-4"] },
+    "dihantar semula": { tone: "resent", paths: ["M16.5 6.5H7a4 4 0 0 0 0 8h1", "m14 4 2.5 2.5L14 9", "M3.5 13.5H13a4 4 0 0 0 0-8h-1", "m6 16-2.5-2.5L6 11"] },
+    diterima: { tone: "received", paths: ["M3 8h14l1.5 8h-17L3 8Z", "M3 8l2-4h10l2 4", "m7 11 2 2 4-4"] },
+    dikembalikan: { tone: "returned", paths: ["M4 7V3.5L1.5 6 4 8.5V7h8a4.5 4.5 0 1 1-4.5 4.5", "M8 11.5 7.5 13A4.5 4.5 0 1 0 12 7"] },
+    selesai: { tone: "complete", paths: ["M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z", "m6.3 10.2 2.4 2.4 5-5"] }
+  };
+  const pedStatusVisual = status => {
+    const key = String(status || "").trim().toLocaleLowerCase("ms-MY");
+    return pedStatusVisuals[key] || pedStatusVisuals.baru;
+  };
+  const pedStatusIcon = status => create("svg", {
+    className: "ped-status-icon",
+    viewBox: "0 0 20 20",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "1.7",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "aria-hidden": "true"
+  }, pedStatusVisual(status).paths.map(d => create("path", { d })));
   const pedPickerStates = new Map();
   const refreshPedPicker = select => {
     const picker = pedPickerStates.get(select);
@@ -2605,7 +2631,14 @@ async function initPed() {
       });
       if (document.activeElement !== picker.input) picker.input.value = "";
     } else if (document.activeElement !== picker.input) {
-      picker.input.value = selectedOptions[0]?.textContent || "";
+      picker.input.value = picker.status ? "" : selectedOptions[0]?.textContent || "";
+    }
+    if (picker.status && selectedOptions[0]) {
+      const visual = pedStatusVisual(selectedOptions[0].value);
+      picker.selected.append(create("span", { className: `ped-status-preview ped-tone-${visual.tone}` }, [
+        pedStatusIcon(selectedOptions[0].value),
+        create("span", { text: selectedOptions[0].textContent })
+      ]));
     }
     picker.input.setCustomValidity(picker.required && !select.value ? "Sila pilih satu pilihan daripada senarai." : "");
     if (picker.open) picker.renderMenu();
@@ -2640,6 +2673,7 @@ async function initPed() {
 
     const picker = {
       input, selected, menu, multiple, required,
+      status: select.id === "pedStatus" || select.id === "pedStatusFilter",
       open: false,
       query: "",
       renderMenu() {
@@ -2659,13 +2693,13 @@ async function initPed() {
           menu.append(clear);
         }
         choices.forEach(option => {
+          const visual = this.status ? pedStatusVisual(option.value) : null;
           const button = create("button", {
             type: "button",
-            className: `ped-picker-option${option.selected ? " selected" : ""}`,
+            className: `ped-picker-option${option.selected ? " selected" : ""}${visual ? ` ped-picker-status ped-tone-${visual.tone}` : ""}`,
             role: "option",
-            "aria-selected": String(option.selected),
-            text: option.textContent
-          });
+            "aria-selected": String(option.selected)
+          }, visual ? [pedStatusIcon(option.value), create("span", { text: option.textContent })] : create("span", { text: option.textContent }));
           button.addEventListener("mousedown", event => event.preventDefault());
           button.addEventListener("click", () => {
             if (multiple) {
@@ -2677,7 +2711,7 @@ async function initPed() {
               select.value = option.value;
               this.query = "";
               this.close();
-              input.value = option.textContent;
+              input.value = this.status ? "" : option.textContent;
               select.dispatchEvent(new Event("change", { bubbles: true }));
             }
           });
@@ -2840,7 +2874,10 @@ async function initPed() {
           create("td", {}, create("strong", { className: "ped-reference", text: record.reference || "—" })),
           create("td", { text: record.correspondent }),
           create("td", { text: record.subject }),
-          create("td", {}, create("span", { className: `ped-status status-${record.status.toLocaleLowerCase("ms-MY").replace(/\s+/g, "-")}`, text: record.status })),
+          create("td", {}, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
+            pedStatusIcon(record.status),
+            create("span", { text: record.status })
+          ])),
           create("td", {}, create("div", { className: "actions ped-row-actions" }, [edit, remove]))
         ]));
       });
