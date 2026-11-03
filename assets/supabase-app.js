@@ -346,7 +346,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-05");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-06");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -524,6 +524,8 @@ function initRevealAnimations() {
 
   function register(element, dynamic = false) {
     if (!(element instanceof Element) || observed.has(element)) return;
+    // Translating table rows creates overflow inside the PeD table scroller.
+    if (document.body.dataset.page === "ped" && element.matches("tbody tr")) return;
     observed.add(element);
     if (!canObserve) return;
     const siblingIndex = Array.from(element.parentElement?.children || []).indexOf(element);
@@ -2947,7 +2949,8 @@ async function initPed() {
   activeCategories.forEach(category => {
     const meta = pedCategoryMeta[category];
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
-    table.querySelector("thead th:nth-child(2)").textContent = schoolAccount && category === "school_in" ? "No. Rujukan" : meta.referenceLabel;
+    table.querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
+    table.querySelector("thead th:nth-child(2)").textContent = "No. Rujukan";
     table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada" : meta.party;
   });
 
@@ -2999,29 +3002,37 @@ async function initPed() {
         : `${records.length} rekod`;
       previous.disabled = stateForTable.page === 0;
       next.disabled = stateForTable.page >= totalPages - 1;
-      pagination.classList.toggle("hidden", records.length <= pageSize);
-      sortButton.textContent = `${schoolAccount && category === "school_in" ? "Tarikh Surat" : pedCategoryMeta[category].date} ${stateForTable.dateAscending ? "↑" : "↓"}`;
+      pagination.classList.remove("hidden");
+      previous.parentElement.classList.toggle("hidden", totalPages <= 1);
+      const tableDateLabel = schoolAccount && category === "school_in" ? "Tarikh Surat" : pedCategoryMeta[category].date;
+      const tablePartyLabel = schoolAccount && category === "school_in" ? "Kepada" : pedCategoryMeta[category].party;
+      sortButton.textContent = `${tableDateLabel} ${stateForTable.dateAscending ? "↑" : "↓"}`;
+      sortButton.closest("th").setAttribute("aria-sort", stateForTable.dateAscending ? "ascending" : "descending");
       body.replaceChildren();
       if (!records.length) {
-        body.append(create("tr", { className: "ped-empty-row" }, create("td", {
-          colspan: "6",
-          text: term || selectedStatus || from || to
-            ? "Tiada rekod yang sepadan dengan carian atau tapisan."
-            : "Belum ada rekod surat dalam kategori ini."
-        })));
+        const filtered = Boolean(term || selectedStatus || from || to);
+        body.append(create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
+          create("div", { className: "ped-empty-state" }, [
+            create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h5" })),
+            create("strong", { text: filtered ? "Tiada padanan ditemui" : "Belum ada rekod surat" }),
+            create("span", { text: filtered ? "Cuba carian lain atau kosongkan tapisan." : "Gunakan Tambah Rekod untuk mendaftarkan surat dalam kategori ini." })
+          ])
+        )));
         return;
       }
 
       pageRecords.forEach(record => {
         const schoolLetterLocked = schoolAccount && category === "school_in"
           && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
-        const edit = create("button", { className: "button secondary small", type: "button", text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
+        const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const referenceText = record.reference || "surat tanpa nombor rujukan";
-        const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${referenceText}`, text: "Padam" });
+        const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${referenceText}`, title: "Padam rekod" },
+          create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.7", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" })));
         remove.addEventListener("click", async () => {
           if (!confirm(`Padam rekod ${referenceText}?`)) return;
-          setBusy(remove, true, "Memadamâ€¦");
+          remove.disabled = true;
+          remove.setAttribute("aria-busy", "true");
           try {
             await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, { method: "DELETE" });
             state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
@@ -3032,23 +3043,28 @@ async function initPed() {
             toast("Rekod dipadam", "Rekod surat telah dikeluarkan daripada PeD.");
           } catch (error) {
             toast("Tidak berjaya", error.message, "error");
-            setBusy(remove, false);
+            remove.disabled = false;
+            remove.removeAttribute("aria-busy");
           }
         });
         const canDelete = !schoolLetterLocked && (user.role === "admin" || record.ownerId === user.id);
         const party = schoolAccount && category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
           : record.correspondent;
+        const referenceParts = splitPedOutgoingReference(record.reference);
         body.append(create("tr", {}, [
-          create("td", { text: formatDate(record.date) }),
-          create("td", {}, create("strong", { className: "ped-reference", text: record.reference || "—" })),
-          create("td", { text: party }),
-          create("td", { text: record.subject }),
-          create("td", {}, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
+          create("td", { className: "ped-cell-date", "data-label": tableDateLabel }, create("time", { datetime: record.date, text: formatDate(record.date) })),
+          create("td", { className: "ped-cell-reference", "data-label": "No. Rujukan" }, [
+            create("strong", { className: "ped-reference", text: referenceParts.fileReference || "—" }),
+            referenceParts.letterNumber ? create("span", { className: "ped-reference-number", text: `No. Surat ${referenceParts.letterNumber}` }) : null
+          ]),
+          create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, create("span", { className: "ped-party", text: party || "—" })),
+          create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
+          create("td", { className: "ped-cell-status", "data-label": "Status" }, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
             pedStatusIcon(record.status),
             create("span", { text: record.status })
           ])),
-          create("td", {}, create("div", { className: "actions ped-row-actions" }, canDelete ? [edit, remove] : [edit]))
+          create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, canDelete ? [edit, remove] : [edit]))
         ]));
       });
     });
