@@ -295,9 +295,9 @@ async function deleteMovement(record) {
 async function loadProfile(userId) {
   let rows;
   try {
-    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id,avatar_key`);
+    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id,avatar_key,ped_office_id`);
   } catch (error) {
-    if (!/agency_id|avatar_key/i.test(error.message)) throw error;
+    if (!/agency_id|avatar_key|ped_office_id/i.test(error.message)) throw error;
     try {
       rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id`);
     } catch (fallbackError) {
@@ -313,7 +313,12 @@ async function loadProfile(userId) {
     agencyId: profile.agency_id || null,
     email: profile.email,
     role: profile.role,
-    data: { nama: profile.name, jenis: profile.agency_type, avatarKey: profile.avatar_key || "initials" }
+    data: {
+      nama: profile.name,
+      jenis: profile.agency_type,
+      avatarKey: profile.avatar_key || "initials",
+      pedOfficeId: profile.ped_office_id || null
+    }
   };
   sessionStorage.setItem(PROFILE_KEY, JSON.stringify(currentUser));
   return currentUser;
@@ -341,7 +346,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261102-14");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-02");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2572,16 +2577,19 @@ async function initPed() {
     document.querySelector('[data-ped-section="school_in"] .table-wrap').setAttribute("aria-label", "Jadual surat keluar sekolah");
     document.querySelector('[data-ped-pagination="school_in"]').setAttribute("aria-label", "Halaman surat keluar sekolah");
   }
+  // Show the authorized workspace immediately. Data tables keep their loading
+  // rows until the parallel Supabase requests below have completed.
+  markReady();
   const pedLoadWarnings = [];
   let assignedOffice = null;
   let assignedSchools = [];
   const [recordsResult, settingsResult, filesResult, officeResult, schoolsResult] = await Promise.allSettled([
-    loadPedRecords(), loadSettings(), loadFiles(),
+    loadPedRecords(), loadSettings(), schoolAccount ? Promise.resolve([]) : loadFiles(),
     schoolAccount ? (async () => {
-      const profile = (await rest("profiles", `id=eq.${encodeURIComponent(user.id)}&select=ped_office_id`))?.[0];
-      if (!profile?.ped_office_id) return [];
-      const office = (await rest("profiles", `id=eq.${encodeURIComponent(profile.ped_office_id)}&select=id,name`))?.[0];
-      return [{ ped_office_id: profile.ped_office_id, office_name: office?.name || "Pejabat" }];
+      const officeId = user.data?.pedOfficeId;
+      if (!officeId) return [];
+      const office = (await rest("profiles", `id=eq.${encodeURIComponent(officeId)}&select=id,name`))?.[0];
+      return [{ ped_office_id: officeId, office_name: office?.name || "Pejabat" }];
     })() : Promise.resolve([]),
     officeAccount ? rest("profiles", `ped_office_id=eq.${encodeURIComponent(user.id)}&role=eq.agency&select=id,name&order=name.asc`) : Promise.resolve([])
   ]);
@@ -3227,7 +3235,6 @@ async function initPed() {
   });
 
   render();
-  markReady();
   if (pedLoadWarnings.length) {
     toast("Data PeD belum lengkap", pedLoadWarnings.join("; "), "error");
   }
