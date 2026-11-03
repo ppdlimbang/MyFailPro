@@ -8,9 +8,9 @@
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
   <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-07">
-  <link rel="stylesheet" href="assets/ped.css?v=20261102-18">
+  <link rel="stylesheet" href="assets/ped.css?v=20261103-01">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261102-26" defer></script>
+  <script src="assets/supabase-app.js?v=20261103-01" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -53,20 +53,25 @@
 
     <div id="pedWorkspace" class="hidden">
     <section class="ped-stats" aria-label="Ringkasan jumlah surat PeD">
-      <article class="ped-stat ped-stat-agency">
+      <article class="ped-stat ped-stat-agency" data-ped-section="agency_in">
         <div class="ped-stat-head"><small>Surat Masuk Jabatan dan Agensi</small><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span></div>
         <div class="ped-stat-value"><strong data-ped-stat-count="agency_in" aria-live="polite">0</strong><span>surat diterima</span></div>
         <div class="ped-stat-detail"><div class="ped-stat-footer"><span>Daripada jumlah surat</span><span class="ped-stat-share" data-ped-stat-share="agency_in">0%</span></div><div class="ped-stat-meter" aria-hidden="true"><span data-ped-stat-meter="agency_in"></span></div></div>
       </article>
-      <article class="ped-stat ped-stat-school">
-        <div class="ped-stat-head"><small>Surat Masuk Sekolah</small><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span></div>
+      <article class="ped-stat ped-stat-school" data-ped-section="school_in">
+        <div class="ped-stat-head"><small data-ped-title="school_in">Surat Masuk Sekolah</small><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span></div>
         <div class="ped-stat-value"><strong data-ped-stat-count="school_in" aria-live="polite">0</strong><span>surat diterima</span></div>
         <div class="ped-stat-detail"><div class="ped-stat-footer"><span>Daripada jumlah surat</span><span class="ped-stat-share" data-ped-stat-share="school_in">0%</span></div><div class="ped-stat-meter" aria-hidden="true"><span data-ped-stat-meter="school_in"></span></div></div>
       </article>
-      <article class="ped-stat ped-stat-outgoing">
+      <article class="ped-stat ped-stat-outgoing" data-ped-section="outgoing">
         <div class="ped-stat-head"><small>Surat Keluar</small><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span></div>
         <div class="ped-stat-value"><strong data-ped-stat-count="outgoing" aria-live="polite">0</strong><span>surat dihantar</span></div>
         <div class="ped-stat-detail"><div class="ped-stat-footer"><span>Daripada jumlah surat</span><span class="ped-stat-share" data-ped-stat-share="outgoing">0%</span></div><div class="ped-stat-meter" aria-hidden="true"><span data-ped-stat-meter="outgoing"></span></div></div>
+      </article>
+      <article class="ped-stat ped-stat-agency hidden" data-ped-section="school_received">
+        <div class="ped-stat-head"><small>Surat Masuk</small><span class="ped-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6"/></svg></span></div>
+        <div class="ped-stat-value"><strong data-ped-stat-count="school_received" aria-live="polite">0</strong><span>surat diterima</span></div>
+        <div class="ped-stat-detail"><div class="ped-stat-footer"><span>Daripada jumlah surat</span><span class="ped-stat-share" data-ped-stat-share="school_received">0%</span></div><div class="ped-stat-meter" aria-hidden="true"><span data-ped-stat-meter="school_received"></span></div></div>
       </article>
     </section>
 
@@ -84,22 +89,27 @@
     </section>
 
     <div class="ped-table-stack">
-      <section class="panel ped-panel" aria-labelledby="pedAgencyTitle">
+      <section class="panel ped-panel" data-ped-section="agency_in" aria-labelledby="pedAgencyTitle">
         <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon agency" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span><div class="panel-title"><h2 id="pedAgencyTitle">Surat Masuk Jabatan dan Agensi</h2><p>Surat rasmi yang diterima daripada jabatan atau agensi luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="agency_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="agency_in">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk jabatan dan agensi"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="agency_in">Tarikh Terima ↓</button></th><th>No. Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="agency_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="agency_in" aria-label="Halaman surat masuk jabatan"><span data-ped-page-info="agency_in">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="agency_in" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="agency_in" data-direction="next">Seterusnya</button></div></nav>
       </section>
 
-      <section class="panel ped-panel" aria-labelledby="pedSchoolTitle">
-        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><div class="panel-title"><h2 id="pedSchoolTitle">Surat Masuk Sekolah</h2><p>Surat rasmi yang diterima daripada sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_in">Tambah Rekod</button></div></div>
+      <section class="panel ped-panel" data-ped-section="school_in" aria-labelledby="pedSchoolTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><div class="panel-title"><h2 id="pedSchoolTitle">Surat Masuk Sekolah</h2><p id="pedSchoolDescription">Surat rasmi yang diterima daripada sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_in">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk sekolah"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="school_in">Tarikh Terima ↓</button></th><th>No. Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="school_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="school_in" aria-label="Halaman surat masuk sekolah"><span data-ped-page-info="school_in">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="school_in" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="school_in" data-direction="next">Seterusnya</button></div></nav>
       </section>
 
-      <section class="panel ped-panel" aria-labelledby="pedOutgoingTitle">
+      <section class="panel ped-panel" data-ped-section="outgoing" aria-labelledby="pedOutgoingTitle">
         <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span><div class="panel-title"><h2 id="pedOutgoingTitle">Surat Keluar</h2><p>Surat rasmi yang dihantar kepada penerima luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="outgoing">0</strong> rekod</span><button class="button small" type="button" data-add-ped="outgoing">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat keluar"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="outgoing">Tarikh Surat ↓</button></th><th>No. Rujukan</th><th>Kepada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="outgoing"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="outgoing" aria-label="Halaman surat keluar"><span data-ped-page-info="outgoing">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="outgoing" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="outgoing" data-direction="next">Seterusnya</button></div></nav>
+      </section>
+      <section class="panel ped-panel hidden" data-ped-section="school_received" aria-labelledby="pedSchoolReceivedTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6"/></svg></span><div class="panel-title"><h2 id="pedSchoolReceivedTitle">Surat Masuk</h2><p>Daftar surat yang diterima oleh sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_received">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_received">Tambah Rekod</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk sekolah"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="school_received">Tarikh Terima ↓</button></th><th>No. Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="school_received"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
+        <nav class="ped-pagination" data-ped-pagination="school_received" aria-label="Halaman surat masuk sekolah"><span data-ped-page-info="school_received">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="school_received" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="school_received" data-direction="next">Seterusnya</button></div></nav>
       </section>
     </div>
     </div>
@@ -130,6 +140,10 @@
       <div class="field hidden" data-ped-category-fields="outgoing"><label for="pedOriginSector">Daripada Sektor</label><select class="input" id="pedOriginSector"></select></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedDeliveryMethods">Kaedah Penghantaran Surat</label><select class="input ped-multi-select" id="pedDeliveryMethods" multiple size="4"></select><span class="field-hint">Pilih satu atau lebih kaedah.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedOutgoingNotes">Catatan</label><textarea class="input" id="pedOutgoingNotes" rows="3"></textarea></div>
+      <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedSector">Sektor</label><input class="input" id="pedSchoolReceivedSector" placeholder="Sektor penerima"></div>
+      <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedOfficer">Untuk Tindakan / Nama Pegawai</label><select class="input" id="pedSchoolReceivedOfficer"><option value="">Pilih pegawai</option></select></div>
+      <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedFile">Tindakan Registri (No Fail Jabatan)</label><input class="input" id="pedSchoolReceivedFile"></div>
+      <div class="field span-2 hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedNotes">Catatan Guru Besar/Pengetua</label><textarea class="input" id="pedSchoolReceivedNotes" rows="3"></textarea></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedAttachment">Gambar (Poslaju / Pos Biasa)</label><input class="input ped-file-input" id="pedAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"><span class="field-hint" id="pedAttachmentName">Lampiran pilihan, maksimum 20 MB.</span><div class="ped-attachment-actions"><button class="button secondary small hidden" type="button" id="pedViewAttachment">Lihat gambar semasa</button><button class="button secondary small hidden" type="button" id="pedClearAttachment">Buang gambar semasa</button></div></div>
 
       <div class="field span-2"><label for="pedStatus">Status</label><select class="input" id="pedStatus" name="status"></select></div>

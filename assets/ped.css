@@ -54,6 +54,9 @@ body[data-page="ped"] .page-head {
   gap: 20px;
   margin-bottom: 24px;
 }
+.ped-stats-school { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ped-stats-school [data-ped-section="school_received"],
+.ped-table-stack-school [data-ped-section="school_received"] { order: -1; }
 .ped-stat {
   --ped-stat-accent: var(--blue);
   --ped-stat-soft: var(--lavender);
