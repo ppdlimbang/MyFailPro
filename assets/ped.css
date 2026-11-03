@@ -299,6 +299,11 @@ body[data-page="ped"] .ped-delete { color: var(--cream); border-color: var(--ink
 .ped-modal-card .field + .field { margin-top: 0; }
 .ped-modal-card textarea.input { min-height: 94px; resize: vertical; padding-top: 13px; }
 .ped-modal-card .form-actions { justify-content: flex-end; }
+.ped-reference-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.ped-reference-modes label { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 9px; color: var(--text-muted); background: #fff; font-size: .73rem; cursor: pointer; }
+.ped-reference-modes label:has(input:checked) { border-color: var(--purple); color: var(--purple-deep); background: var(--lavender); }
+.ped-reference-modes input { margin: 0; accent-color: var(--purple); }
+#pedRegisteredReferenceControl, #pedManualReferenceControl { display: grid; gap: 7px; min-width: 0; }
 .ped-modal-card .ped-multi-select { min-height: 128px; padding: 8px; }
 .ped-modal-card .ped-multi-select option { padding: 7px 9px; border-radius: 6px; }
 .ped-modal-card .ped-multi-select option:checked { color: #fff; background: #6d4aff linear-gradient(0deg, #6d4aff 0%, #6d4aff 100%); }

@@ -8,9 +8,9 @@
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
   <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-07">
-  <link rel="stylesheet" href="assets/ped.css?v=20261103-01">
+  <link rel="stylesheet" href="assets/ped.css?v=20261103-02">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261103-04" defer></script>
+  <script src="assets/supabase-app.js?v=20261103-05" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -123,7 +123,15 @@
       <input name="id" type="hidden"><input name="category" type="hidden">
       <div class="field"><label id="pedDateLabel" for="pedDate">Tarikh</label><input class="input" id="pedDate" name="correspondence_date" type="date" required></div>
       <div class="field" id="pedReferenceTextField"><label id="pedReferenceLabel" for="pedReference">No. Rujukan &amp; Tarikh</label><input class="input" id="pedReference" name="reference_number" placeholder="Masukkan nombor rujukan dan tarikh"></div>
-      <div class="field hidden" id="pedOutgoingReferenceField"><label for="pedOutgoingReference">No. Rujukan</label><select class="input" id="pedOutgoingReference"><option value="">Pilih fail yang telah didaftarkan</option></select><span class="field-hint">Pilihan diambil daripada fail yang tersedia dalam Daftar Fail MyFailPro.</span></div>
+      <div class="field hidden" id="pedOutgoingReferenceField">
+        <label for="pedOutgoingReference">No. Rujukan</label>
+        <div class="ped-reference-modes hidden" id="pedSchoolReferenceModes" role="radiogroup" aria-label="Cara mengisi No. Rujukan">
+          <label><input type="radio" name="ped_reference_mode" value="registered" checked> Pilih fail berdaftar</label>
+          <label><input type="radio" name="ped_reference_mode" value="manual"> Taip no. fail</label>
+        </div>
+        <div id="pedRegisteredReferenceControl"><select class="input" id="pedOutgoingReference"><option value="">Pilih fail yang telah didaftarkan</option></select><span class="field-hint">Pilihan diambil daripada fail yang tersedia dalam Daftar Fail MyFailPro.</span></div>
+        <div class="hidden" id="pedManualReferenceControl"><label class="sr-only" for="pedManualReference">Taip No. Fail</label><input class="input" id="pedManualReference" type="text" placeholder="Masukkan nombor fail sekolah" autocomplete="off" disabled></div>
+      </div>
       <div class="field span-2 hidden" id="pedLetterNumberField"><label for="pedLetterNumber">Nombor Surat</label><input class="input" id="pedLetterNumber" type="text" inputmode="numeric" pattern="[0-9]+" title="Gunakan digit sahaja." placeholder="Contoh: 1" autocomplete="off" disabled><span class="field-hint">Masukkan nombor surat selepas memilih No. Rujukan.</span></div>
       <div class="field span-2" id="pedPartyTextField"><label id="pedCorrespondentLabel" for="pedCorrespondent">Daripada</label><input class="input" id="pedCorrespondent" name="correspondent" placeholder="Nama pengirim" required></div>
       <div class="field span-2 hidden" data-ped-category-fields="school_in"><label for="pedSchoolName">Nama Sekolah</label><select class="input" id="pedSchoolName"><option value="">Pilih sekolah</option></select></div>

@@ -346,7 +346,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-04");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-05");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2660,8 +2660,14 @@ async function initPed() {
   const referenceLabel = document.querySelector("#pedReferenceLabel");
   const outgoingReferenceField = document.querySelector("#pedOutgoingReferenceField");
   const outgoingReferenceSelect = document.querySelector("#pedOutgoingReference");
+  const registeredReferenceControl = document.querySelector("#pedRegisteredReferenceControl");
+  const manualReferenceControl = document.querySelector("#pedManualReferenceControl");
+  const manualReferenceInput = document.querySelector("#pedManualReference");
+  const schoolReferenceModes = document.querySelector("#pedSchoolReferenceModes");
+  const referenceModeInputs = [...schoolReferenceModes.querySelectorAll('input[name="ped_reference_mode"]')];
   const letterNumberField = document.querySelector("#pedLetterNumberField");
   const letterNumberInput = document.querySelector("#pedLetterNumber");
+  const letterNumberHint = letterNumberField.querySelector(".field-hint");
   const statusSelect = document.querySelector("#pedStatus");
   const attachmentInput = document.querySelector("#pedAttachment");
   const attachmentName = document.querySelector("#pedAttachmentName");
@@ -2890,18 +2896,48 @@ async function initPed() {
     refreshPedPicker(select);
   };
   document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  let referenceViewOnly = false;
+  const schoolUsesManualReference = () => schoolAccount && form.elements.category.value === "school_in"
+    && referenceModeInputs.find(input => input.checked)?.value === "manual";
   const syncLetterNumberField = () => {
-    const selected = !outgoingReferenceField.classList.contains("hidden") && Boolean(outgoingReferenceSelect.value);
+    const selected = !outgoingReferenceField.classList.contains("hidden")
+      && Boolean(schoolUsesManualReference() ? manualReferenceInput.value.trim() : outgoingReferenceSelect.value);
     letterNumberField.classList.toggle("hidden", !selected);
-    letterNumberInput.disabled = !selected || outgoingReferenceSelect.disabled;
+    letterNumberInput.disabled = !selected || referenceViewOnly;
     letterNumberInput.required = !letterNumberInput.disabled;
   };
+  const syncReferenceMode = () => {
+    const manual = schoolUsesManualReference();
+    const outgoing = !outgoingReferenceField.classList.contains("hidden");
+    registeredReferenceControl.classList.toggle("hidden", manual);
+    manualReferenceControl.classList.toggle("hidden", !manual);
+    outgoingReferenceField.querySelector("label").htmlFor = manual
+      ? manualReferenceInput.id : pedPickerStates.get(outgoingReferenceSelect).input.id;
+    outgoingReferenceSelect.disabled = !outgoing || manual || referenceViewOnly;
+    pedPickerStates.get(outgoingReferenceSelect).input.disabled = outgoingReferenceSelect.disabled;
+    setPedPickerRequired(outgoingReferenceSelect, outgoing && !manual && !referenceViewOnly);
+    manualReferenceInput.disabled = !outgoing || !manual || referenceViewOnly;
+    manualReferenceInput.required = !manualReferenceInput.disabled;
+    letterNumberHint.textContent = manual
+      ? "Masukkan nombor surat selepas menaip No. Rujukan."
+      : "Masukkan nombor surat selepas memilih No. Rujukan.";
+    syncLetterNumberField();
+  };
+  referenceModeInputs.forEach(input => input.addEventListener("change", () => {
+    letterNumberInput.value = "";
+    syncReferenceMode();
+    (schoolUsesManualReference() ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input).focus();
+  }));
   outgoingReferenceSelect.addEventListener("change", () => {
     letterNumberInput.value = "";
     syncLetterNumberField();
     if (!letterNumberInput.disabled) letterNumberInput.focus();
   });
   pedPickerStates.get(outgoingReferenceSelect).input.addEventListener("input", () => {
+    letterNumberInput.value = "";
+    syncLetterNumberField();
+  });
+  manualReferenceInput.addEventListener("input", () => {
     letterNumberInput.value = "";
     syncLetterNumberField();
   });
@@ -3038,14 +3074,24 @@ async function initPed() {
     const officeProcessingSchoolLetter = officeAccount && category === "school_in" && record && record.ownerId !== user.id;
     const viewOnly = schoolOutgoing && record
       && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+    referenceViewOnly = Boolean(viewOnly);
     form.reset();
     form.elements.id.value = record?.id || "";
     form.elements.category.value = category;
     form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
     referenceInput.value = outgoingForm ? "" : record?.reference || "";
     const outgoingReference = splitPedOutgoingReference(record?.reference);
+    const manualMode = schoolOutgoing && (record
+      ? !registeredFileOptions.includes(outgoingReference.fileReference)
+      : !registeredFileOptions.length);
+    schoolReferenceModes.classList.toggle("hidden", !schoolOutgoing);
+    referenceModeInputs.forEach(input => {
+      input.disabled = Boolean(viewOnly) || (input.value === "registered" && schoolOutgoing && !registeredFileOptions.length);
+    });
+    referenceModeInputs.find(input => input.value === (manualMode ? "manual" : "registered")).checked = true;
     fillSelect(outgoingReferenceSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
-    setSelectValue(outgoingReferenceSelect, outgoingForm ? outgoingReference.fileReference : "");
+    setSelectValue(outgoingReferenceSelect, outgoingForm && !manualMode ? outgoingReference.fileReference : "");
+    manualReferenceInput.value = manualMode ? outgoingReference.fileReference : "";
     letterNumberInput.value = outgoingForm ? outgoingReference.letterNumber : "";
     referenceTextField.classList.toggle("hidden", outgoingForm);
     outgoingReferenceField.classList.toggle("hidden", !outgoingForm);
@@ -3063,10 +3109,7 @@ async function initPed() {
     partyInput.required = category !== "school_in";
     form.elements.correspondence_date.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     referenceInput.readOnly = Boolean(officeProcessingSchoolLetter);
-    outgoingReferenceSelect.disabled = !outgoingForm || viewOnly;
-    pedPickerStates.get(outgoingReferenceSelect).input.disabled = outgoingReferenceSelect.disabled;
-    setPedPickerRequired(outgoingReferenceSelect, outgoingForm && !viewOnly);
-    syncLetterNumberField();
+    syncReferenceMode();
     form.elements.subject.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     form.elements.subject.value = record?.subject || "";
     const statuses = schoolOutgoing
@@ -3190,18 +3233,20 @@ async function initPed() {
     const recordId = data.id;
     const category = data.category;
     const outgoingForm = category === "outgoing" || (schoolAccount && category === "school_in");
+    const manualMode = schoolAccount && category === "school_in" && schoolUsesManualReference();
+    const referenceFile = manualMode ? manualReferenceInput.value.trim() : outgoingReferenceSelect.value;
     const correspondent = category === "school_in"
       ? schoolAccount ? user.data.nama : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
       : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
     const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== user.id);
-    if (outgoingForm && (!outgoingReferenceSelect.value || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
-      toast("Lengkapkan rujukan surat", "Pilih No. Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
-      (outgoingReferenceSelect.value ? letterNumberInput : pedPickerStates.get(outgoingReferenceSelect).input).focus();
+    if (outgoingForm && (!referenceFile || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
+      toast("Lengkapkan rujukan surat", "Isi No. Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
+      (!referenceFile ? manualMode ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input : letterNumberInput).focus();
       return;
     }
     const referenceNumber = outgoingForm
-      ? `${outgoingReferenceSelect.value}${pedLetterNumberSeparator}${letterNumberInput.value.trim()}`
+      ? `${referenceFile}${pedLetterNumberSeparator}${letterNumberInput.value.trim()}`
       : referenceInput.value.trim() || null;
     if (outgoingForm && state.pedRecords.some(record =>
       record.id !== recordId && record.ownerId === workspaceOwnerId() && record.category === category
