@@ -346,7 +346,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-02");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-03");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2511,8 +2511,8 @@ const pedCategoryMeta = {
     referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"], defaultStatus: "Belum diminit"
   },
   outgoing: {
-    title: "Surat Keluar", party: "Kepada", date: "Tarikh Surat Keluar",
-    referenceLabel: "No. Rujukan & Tarikh Surat", statuses: ["Dihantar", "Diterima", "Dalam proses", "Selesai"], defaultStatus: "Dihantar"
+    title: "Surat Keluar", party: "Kepada", date: "Tarikh Surat",
+    referenceLabel: "No. Rujukan", statuses: ["Dihantar", "Diterima", "Dalam proses", "Selesai"], defaultStatus: "Dihantar"
   }
 };
 
@@ -2584,7 +2584,7 @@ async function initPed() {
   let assignedOffice = null;
   let assignedSchools = [];
   const [recordsResult, settingsResult, filesResult, officeResult, schoolsResult] = await Promise.allSettled([
-    loadPedRecords(), loadSettings(), schoolAccount ? Promise.resolve([]) : loadFiles(),
+    loadPedRecords(), loadSettings(), loadFiles(),
     schoolAccount ? (async () => {
       const officeId = user.data?.pedOfficeId;
       if (!officeId) return [];
@@ -2644,8 +2644,11 @@ async function initPed() {
   const partyTextField = document.querySelector("#pedPartyTextField");
   const partyInput = document.querySelector("#pedCorrespondent");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
+  const referenceTextField = document.querySelector("#pedReferenceTextField");
   const referenceInput = document.querySelector("#pedReference");
   const referenceLabel = document.querySelector("#pedReferenceLabel");
+  const outgoingReferenceField = document.querySelector("#pedOutgoingReferenceField");
+  const outgoingReferenceSelect = document.querySelector("#pedOutgoingReference");
   const statusSelect = document.querySelector("#pedStatus");
   const attachmentInput = document.querySelector("#pedAttachment");
   const attachmentName = document.querySelector("#pedAttachmentName");
@@ -2657,8 +2660,10 @@ async function initPed() {
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
   const registryFileNumberSelect = document.querySelector("#pedRegistryFileNumber");
-  fillSelect(officeReferenceFileSelect, state.files.map(file => `${file.transaksi} (Jilid ${file.jilid})`), "Pilih fail yang telah didaftarkan");
-  fillSelect(registryFileNumberSelect, state.files.map(file => `${file.transaksi} (Jilid ${file.jilid})`), "Pilih fail yang telah didaftarkan");
+  const registeredFileOptions = state.files.map(file => `${file.transaksi} (Jilid ${file.jilid})`);
+  fillSelect(officeReferenceFileSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
+  fillSelect(registryFileNumberSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
+  fillSelect(outgoingReferenceSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
   if (officeAccount) {
     schoolNameSelect.replaceChildren(
       create("option", { value: "", text: "Pilih sekolah" }),
@@ -2871,14 +2876,14 @@ async function initPed() {
     picker.required = required;
     refreshPedPicker(select);
   };
-  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
   document.addEventListener("pointerdown", event => {
     pedPickerStates.forEach(picker => { if (picker.open && !picker.input.closest(".ped-picker").contains(event.target)) picker.close(); });
   });
   activeCategories.forEach(category => {
     const meta = pedCategoryMeta[category];
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
-    table.querySelector("thead th:nth-child(2)").textContent = meta.referenceLabel;
+    table.querySelector("thead th:nth-child(2)").textContent = schoolAccount && category === "school_in" ? "No. Rujukan" : meta.referenceLabel;
     table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada" : meta.party;
   });
 
@@ -3001,6 +3006,7 @@ async function initPed() {
   const openEditor = (category, record = null) => {
     const meta = pedCategoryMeta[category];
     const schoolOutgoing = schoolAccount && category === "school_in";
+    const outgoingForm = category === "outgoing" || schoolOutgoing;
     const officeProcessingSchoolLetter = officeAccount && category === "school_in" && record && record.ownerId !== user.id;
     const viewOnly = schoolOutgoing && record
       && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
@@ -3008,7 +3014,12 @@ async function initPed() {
     form.elements.id.value = record?.id || "";
     form.elements.category.value = category;
     form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
-    referenceInput.value = record?.reference || "";
+    referenceInput.value = outgoingForm ? "" : record?.reference || "";
+    fillSelect(outgoingReferenceSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
+    setSelectValue(outgoingReferenceSelect, outgoingForm ? record?.reference || "" : "");
+    referenceTextField.classList.toggle("hidden", outgoingForm);
+    outgoingReferenceField.classList.toggle("hidden", !outgoingForm);
+    referenceInput.disabled = outgoingForm;
     partyInput.value = schoolOutgoing
       ? record && record.officeId !== assignedOffice?.id ? "Pejabat terdahulu" : assignedOffice?.name || "Pejabat"
       : record?.correspondent || "";
@@ -3021,7 +3032,10 @@ async function initPed() {
     partyInput.disabled = category === "school_in" && !schoolOutgoing;
     partyInput.required = category !== "school_in";
     form.elements.correspondence_date.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
-    referenceInput.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
+    referenceInput.readOnly = Boolean(officeProcessingSchoolLetter);
+    outgoingReferenceSelect.disabled = !outgoingForm || viewOnly;
+    pedPickerStates.get(outgoingReferenceSelect).input.disabled = outgoingReferenceSelect.disabled;
+    setPedPickerRequired(outgoingReferenceSelect, outgoingForm && !viewOnly);
     form.elements.subject.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     form.elements.subject.value = record?.subject || "";
     const statuses = schoolOutgoing
@@ -3072,7 +3086,7 @@ async function initPed() {
     referenceLabel.textContent = meta.referenceLabel;
     partyLabel.textContent = category === "outgoing" || schoolOutgoing ? "Kepada" : "Daripada";
     partyInput.placeholder = category === "outgoing" ? "Nama penerima" : "Nama pengirim";
-    dateLabel.textContent = schoolOutgoing ? "Tarikh Surat" : meta.date;
+    dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     submitButton.classList.toggle("hidden", Boolean(viewOnly));
     showModal("#pedModal");
@@ -3144,6 +3158,7 @@ async function initPed() {
     const data = Object.fromEntries(new FormData(form));
     const recordId = data.id;
     const category = data.category;
+    const outgoingForm = category === "outgoing" || (schoolAccount && category === "school_in");
     const correspondent = category === "school_in"
       ? schoolAccount ? user.data.nama : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
       : partyInput.value.trim();
@@ -3158,7 +3173,7 @@ async function initPed() {
         : category === "school_received" ? user.id : null,
       office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? user.id : null : null,
       correspondence_date: data.correspondence_date,
-      reference_number: referenceInput.value.trim() || null,
+      reference_number: outgoingForm ? outgoingReferenceSelect.value || null : referenceInput.value.trim() || null,
       correspondent,
       sender: category === "agency_in" || category === "school_received" ? correspondent : "",
       school_name: category === "school_in" ? correspondent : "",
