@@ -346,7 +346,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-03");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-04");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2497,6 +2497,17 @@ async function callAdminFunction(name, payload, retry = true) {
   return response.json();
 }
 
+const pedLetterNumberSeparator = " · No. Surat ";
+
+function splitPedOutgoingReference(reference) {
+  const value = String(reference || "");
+  const separatorIndex = value.lastIndexOf(pedLetterNumberSeparator);
+  if (separatorIndex < 0) return { fileReference: value, letterNumber: "" };
+  const letterNumber = value.slice(separatorIndex + pedLetterNumberSeparator.length);
+  if (!/^[0-9]+$/.test(letterNumber)) return { fileReference: value, letterNumber: "" };
+  return { fileReference: value.slice(0, separatorIndex), letterNumber };
+}
+
 const pedCategoryMeta = {
   agency_in: {
     title: "Surat Masuk Jabatan dan Agensi", party: "Daripada", date: "Tarikh Terima",
@@ -2649,6 +2660,8 @@ async function initPed() {
   const referenceLabel = document.querySelector("#pedReferenceLabel");
   const outgoingReferenceField = document.querySelector("#pedOutgoingReferenceField");
   const outgoingReferenceSelect = document.querySelector("#pedOutgoingReference");
+  const letterNumberField = document.querySelector("#pedLetterNumberField");
+  const letterNumberInput = document.querySelector("#pedLetterNumber");
   const statusSelect = document.querySelector("#pedStatus");
   const attachmentInput = document.querySelector("#pedAttachment");
   const attachmentName = document.querySelector("#pedAttachmentName");
@@ -2877,6 +2890,21 @@ async function initPed() {
     refreshPedPicker(select);
   };
   document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  const syncLetterNumberField = () => {
+    const selected = !outgoingReferenceField.classList.contains("hidden") && Boolean(outgoingReferenceSelect.value);
+    letterNumberField.classList.toggle("hidden", !selected);
+    letterNumberInput.disabled = !selected || outgoingReferenceSelect.disabled;
+    letterNumberInput.required = !letterNumberInput.disabled;
+  };
+  outgoingReferenceSelect.addEventListener("change", () => {
+    letterNumberInput.value = "";
+    syncLetterNumberField();
+    if (!letterNumberInput.disabled) letterNumberInput.focus();
+  });
+  pedPickerStates.get(outgoingReferenceSelect).input.addEventListener("input", () => {
+    letterNumberInput.value = "";
+    syncLetterNumberField();
+  });
   document.addEventListener("pointerdown", event => {
     pedPickerStates.forEach(picker => { if (picker.open && !picker.input.closest(".ped-picker").contains(event.target)) picker.close(); });
   });
@@ -3015,8 +3043,10 @@ async function initPed() {
     form.elements.category.value = category;
     form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
     referenceInput.value = outgoingForm ? "" : record?.reference || "";
+    const outgoingReference = splitPedOutgoingReference(record?.reference);
     fillSelect(outgoingReferenceSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
-    setSelectValue(outgoingReferenceSelect, outgoingForm ? record?.reference || "" : "");
+    setSelectValue(outgoingReferenceSelect, outgoingForm ? outgoingReference.fileReference : "");
+    letterNumberInput.value = outgoingForm ? outgoingReference.letterNumber : "";
     referenceTextField.classList.toggle("hidden", outgoingForm);
     outgoingReferenceField.classList.toggle("hidden", !outgoingForm);
     referenceInput.disabled = outgoingForm;
@@ -3036,6 +3066,7 @@ async function initPed() {
     outgoingReferenceSelect.disabled = !outgoingForm || viewOnly;
     pedPickerStates.get(outgoingReferenceSelect).input.disabled = outgoingReferenceSelect.disabled;
     setPedPickerRequired(outgoingReferenceSelect, outgoingForm && !viewOnly);
+    syncLetterNumberField();
     form.elements.subject.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     form.elements.subject.value = record?.subject || "";
     const statuses = schoolOutgoing
@@ -3164,6 +3195,21 @@ async function initPed() {
       : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
     const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== user.id);
+    if (outgoingForm && (!outgoingReferenceSelect.value || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
+      toast("Lengkapkan rujukan surat", "Pilih No. Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
+      (outgoingReferenceSelect.value ? letterNumberInput : pedPickerStates.get(outgoingReferenceSelect).input).focus();
+      return;
+    }
+    const referenceNumber = outgoingForm
+      ? `${outgoingReferenceSelect.value}${pedLetterNumberSeparator}${letterNumberInput.value.trim()}`
+      : referenceInput.value.trim() || null;
+    if (outgoingForm && state.pedRecords.some(record =>
+      record.id !== recordId && record.ownerId === workspaceOwnerId() && record.category === category
+      && record.reference?.toLocaleLowerCase("ms-MY") === referenceNumber.toLocaleLowerCase("ms-MY"))) {
+      toast("Nombor surat telah digunakan", "Pilih nombor surat lain untuk fail rujukan ini.", "error");
+      letterNumberInput.focus();
+      return;
+    }
     let uploadedAttachmentPath = "";
     let attachmentPath = clearExistingAttachment ? null : existingRecord?.attachmentPath || null;
     const payload = {
@@ -3173,7 +3219,7 @@ async function initPed() {
         : category === "school_received" ? user.id : null,
       office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? user.id : null : null,
       correspondence_date: data.correspondence_date,
-      reference_number: outgoingForm ? outgoingReferenceSelect.value || null : referenceInput.value.trim() || null,
+      reference_number: referenceNumber,
       correspondent,
       sender: category === "agency_in" || category === "school_received" ? correspondent : "",
       school_name: category === "school_in" ? correspondent : "",
