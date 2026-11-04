@@ -144,6 +144,8 @@ body[data-page="dashboard"] :is(#file-list, #file-archive) th {
   font-weight: 700;
   letter-spacing: .065em;
 }
+body[data-page="dashboard"] :is(#file-list, #file-archive) th:first-child { padding-left: 36px; }
+body[data-page="dashboard"] :is(#file-list, #file-archive) th:last-child { padding-right: 36px; }
 body[data-page="dashboard"] :is(#file-list, #file-archive) td {
   padding: 18px 20px;
   border-top: 1px solid var(--table-line);
