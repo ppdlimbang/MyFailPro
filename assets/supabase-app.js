@@ -346,8 +346,8 @@ function renderShell(user) {
     ]);
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
-  // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-13");
+  // Keep the PeD entry point aligned with the current role-aware workflow.
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-15");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -3522,7 +3522,8 @@ async function initPed() {
     };
     if (!payload.office_reference_letter_number) delete payload.office_reference_letter_number;
     if (!payload.registry_file_letter_number) delete payload.registry_file_letter_number;
-    const officeAssignmentChanged = officeAccount && category === "school_in" && payload.assigned_to
+    const officeAssignmentSelected = officeAccount && category === "school_in" && Boolean(payload.assigned_to);
+    const officeAssignmentChanged = officeAssignmentSelected
       && (!existingRecord || existingRecord.assignedTo !== payload.assigned_to
         || existingRecord.registryFileNumber !== payload.registry_file_number);
     const normalizeFileReference = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms-MY");
@@ -3534,7 +3535,7 @@ async function initPed() {
       pedPickerStates.get(registryFileNumberSelect).input.focus();
       return;
     }
-    if (officeAssignmentChanged && !assignedMovementFile) {
+    if (officeAssignmentSelected && payload.registry_file_number && !assignedMovementFile) {
       toast("Fail tidak ditemui", "Fail yang dipilih tidak sepadan dengan Daftar Fail Pejabat. Pilih semula No. Fail Rujukan.", "error");
       pedPickerStates.get(registryFileNumberSelect).input.focus();
       return;
@@ -3579,8 +3580,11 @@ async function initPed() {
         ? state.pedRecords.map(record => record.id === saved.id ? saved : record)
         : [saved, ...state.pedRecords];
       let movementError = null;
-      if (assignedMovementFile && payload.assigned_to
-        && normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(payload.assigned_to)) {
+      let assignmentMovementRecorded = false;
+      if (assignedMovementFile && officeAssignmentSelected && (
+        officeAssignmentChanged
+        || normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(payload.assigned_to)
+      )) {
         const movedAtIso = new Date().toISOString();
         try {
           const movement = await moveFile(assignedMovementFile, {
@@ -3591,6 +3595,7 @@ async function initPed() {
           });
           Object.assign(assignedMovementFile, mapFile(movement.file));
           state.lastMovementDates.set(assignedMovementFile.id, movement.movement?.moved_at || movedAtIso);
+          assignmentMovementRecorded = true;
         } catch (error) {
           movementError = error;
         }
@@ -3600,7 +3605,12 @@ async function initPed() {
       if (movementError) {
         toast("Rekod PeD disimpan, pergerakan gagal", `Surat telah disimpan tetapi fail belum bergerak kepada ${payload.assigned_to}. ${movementError.message}`, "error");
       } else {
-        toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD.");
+        const movementMessage = assignmentMovementRecorded
+          ? ` Fail rujukan dipindahkan kepada ${payload.assigned_to}.`
+          : officeAssignmentSelected && !payload.registry_file_number
+            ? " Pergerakan belum direkodkan kerana No. Fail Rujukan belum dipilih."
+            : "";
+        toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD." + movementMessage);
       }
     } catch (error) {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
