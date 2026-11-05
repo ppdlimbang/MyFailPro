@@ -120,6 +120,8 @@ let browser;
           panels:panels.map(p=>{const w=p.querySelector('.table-wrap');return {verticalOverflow:w.scrollHeight-w.clientHeight};}),
           actionOverflow:[...document.querySelectorAll('.ped-row-actions')].some(a=>a.scrollWidth>a.clientWidth+1),
           edgeImbalance:innerWidth>640&&[...document.querySelectorAll('.ped-panel tbody tr:not(.ped-empty-row)')].some(row=>{const table=row.closest('table').getBoundingClientRect(),date=row.querySelector('.ped-cell-date time').getBoundingClientRect(),actions=row.querySelector('.ped-row-actions').getBoundingClientRect();return Math.abs((date.left-table.left)-(table.right-actions.right))>1.5;}),
+          actionColumnMismatch:innerWidth>640&&[...document.querySelectorAll('.ped-panel table')].filter(table=>table.querySelector('tbody tr:not(.ped-empty-row)')).some(table=>{const width=table.querySelector('th:last-child').getBoundingClientRect().width;return table.querySelector('.ped-receive-button')?Math.abs(width-230)>1.5:Math.abs(width-180)>1.5;}),
+          statusNotRightAligned:innerWidth>640&&[...document.querySelectorAll('.ped-cell-status')].some(cell=>getComputedStyle(cell).textAlign!=='right'),
           statusOverflow:[...document.querySelectorAll('.ped-cell-status .ped-status')].some(b=>b.getBoundingClientRect().right>b.parentElement.getBoundingClientRect().right-parseFloat(getComputedStyle(b.parentElement).paddingRight)+1),
           animatedRows:document.querySelectorAll('.ped-panel tbody tr.reveal-item').length,
           formattedReferences:[...document.querySelectorAll('.ped-reference')].filter(reference=>reference.textContent.includes(' (1)')).length,
@@ -129,6 +131,8 @@ let browser;
       assert(metrics.panels.every(p => p.verticalOverflow <= 1), `${role} ${width}: vertical table scroll ${JSON.stringify(metrics)}`);
       assert(!metrics.actionOverflow, `${role} ${width}: action overflow`);
       assert(!metrics.edgeImbalance, `${role} ${width}: table edge spacing is not balanced`);
+      assert(!metrics.actionColumnMismatch, `${role} ${width}: action column width is incorrect`);
+      assert(!metrics.statusNotRightAligned, `${role} ${width}: status column is not right aligned`);
       assert(!metrics.statusOverflow, `${role} ${width}: status overflow`);
       assert.equal(metrics.animatedRows, 0);
       assert(metrics.formattedReferences > 0, `${role} ${width}: formatted letter number missing`);
