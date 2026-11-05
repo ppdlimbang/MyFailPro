@@ -2517,7 +2517,7 @@ const pedCategoryMeta = {
   },
   school_in: {
     title: "Surat Masuk Sekolah", party: "Nama Sekolah", date: "Tarikh Terima",
-    referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Dihantar", "Selesai", "Dikembalikan", "Dihantar Semula"], defaultStatus: "Belum diminit"
+    referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Dihantar", "Diterima", "Selesai", "Dikembalikan", "Dihantar Semula"], defaultStatus: "Belum diminit"
   },
   school_received: {
     title: "Surat Masuk", party: "Daripada", date: "Tarikh Terima",
@@ -3027,6 +3027,33 @@ async function initPed() {
         const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const referenceText = record.reference || "surat tanpa nombor rujukan";
+        const canMarkReceived = officeAccount && category === "school_in"
+          && record.ownerId !== user.id && record.officeId === user.id
+          && ["Dihantar", "Dihantar Semula"].includes(record.status);
+        const receive = canMarkReceived ? create("button", {
+          className: "button small ped-receive-button",
+          type: "button",
+          "aria-label": `Tandakan ${referenceText} sebagai sudah diterima`,
+          text: "Sudah Terima"
+        }) : null;
+        receive?.addEventListener("click", async () => {
+          setBusy(receive, true, "Menyimpan…");
+          try {
+            const rows = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, {
+              method: "PATCH",
+              headers: { Prefer: "return=representation" },
+              body: JSON.stringify({ status: "Diterima" })
+            });
+            const saved = mapPedRecord(rows?.[0]);
+            if (!saved?.id) throw new Error("Pengesahan penerimaan surat tidak diterima daripada pelayan.");
+            state.pedRecords = state.pedRecords.map(item => item.id === saved.id ? saved : item);
+            render();
+            toast("Surat diterima", `${referenceText} telah ditandakan sebagai diterima.`);
+          } catch (error) {
+            toast("Status tidak dapat dikemas kini", error.message, "error");
+            setBusy(receive, false);
+          }
+        });
         const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${referenceText}`, title: "Padam rekod" },
           create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.7", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" })));
         remove.addEventListener("click", async () => {
@@ -3064,7 +3091,9 @@ async function initPed() {
             pedStatusIcon(record.status),
             create("span", { text: record.status })
           ])),
-          create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, canDelete ? [edit, remove] : [edit]))
+          create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [
+            ...(receive ? [receive] : []), edit, ...(canDelete ? [remove] : [])
+          ]))
         ]));
       });
     });

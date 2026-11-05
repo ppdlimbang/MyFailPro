@@ -27,7 +27,7 @@ const record = (category, index, extras = {}) => ({
 });
 const records = () => scenario === 'school'
   ? [record('school_in', 1), record('school_received', 2, { status: 'Dalam proses' })]
-  : [record('school_in', 1, { owner_id: 'another-school' }), ...Array.from({ length: scenario === 'paging' ? 12 : 2 }, (_, i) => record('outgoing', i + 1, { status: i ? 'Dihantar Semula' : 'Diterima' }))];
+  : [record('school_in', 1, { owner_id: 'another-school', school_id: 'another-school', office_id: userId }), ...Array.from({ length: scenario === 'paging' ? 12 : 2 }, (_, i) => record('outgoing', i + 1, { status: i ? 'Dihantar Semula' : 'Diterima' }))];
 const allowed = new Set(['ped.html', 'assets/styles.css', 'assets/navigation.css', 'assets/ped.css', 'assets/supabase-app.js', 'file.png', 'Gemini_Generated_Image_vvxauovvxauovvxa.jpeg']);
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -38,8 +38,21 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname.startsWith('/rest/v1/')) {
-    assert.equal(req.method, url.pathname.includes('/rpc/') ? 'POST' : 'GET', 'Preview must not mutate records');
     const table = url.pathname.split('/').pop();
+    if (table === 'ped_correspondence' && req.method === 'PATCH') {
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        const payload = JSON.parse(body || '{}');
+        assert.deepEqual(payload, { status: 'Diterima' }, 'Receipt action may only update the status');
+        const source = records().find(item => item.id === 'school_in-1');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify([{ ...source, ...payload }]));
+      });
+      return;
+    }
+    assert.equal(req.method, url.pathname.includes('/rpc/') ? 'POST' : 'GET', 'Unexpected preview request method');
     let result = [];
     if (table === 'can_access_ped') result = true;
     if (table === 'profiles') result = url.searchParams.has('ped_office_id')
@@ -108,7 +121,8 @@ let browser;
           actionOverflow:[...document.querySelectorAll('.ped-row-actions')].some(a=>a.scrollWidth>a.clientWidth+1),
           statusOverflow:[...document.querySelectorAll('.ped-cell-status .ped-status')].some(b=>b.getBoundingClientRect().right>b.parentElement.getBoundingClientRect().right-parseFloat(getComputedStyle(b.parentElement).paddingRight)+1),
           animatedRows:document.querySelectorAll('.ped-panel tbody tr.reveal-item').length,
-          letterBadges:document.querySelectorAll('.ped-reference-number').length};
+          letterBadges:document.querySelectorAll('.ped-reference-number').length,
+          receiveButtons:document.querySelectorAll('.ped-receive-button').length};
       })()`);
       assert(metrics.pageWidth <= width + 1, `${role} ${width}: page overflow ${JSON.stringify(metrics)}`);
       assert(metrics.panels.every(p => p.verticalOverflow <= 1), `${role} ${width}: vertical table scroll ${JSON.stringify(metrics)}`);
@@ -116,6 +130,7 @@ let browser;
       assert(!metrics.statusOverflow, `${role} ${width}: status overflow`);
       assert.equal(metrics.animatedRows, 0);
       assert(metrics.letterBadges > 0);
+      assert.equal(metrics.receiveButtons, ['office', 'paging'].includes(role) ? 1 : 0, `${role} ${width}: receipt action visibility`);
       if (role === 'paging') {
         await evaluate(`document.querySelector('[data-ped-page="outgoing"][data-direction="next"]').click()`);
         assert.equal(await evaluate(`document.querySelectorAll('[data-ped-rows="outgoing"] tr').length`), 2);
@@ -128,6 +143,16 @@ let browser;
         await wait(100);
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(output, `${role}-${width}.png`), Buffer.from(screenshot.data, 'base64'));
+      }
+      if (['office', 'paging'].includes(role)) {
+        await evaluate(`document.querySelector('.ped-receive-button').click()`);
+        let received = false;
+        for (let i = 0; !received && i < 40; i++) {
+          await wait(100);
+          received = await evaluate(`document.querySelector('[data-ped-rows="school_in"] .ped-cell-status')?.textContent.includes('Diterima')`);
+        }
+        assert(received, `${role} ${width}: receipt status was not updated`);
+        assert.equal(await evaluate(`document.querySelectorAll('.ped-receive-button').length`), 0);
       }
       await evaluate(`document.querySelector('.ped-row-actions button').click()`);
       assert.equal(await evaluate(`document.querySelector('#pedModal').classList.contains('hidden')`), false);
