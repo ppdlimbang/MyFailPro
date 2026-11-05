@@ -2654,6 +2654,7 @@ async function initPed() {
   const partyLabel = document.querySelector("#pedCorrespondentLabel");
   const dateLabel = document.querySelector("#pedDateLabel");
   const submitButton = form.querySelector('button[type="submit"]');
+  const deleteRecordButton = document.querySelector("#pedDeleteRecord");
   const partyTextField = document.querySelector("#pedPartyTextField");
   const partyInput = document.querySelector("#pedCorrespondent");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
@@ -3165,11 +3166,16 @@ async function initPed() {
         ? meta.statuses.filter(status => status !== "Dihantar Semula")
         : [...meta.statuses];
     if (record?.status && !statuses.includes(record.status) && (!schoolOutgoing || viewOnly)) statuses.push(record.status);
-    statusSelect.replaceChildren(...statuses.map(status => create("option", { value: status, text: status })));
+    statusSelect.replaceChildren(
+      ...(schoolOutgoing && !record ? [create("option", { value: "", text: "Pilih status sebelum hantar" })] : []),
+      ...statuses.map(status => create("option", { value: status, text: status }))
+    );
     statusSelect.value = schoolOutgoing && record?.status === "Dikembalikan"
-      ? "Dihantar Semula" : record?.status || (schoolAccount ? schoolOutgoing ? "Dihantar" : meta.defaultStatus : "");
+      ? "Dihantar Semula" : record?.status || (schoolAccount ? schoolOutgoing ? "" : meta.defaultStatus : "");
     refreshPedPicker(statusSelect);
     setPedPickerRequired(statusSelect, true);
+    pedPickerStates.get(statusSelect).input.placeholder = schoolOutgoing && !record
+      ? "Pilih status sebelum hantar" : "Taip untuk mencari pilihan…";
 
     document.querySelectorAll("[data-ped-category-fields]").forEach(field => {
       field.classList.toggle("hidden", field.dataset.pedCategoryFields !== category || schoolOutgoing);
@@ -3209,8 +3215,34 @@ async function initPed() {
     dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     submitButton.classList.toggle("hidden", Boolean(viewOnly));
+    deleteRecordButton.classList.toggle("hidden", !record || Boolean(viewOnly)
+      || !(user.role === "admin" || record.ownerId === user.id));
     showModal("#pedModal");
   };
+
+  deleteRecordButton.addEventListener("click", async () => {
+    const record = state.pedRecords.find(item => item.id === form.elements.id.value);
+    if (!record) return;
+    const referenceText = record.reference || "surat tanpa nombor rujukan";
+    if (!confirm(`Padam rekod ${referenceText}?`)) return;
+    setBusy(deleteRecordButton, true, "Memadam…");
+    deleteRecordButton.setAttribute("aria-busy", "true");
+    try {
+      await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, { method: "DELETE" });
+      state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
+      if (record.attachmentPath) {
+        await deletePedAttachment(record.attachmentPath).catch(error => console.warn("Lampiran rekod PeD tidak dapat dipadam.", error));
+      }
+      closeModal(modal);
+      render();
+      toast("Surat dipadam", `${referenceText} telah dikeluarkan daripada PeD.`);
+    } catch (error) {
+      toast("Tidak berjaya", error.message, "error");
+    } finally {
+      setBusy(deleteRecordButton, false);
+      deleteRecordButton.removeAttribute("aria-busy");
+    }
+  });
 
   document.querySelectorAll("[data-add-ped]").forEach(button => {
     button.addEventListener("click", () => {
@@ -3286,6 +3318,11 @@ async function initPed() {
       : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
     const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== user.id);
+    if (schoolAccount && category === "school_in" && !statusSelect.value) {
+      toast("Pilih status surat", "Pilih status surat sebelum menghantar Surat Keluar kepada Pejabat.", "error");
+      pedPickerStates.get(statusSelect).input.focus();
+      return;
+    }
     if (outgoingForm && (!referenceFile || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
       toast("Lengkapkan rujukan surat", "Isi No. Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
       (!referenceFile ? manualMode ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input : letterNumberInput).focus();
