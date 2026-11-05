@@ -289,6 +289,37 @@ async function correctMovement(record, values) {
   });
 }
 
+async function pedAssignmentReturnContext(file, previousRecipient = "") {
+  const columns = "id,file_id,owner_id,moved_at,from_holder,to_holder,note";
+  const rows = await rest("movements", `file_id=eq.${encodeURIComponent(file.id)}&select=${columns}&order=moved_at.desc,created_at.desc&limit=1000`);
+  const history = rows.map(mapMovement);
+  const isAssignment = movement => /^Penugasan melalui PeD\s*:/i.test(movement.catatan || "");
+  const isReturn = movement => /^Pemulangan selepas penugasan PeD\s*:/i.test(movement.catatan || "");
+  const matchesRecipient = movement => normalizeRecipientName(movement.kepada) === normalizeRecipientName(previousRecipient);
+  const latestReturn = isReturn(history[0] || {}) ? history[0] : null;
+  let assignmentMovement = null;
+
+  if (latestReturn) {
+    const earlierHistory = history.slice(1);
+    assignmentMovement = earlierHistory.find(movement => isAssignment(movement) && (!previousRecipient || matchesRecipient(movement)))
+      || earlierHistory.find(isAssignment)
+      || earlierHistory[0]
+      || null;
+  } else if (previousRecipient) {
+    assignmentMovement = history.find(movement => isAssignment(movement) && matchesRecipient(movement))
+      || history.find(matchesRecipient)
+      || null;
+  } else {
+    assignmentMovement = history.find(isAssignment) || null;
+  }
+
+  const previousHolder = String(assignmentMovement?.dari || "").trim();
+  return {
+    previousHolder,
+    correctionMovement: latestReturn && previousHolder ? latestReturn : null
+  };
+}
+
 async function deleteMovement(record) {
   return rpc("delete_file_movement", { p_movement_id: record.id });
 }
@@ -3543,24 +3574,33 @@ async function initPed() {
     const referencedMovementFile = movementFileReference
       ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(movementFileReference))
       : null;
-    // Also repair records where PeD was already saved empty before the return
-    // movement could be recorded. In that case the old holder is the signal.
-    const movementAssignmentCleared = Boolean(existingRecord && !movementAssignmentSelected && (
-      previousMovementRecipient
-      || (referencedMovementFile
-        && normalizeRecipientName(referencedMovementFile.pemegangTerkini) !== normalizeRecipientName("Bilik Fail"))
-    ));
+    let movementReturnContext = null;
+    if (existingRecord && !movementAssignmentSelected && referencedMovementFile) {
+      try {
+        movementReturnContext = await pedAssignmentReturnContext(referencedMovementFile, previousMovementRecipient);
+      } catch (error) {
+        toast("Log pergerakan tidak dapat dibaca", error.message, "error");
+        return;
+      }
+    }
+    const movementAssignmentCleared = Boolean(existingRecord && !movementAssignmentSelected
+      && (previousMovementRecipient || movementReturnContext?.previousHolder));
     const assignedMovementFile = (movementAssignmentSelected || movementAssignmentCleared)
       ? referencedMovementFile
       : null;
-    const movementReturnRequired = Boolean(movementAssignmentCleared && assignedMovementFile
-      && normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName("Bilik Fail"));
+    const movementTarget = movementAssignmentCleared ? movementReturnContext?.previousHolder || "" : movementRecipient;
+    const movementReturnRequired = Boolean(movementAssignmentCleared && assignedMovementFile && movementTarget
+      && normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(movementTarget));
     if ((movementAssignmentChanged || movementAssignmentCleared) && !movementFileReference) {
       const referenceMessage = movementAssignmentCleared
-        ? "No. Fail Rujukan diperlukan supaya fail boleh dipulangkan ke Bilik Fail."
+        ? "No. Fail Rujukan diperlukan supaya fail boleh dipulangkan kepada pemegang sebelum ini."
         : "Pilih No. Fail Rujukan supaya pergerakan fail dapat direkodkan kepada pegawai.";
       toast("Pilih No. Fail Rujukan", referenceMessage, "error");
       pedPickerStates.get(category === "agency_in" ? officeReferenceFileSelect : registryFileNumberSelect).input.focus();
+      return;
+    }
+    if (movementAssignmentCleared && !movementTarget) {
+      toast("Pemegang sebelum ini tidak ditemui", "Log pergerakan asal tiada, jadi nama pegawai sebelumnya tidak dapat dipastikan. Rekod belum disimpan.", "error");
       return;
     }
     if ((movementAssignmentSelected || movementAssignmentCleared) && movementFileReference && !assignedMovementFile) {
@@ -3609,19 +3649,26 @@ async function initPed() {
         : [saved, ...state.pedRecords];
       let movementError = null;
       let assignmentMovementRecorded = false;
-      const movementTarget = movementAssignmentCleared ? "Bilik Fail" : movementRecipient;
       if (assignedMovementFile && (movementReturnRequired || (movementAssignmentSelected && (
         movementAssignmentChanged
         || normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(movementRecipient)
       )))) {
         const movedAtIso = new Date().toISOString();
         try {
-          const movement = await moveFile(assignedMovementFile, {
-            p_file_id: assignedMovementFile.id,
-            p_to_holder: movementTarget,
-            p_moved_at: movedAtIso,
-            p_note: `${movementAssignmentCleared ? "Pemulangan selepas penugasan PeD" : "Penugasan melalui PeD"}: ${saved.reference || saved.subject || "Surat PeD"}`
-          });
+          const movementNote = `${movementAssignmentCleared ? "Pemulangan selepas penugasan PeD" : "Penugasan melalui PeD"}: ${saved.reference || saved.subject || "Surat PeD"}`;
+          const movement = movementAssignmentCleared && movementReturnContext?.correctionMovement
+            ? await correctMovement(movementReturnContext.correctionMovement, {
+              from: movementReturnContext.correctionMovement.dari,
+              to: movementTarget,
+              movedAt: movementReturnContext.correctionMovement.tarikh,
+              note: movementNote
+            })
+            : await moveFile(assignedMovementFile, {
+              p_file_id: assignedMovementFile.id,
+              p_to_holder: movementTarget,
+              p_moved_at: movedAtIso,
+              p_note: movementNote
+            });
           Object.assign(assignedMovementFile, mapFile(movement.file));
           state.lastMovementDates.set(assignedMovementFile.id, movement.movement?.moved_at || movedAtIso);
           assignmentMovementRecorded = true;
@@ -3633,13 +3680,13 @@ async function initPed() {
       render();
       if (movementError) {
         const failureMessage = movementAssignmentCleared
-          ? `Surat telah disimpan tetapi fail belum dapat dipulangkan ke Bilik Fail. ${movementError.message}`
+          ? `Surat telah disimpan tetapi fail belum dapat dipulangkan kepada ${movementTarget}. ${movementError.message}`
           : `Surat telah disimpan tetapi fail belum bergerak kepada ${movementRecipient}. ${movementError.message}`;
         toast("Rekod PeD disimpan, pergerakan gagal", failureMessage, "error");
       } else {
         const movementMessage = assignmentMovementRecorded
           ? movementAssignmentCleared
-            ? " Fail rujukan dipulangkan ke Bilik Fail dan log pemulangan direkodkan."
+            ? ` Fail rujukan dipulangkan kepada ${movementTarget} dan log dikemas kini.`
             : ` Fail rujukan dipindahkan kepada ${movementRecipient}.`
           : movementAssignmentSelected && !movementReference
             ? " Pergerakan belum direkodkan kerana No. Fail Rujukan belum dipilih."
