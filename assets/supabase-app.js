@@ -347,7 +347,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Version the document URL too: older cached PeD pages redirect non-admins.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261103-06");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-13");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -777,7 +777,7 @@ async function pedStorageRequest(path, options = {}) {
 
 async function uploadPedAttachment(file) {
   const extension = file.name.split(".").pop().toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "") || "jpg";
-  const path = `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+  const path = `${workspaceOwnerId()}/${crypto.randomUUID()}.${extension}`;
   await pedStorageRequest(`object/ped-correspondence/${path.split("/").map(encodeURIComponent).join("/")}`, {
     method: "POST",
     headers: { "content-type": file.type || "application/octet-stream", "x-upsert": "false" },
@@ -2658,15 +2658,29 @@ async function initPed() {
     return;
   }
 
+  const workspaceProfile = user.role === "staff"
+    ? await rpc("ped_workspace_profile", {})
+    : {
+      id: user.id,
+      name: user.data?.nama || "",
+      agency_type: user.data?.jenis || "",
+      ped_office_id: user.data?.pedOfficeId || null
+    };
+  if (!workspaceProfile || workspaceProfile.id !== user.ownerId) {
+    throw new Error("Profil ruang kerja PeD tidak dapat disahkan. Hubungi pentadbir sistem.");
+  }
+
   document.querySelector("#pedComingSoon").classList.add("hidden");
   document.querySelector("#pedWorkspace").classList.remove("hidden");
-  const schoolAccount = user.role === "agency" && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY") === "sekolah";
-  const officeAccount = user.role === "agency" && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY") === "pejabat";
+  const pedOwnerId = workspaceProfile.id;
+  const workspaceAgencyType = String(workspaceProfile.agency_type || "").trim().toLocaleLowerCase("ms-MY");
+  const schoolAccount = user.role !== "admin" && workspaceAgencyType === "sekolah";
+  const officeAccount = user.role !== "admin" && workspaceAgencyType === "pejabat";
   const canDeletePedRecord = record => {
     if (!record) return false;
     if (user.role === "admin") return record.category !== "school_received";
-    if (record.ownerId === user.id) return true;
-    return officeAccount && record.category === "school_in" && record.officeId === user.id;
+    if (record.ownerId === pedOwnerId) return true;
+    return officeAccount && record.category === "school_in" && record.officeId === pedOwnerId;
   };
   const activeCategories = schoolAccount ? ["school_received", "school_in"] : ["agency_in", "school_in", "outgoing"];
   document.querySelectorAll("[data-ped-section]").forEach(section => {
@@ -2692,12 +2706,12 @@ async function initPed() {
   const [recordsResult, settingsResult, filesResult, officeResult, schoolsResult] = await Promise.allSettled([
     loadPedRecords(), loadSettings(), loadFiles(),
     schoolAccount ? (async () => {
-      const officeId = user.data?.pedOfficeId;
+      const officeId = workspaceProfile.ped_office_id;
       if (!officeId) return [];
       const office = (await rest("profiles", `id=eq.${encodeURIComponent(officeId)}&select=id,name`))?.[0];
       return [{ ped_office_id: officeId, office_name: office?.name || "Pejabat" }];
     })() : Promise.resolve([]),
-    officeAccount ? rest("profiles", `ped_office_id=eq.${encodeURIComponent(user.id)}&role=eq.agency&select=id,name&order=name.asc`) : Promise.resolve([])
+    officeAccount ? rest("profiles", `ped_office_id=eq.${encodeURIComponent(pedOwnerId)}&role=eq.agency&select=id,name&order=name.asc`) : Promise.resolve([])
   ]);
   if (recordsResult.status === "rejected") {
     state.pedRecords = [];
@@ -3121,12 +3135,12 @@ async function initPed() {
 
       pageRecords.forEach(record => {
         const schoolLetterLocked = schoolAccount && category === "school_in"
-          && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+          && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
         const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const referenceText = record.reference || "surat tanpa nombor rujukan";
         const canMarkReceived = officeAccount && category === "school_in"
-          && record.ownerId !== user.id && record.officeId === user.id
+          && record.ownerId !== pedOwnerId && record.officeId === pedOwnerId
           && ["Dihantar", "Dihantar Semula"].includes(record.status);
         const receive = canMarkReceived ? create("button", {
           className: "button small ped-receive-button",
@@ -3230,9 +3244,9 @@ async function initPed() {
     const meta = pedCategoryMeta[category];
     const schoolOutgoing = schoolAccount && category === "school_in";
     const outgoingForm = category === "outgoing" || schoolOutgoing;
-    const officeProcessingSchoolLetter = officeAccount && category === "school_in" && record && record.ownerId !== user.id;
+    const officeProcessingSchoolLetter = officeAccount && category === "school_in" && record && record.ownerId !== pedOwnerId;
     const viewOnly = schoolOutgoing && record
-      && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
     referenceViewOnly = Boolean(viewOnly);
     form.reset();
     form.elements.id.value = record?.id || "";
@@ -3435,10 +3449,10 @@ async function initPed() {
     const manualMode = schoolAccount && category === "school_in" && schoolUsesManualReference();
     const referenceFile = manualMode ? manualReferenceInput.value.trim() : outgoingReferenceSelect.value;
     const correspondent = category === "school_in"
-      ? schoolAccount ? user.data.nama : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
+      ? schoolAccount ? workspaceProfile.name : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
       : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
-    const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== user.id);
+    const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== pedOwnerId);
     if (schoolAccount && category === "school_in" && !statusSelect.value) {
       toast("Pilih status surat", "Pilih status surat sebelum menghantar Surat Keluar kepada Pejabat.", "error");
       pedPickerStates.get(statusSelect).input.focus();
@@ -3473,9 +3487,9 @@ async function initPed() {
     const payload = {
       category,
       school_id: category === "school_in"
-        ? schoolAccount ? user.id : officeAccount ? assignedSchools.find(school => school.id === schoolNameSelect.value)?.id || existingRecord?.schoolId || null : null
-        : category === "school_received" ? user.id : null,
-      office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? user.id : null : null,
+        ? schoolAccount ? pedOwnerId : officeAccount ? assignedSchools.find(school => school.id === schoolNameSelect.value)?.id || existingRecord?.schoolId || null : null
+        : category === "school_received" ? pedOwnerId : null,
+      office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? pedOwnerId : null : null,
       correspondence_date: data.correspondence_date,
       reference_number: referenceNumber,
       correspondent,
