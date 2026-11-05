@@ -672,7 +672,9 @@ function mapPedRecord(row) {
     schoolSector: row.school_sector || "",
     assignedTo: row.assigned_to || "",
     officeReferenceFile: row.office_reference_file || "",
+    officeReferenceLetterNumber: row.office_reference_letter_number || "",
     registryFileNumber: row.registry_file_number || "",
+    registryFileLetterNumber: row.registry_file_letter_number || "",
     originSector: row.origin_sector || "",
     deliveryMethods: row.delivery_methods || [],
     subject: row.subject,
@@ -684,12 +686,21 @@ function mapPedRecord(row) {
 }
 
 async function loadPedRecords() {
-  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,registry_file_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
+  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,office_reference_letter_number,registry_file_number,registry_file_letter_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
+  const legacyColumns = columns.replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
   const fetchSize = 1000;
   const rows = [];
   let offset = 0;
+  let selectedColumns = columns;
   while (true) {
-    const page = await rest("ped_correspondence", `select=${columns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
+    let page;
+    try {
+      page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
+    } catch (error) {
+      if (selectedColumns !== columns || !/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
+      selectedColumns = legacyColumns;
+      page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
+    }
     if (!page?.length) break;
     rows.push(...page);
     if (page.length < fetchSize) break;
@@ -2687,7 +2698,11 @@ async function initPed() {
 
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
+  const officeReferenceLetterNumberField = document.querySelector("#pedOfficeReferenceLetterNumberField");
+  const officeReferenceLetterNumberInput = document.querySelector("#pedOfficeReferenceLetterNumber");
   const registryFileNumberSelect = document.querySelector("#pedRegistryFileNumber");
+  const registryLetterNumberField = document.querySelector("#pedRegistryLetterNumberField");
+  const registryLetterNumberInput = document.querySelector("#pedRegistryLetterNumber");
   const registeredFileOptions = state.files.map(file => `${file.transaksi} (Jilid ${file.jilid})`);
   fillSelect(officeReferenceFileSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
   fillSelect(registryFileNumberSelect, registeredFileOptions, "Pilih fail yang telah didaftarkan");
@@ -3113,6 +3128,21 @@ async function initPed() {
     }
     select.value = value || "";
   };
+  const syncReferenceLetterNumber = (category, select, field, input) => {
+    const isSchoolOutgoing = schoolAccount && category === "school_in";
+    const visible = form.elements.category.value === category && !isSchoolOutgoing && Boolean(select.value);
+    field.classList.toggle("hidden", !visible);
+    input.disabled = !visible;
+    input.required = visible;
+  };
+  officeReferenceFileSelect.addEventListener("change", () => {
+    officeReferenceLetterNumberInput.value = "";
+    syncReferenceLetterNumber("agency_in", officeReferenceFileSelect, officeReferenceLetterNumberField, officeReferenceLetterNumberInput);
+  });
+  registryFileNumberSelect.addEventListener("change", () => {
+    registryLetterNumberInput.value = "";
+    syncReferenceLetterNumber("school_in", registryFileNumberSelect, registryLetterNumberField, registryLetterNumberInput);
+  });
   const setMultiValues = (select, values = []) => {
     const selected = new Set(values.map(value => String(value).toLocaleUpperCase("ms-MY")));
     select.querySelectorAll("option").forEach(option => { option.selected = selected.has(option.value.toLocaleUpperCase("ms-MY")); });
@@ -3198,6 +3228,10 @@ async function initPed() {
     document.querySelector("#pedAssignedTo").value = record?.assignedTo || "";
     setSelectValue(officeReferenceFileSelect, record?.officeReferenceFile || "");
     setSelectValue(registryFileNumberSelect, record?.registryFileNumber || "");
+    officeReferenceLetterNumberInput.value = record?.officeReferenceLetterNumber || "";
+    registryLetterNumberInput.value = record?.registryFileLetterNumber || "";
+    syncReferenceLetterNumber("agency_in", officeReferenceFileSelect, officeReferenceLetterNumberField, officeReferenceLetterNumberInput);
+    syncReferenceLetterNumber("school_in", registryFileNumberSelect, registryLetterNumberField, registryLetterNumberInput);
     document.querySelector("#pedAgencyNotes").value = category === "agency_in" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolNotes").value = category === "school_in" ? record?.notes || "" : "";
     setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || "");
@@ -3339,6 +3373,15 @@ async function initPed() {
       (!referenceFile ? manualMode ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input : letterNumberInput).focus();
       return;
     }
+    const referenceLetterNumber = category === "agency_in" && officeReferenceFileSelect.value
+      ? officeReferenceLetterNumberInput
+      : category === "school_in" && !schoolAccount && registryFileNumberSelect.value
+        ? registryLetterNumberInput : null;
+    if (referenceLetterNumber && !/^[0-9]+$/.test(referenceLetterNumber.value.trim())) {
+      toast("Masukkan No. Surat", "Isi nombor surat selepas memilih nombor fail rujukan.", "error");
+      referenceLetterNumber.focus();
+      return;
+    }
     const referenceNumber = outgoingForm
       ? `${referenceFile}${pedLetterNumberSeparator}${letterNumberInput.value.trim()}`
       : referenceInput.value.trim() || null;
@@ -3370,8 +3413,10 @@ async function initPed() {
       assigned_to: category === "school_in" && !schoolAccount ? document.querySelector("#pedAssignedTo").value.trim()
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedOfficer").value : "",
       office_reference_file: category === "agency_in" ? officeReferenceFileSelect.value : "",
+      office_reference_letter_number: category === "agency_in" && officeReferenceFileSelect.value ? officeReferenceLetterNumberInput.value.trim() : "",
       registry_file_number: category === "school_in" && !schoolAccount ? registryFileNumberSelect.value
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedFile").value.trim() : "",
+      registry_file_letter_number: category === "school_in" && !schoolAccount && registryFileNumberSelect.value ? registryLetterNumberInput.value.trim() : "",
       origin_sector: category === "outgoing" ? document.querySelector("#pedOriginSector").value : "",
       delivery_methods: category === "outgoing" ? selectedValues("#pedDeliveryMethods") : [],
       subject: document.querySelector("#pedSubject").value.trim(),
@@ -3385,6 +3430,8 @@ async function initPed() {
             : category === "outgoing" ? document.querySelector("#pedOutgoingNotes").value.trim() : "",
       attachment_path: null
     };
+    if (!payload.office_reference_letter_number) delete payload.office_reference_letter_number;
+    if (!payload.registry_file_letter_number) delete payload.registry_file_letter_number;
     const officeAssignmentChanged = officeAccount && category === "school_in" && payload.assigned_to
       && (!existingRecord || existingRecord.assignedTo !== payload.assigned_to
         || existingRecord.registryFileNumber !== payload.registry_file_number);
@@ -3413,6 +3460,7 @@ async function initPed() {
         ? {
           status: payload.status, school_sector: payload.school_sector,
           assigned_to: payload.assigned_to, registry_file_number: payload.registry_file_number,
+          ...(payload.registry_file_letter_number ? { registry_file_letter_number: payload.registry_file_letter_number } : {}),
           notes: payload.notes
         }
         : schoolAccount && category === "school_in" && recordId
@@ -3466,7 +3514,11 @@ async function initPed() {
       }
     } catch (error) {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
-      toast("Tidak berjaya", error.message, "error");
+      if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
+        toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261105020000_add_ped_reference_letter_numbers.sql sebelum menyimpan nombor surat bagi fail rujukan.", "error");
+      } else {
+        toast("Tidak berjaya", error.message, "error");
+      }
     } finally {
       setBusy(submitButton, false);
     }
