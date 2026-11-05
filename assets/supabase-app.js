@@ -1391,7 +1391,13 @@ async function initDashboard() {
 
 async function initMovementLog() {
   if (!await initShell()) return;
-  await Promise.all([loadFiles(), loadSettings(), loadRecipientUsers(), loadAgencies()]);
+  await Promise.all([
+    loadFiles(), loadSettings(), loadRecipientUsers(), loadAgencies(),
+    loadLatestPedFileLetterNumbers().catch(error => {
+      state.pedFileLetterNumbers = new Map();
+      console.warn("Nombor surat PeD untuk pergerakan fail tidak dapat dimuatkan.", error);
+    })
+  ]);
   const form = document.querySelector("#movementLogFilter");
   const searchInput = document.querySelector("#movementLogSearch");
   const dateInput = document.querySelector("#movementLogDate");
@@ -1485,7 +1491,12 @@ async function initMovementLog() {
     body.replaceChildren();
     visibleRecords.forEach(record => {
       const file = fileById.get(record.idFail);
-      const fileReference = file ? `${file.transaksi} · Jilid ${file.jilid}` : "Rekod fail";
+      const latestLetterNumber = file && state.pedFileLetterNumbers.get(
+        `${file.ownerId}|${normalizePedFileReference(`${file.transaksi} (Jilid ${file.jilid})`)}`
+      );
+      const fileReference = file
+        ? `${file.transaksi} · Jilid ${file.jilid}${latestLetterNumber ? ` (No. Surat ${latestLetterNumber})` : ""}`
+        : "Rekod fail";
       const fileDetail = file?.subAktiviti || "Maklumat fail tidak tersedia";
       const movementTime = new Intl.DateTimeFormat("ms-MY", {
         dateStyle: "medium",
@@ -1578,12 +1589,16 @@ async function initMovementLog() {
 
   function movementSearchValue(record) {
     const file = fileById.get(record.idFail);
+    const latestLetterNumber = file && state.pedFileLetterNumbers.get(
+      `${file.ownerId}|${normalizePedFileReference(`${file.transaksi} (Jilid ${file.jilid})`)}`
+    );
     return [
       file?.transaksi,
       file?.subAktiviti,
       file?.aktiviti,
       file?.fungsi,
       file?.jilid ? `jilid ${file.jilid}` : "",
+      latestLetterNumber ? `no. surat ${latestLetterNumber}` : "",
       record.dari,
       record.kepada,
       record.penggunaNama,
