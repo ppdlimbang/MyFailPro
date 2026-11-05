@@ -121,7 +121,7 @@ let browser;
         return {pageWidth:document.documentElement.scrollWidth, viewport:innerWidth,
           panels:panels.map(p=>{const w=p.querySelector('.table-wrap');return {verticalOverflow:w.scrollHeight-w.clientHeight};}),
           actionOverflow:[...document.querySelectorAll('.ped-row-actions')].some(a=>a.scrollWidth>a.clientWidth+1),
-          edgeImbalance:innerWidth>640&&[...document.querySelectorAll('.ped-panel tbody tr:not(.ped-empty-row)')].some(row=>{const table=row.closest('table').getBoundingClientRect(),date=row.querySelector('.ped-cell-date time').getBoundingClientRect(),actions=row.querySelector('.ped-row-actions').getBoundingClientRect();return Math.abs((date.left-table.left)-(table.right-actions.right))>1.5;}),
+          actionDataNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-cell-actions')].some(cell=>{const buttons=[...cell.querySelectorAll('button')].map(button=>button.getBoundingClientRect());if(!buttons.length)return false;const bounds=cell.getBoundingClientRect(),groupCenter=(buttons[0].left+buttons[buttons.length-1].right)/2;return Math.abs(groupCenter-(bounds.left+bounds.right)/2)>1.5;}),
           actionColumnMismatch:innerWidth>640&&[...document.querySelectorAll('.ped-panel table')].filter(table=>table.querySelector('tbody tr:not(.ped-empty-row)')).some(table=>{const width=table.querySelector('th:last-child').getBoundingClientRect().width;return table.querySelector('.ped-receive-button')?Math.abs(width-230)>1.5:Math.abs(width-180)>1.5;}),
           headersNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-panel thead th:nth-child(5),.ped-panel thead th:nth-child(6)')].some(header=>getComputedStyle(header).textAlign!=='center'),
           statusNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-cell-status')].some(cell=>getComputedStyle(cell).textAlign!=='center'),
@@ -133,7 +133,7 @@ let browser;
       assert(metrics.pageWidth <= width + 1, `${role} ${width}: page overflow ${JSON.stringify(metrics)}`);
       assert(metrics.panels.every(p => p.verticalOverflow <= 1), `${role} ${width}: vertical table scroll ${JSON.stringify(metrics)}`);
       assert(!metrics.actionOverflow, `${role} ${width}: action overflow`);
-      assert(!metrics.edgeImbalance, `${role} ${width}: table edge spacing is not balanced`);
+      assert(!metrics.actionDataNotCentered, `${role} ${width}: action data is not centered`);
       assert(!metrics.actionColumnMismatch, `${role} ${width}: action column width is incorrect`);
       assert(!metrics.headersNotCentered, `${role} ${width}: status or action header is not centered`);
       assert(!metrics.statusNotCentered, `${role} ${width}: status data is not centered`);
