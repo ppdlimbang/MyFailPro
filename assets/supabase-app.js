@@ -3533,17 +3533,28 @@ async function initPed() {
       ? existingRecord?.officeReferenceFile || ""
       : existingRecord?.registryFileNumber || "";
     const movementAssignmentSelected = Boolean(movementRecipient);
-    const movementAssignmentCleared = Boolean(existingRecord && previousMovementRecipient && !movementRecipient);
-    const movementFileReference = movementAssignmentCleared
+    const movementFileReference = existingRecord && !movementAssignmentSelected
       ? previousMovementReference || movementReference
       : movementReference;
     const movementAssignmentChanged = movementAssignmentSelected
       && (!existingRecord || previousMovementRecipient !== movementRecipient
         || previousMovementReference !== movementReference);
     const normalizeFileReference = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms-MY");
-    const assignedMovementFile = (movementAssignmentSelected || movementAssignmentCleared) && movementFileReference
+    const referencedMovementFile = movementFileReference
       ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(movementFileReference))
       : null;
+    // Also repair records where PeD was already saved empty before the return
+    // movement could be recorded. In that case the old holder is the signal.
+    const movementAssignmentCleared = Boolean(existingRecord && !movementAssignmentSelected && (
+      previousMovementRecipient
+      || (referencedMovementFile
+        && normalizeRecipientName(referencedMovementFile.pemegangTerkini) !== normalizeRecipientName("Bilik Fail"))
+    ));
+    const assignedMovementFile = (movementAssignmentSelected || movementAssignmentCleared)
+      ? referencedMovementFile
+      : null;
+    const movementReturnRequired = Boolean(movementAssignmentCleared && assignedMovementFile
+      && normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName("Bilik Fail"));
     if ((movementAssignmentChanged || movementAssignmentCleared) && !movementFileReference) {
       const referenceMessage = movementAssignmentCleared
         ? "No. Fail Rujukan diperlukan supaya fail boleh dipulangkan ke Bilik Fail."
@@ -3599,7 +3610,7 @@ async function initPed() {
       let movementError = null;
       let assignmentMovementRecorded = false;
       const movementTarget = movementAssignmentCleared ? "Bilik Fail" : movementRecipient;
-      if (assignedMovementFile && (movementAssignmentCleared || (movementAssignmentSelected && (
+      if (assignedMovementFile && (movementReturnRequired || (movementAssignmentSelected && (
         movementAssignmentChanged
         || normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(movementRecipient)
       )))) {
