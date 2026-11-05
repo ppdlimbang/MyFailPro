@@ -347,7 +347,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Keep the PeD entry point aligned with the current role-aware workflow.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-15");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-16");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -3522,22 +3522,32 @@ async function initPed() {
     };
     if (!payload.office_reference_letter_number) delete payload.office_reference_letter_number;
     if (!payload.registry_file_letter_number) delete payload.registry_file_letter_number;
-    const officeAssignmentSelected = officeAccount && category === "school_in" && Boolean(payload.assigned_to);
-    const officeAssignmentChanged = officeAssignmentSelected
-      && (!existingRecord || existingRecord.assignedTo !== payload.assigned_to
-        || existingRecord.registryFileNumber !== payload.registry_file_number);
+    const movementRecipient = category === "agency_in" ? payload.assigned_officers[0] || ""
+      : officeAccount && category === "school_in" ? payload.assigned_to : "";
+    const movementReference = category === "agency_in" ? payload.office_reference_file
+      : category === "school_in" ? payload.registry_file_number : "";
+    const previousMovementRecipient = category === "agency_in"
+      ? existingRecord?.assignedOfficers?.[0] || ""
+      : existingRecord?.assignedTo || "";
+    const previousMovementReference = category === "agency_in"
+      ? existingRecord?.officeReferenceFile || ""
+      : existingRecord?.registryFileNumber || "";
+    const movementAssignmentSelected = Boolean(movementRecipient);
+    const movementAssignmentChanged = movementAssignmentSelected
+      && (!existingRecord || previousMovementRecipient !== movementRecipient
+        || previousMovementReference !== movementReference);
     const normalizeFileReference = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms-MY");
-    const assignedMovementFile = officeAccount && category === "school_in" && payload.assigned_to && payload.registry_file_number
-      ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(payload.registry_file_number))
+    const assignedMovementFile = movementAssignmentSelected && movementReference
+      ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(movementReference))
       : null;
-    if (officeAssignmentChanged && !payload.registry_file_number) {
+    if (movementAssignmentChanged && !movementReference) {
       toast("Pilih No. Fail Rujukan", "Pilih No. Fail Rujukan supaya pergerakan fail dapat direkodkan kepada pegawai.", "error");
-      pedPickerStates.get(registryFileNumberSelect).input.focus();
+      pedPickerStates.get(category === "agency_in" ? officeReferenceFileSelect : registryFileNumberSelect).input.focus();
       return;
     }
-    if (officeAssignmentSelected && payload.registry_file_number && !assignedMovementFile) {
+    if (movementAssignmentSelected && movementReference && !assignedMovementFile) {
       toast("Fail tidak ditemui", "Fail yang dipilih tidak sepadan dengan Daftar Fail Pejabat. Pilih semula No. Fail Rujukan.", "error");
-      pedPickerStates.get(registryFileNumberSelect).input.focus();
+      pedPickerStates.get(category === "agency_in" ? officeReferenceFileSelect : registryFileNumberSelect).input.focus();
       return;
     }
     setBusy(submitButton, true, "Menyimpan...");
@@ -3581,17 +3591,17 @@ async function initPed() {
         : [saved, ...state.pedRecords];
       let movementError = null;
       let assignmentMovementRecorded = false;
-      if (assignedMovementFile && officeAssignmentSelected && (
-        officeAssignmentChanged
-        || normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(payload.assigned_to)
+      if (assignedMovementFile && movementAssignmentSelected && (
+        movementAssignmentChanged
+        || normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(movementRecipient)
       )) {
         const movedAtIso = new Date().toISOString();
         try {
           const movement = await moveFile(assignedMovementFile, {
             p_file_id: assignedMovementFile.id,
-            p_to_holder: payload.assigned_to,
+            p_to_holder: movementRecipient,
             p_moved_at: movedAtIso,
-            p_note: `Penugasan melalui PeD: ${saved.reference || saved.subject || "Surat masuk sekolah"}`
+            p_note: `Penugasan melalui PeD: ${saved.reference || saved.subject || "Surat PeD"}`
           });
           Object.assign(assignedMovementFile, mapFile(movement.file));
           state.lastMovementDates.set(assignedMovementFile.id, movement.movement?.moved_at || movedAtIso);
@@ -3603,11 +3613,11 @@ async function initPed() {
       closeModal(modal);
       render();
       if (movementError) {
-        toast("Rekod PeD disimpan, pergerakan gagal", `Surat telah disimpan tetapi fail belum bergerak kepada ${payload.assigned_to}. ${movementError.message}`, "error");
+        toast("Rekod PeD disimpan, pergerakan gagal", `Surat telah disimpan tetapi fail belum bergerak kepada ${movementRecipient}. ${movementError.message}`, "error");
       } else {
         const movementMessage = assignmentMovementRecorded
-          ? ` Fail rujukan dipindahkan kepada ${payload.assigned_to}.`
-          : officeAssignmentSelected && !payload.registry_file_number
+          ? ` Fail rujukan dipindahkan kepada ${movementRecipient}.`
+          : movementAssignmentSelected && !movementReference
             ? " Pergerakan belum direkodkan kerana No. Fail Rujukan belum dipilih."
             : "";
         toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD." + movementMessage);

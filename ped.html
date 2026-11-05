@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-07">
   <link rel="stylesheet" href="assets/ped.css?v=20261105-11">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261105-15" defer></script>
+  <script src="assets/supabase-app.js?v=20261105-16" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -138,7 +138,7 @@
       <div class="field span-2"><label for="pedSubject">Perkara</label><textarea class="input" id="pedSubject" name="subject" rows="3" placeholder="Tajuk atau perkara surat" required></textarea></div>
 
       <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedDepartmentSectors">Sektor</label><select class="input ped-multi-select" id="pedDepartmentSectors" multiple size="5"></select><span class="field-hint">Pilih satu atau lebih sektor.</span></div>
-      <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedAssignedOfficers">Untuk Tindakan Pegawai</label><select class="input ped-multi-select" id="pedAssignedOfficers" multiple size="5"></select><span class="field-hint">Nama dipaparkan mengikut Direktori Pegawai Penerima MyFailPro. Pilih satu atau lebih pegawai.</span></div>
+      <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedAssignedOfficers">Untuk Tindakan Pegawai</label><select class="input ped-multi-select" id="pedAssignedOfficers" multiple size="5"></select><span class="field-hint">Nama dipaparkan mengikut Direktori Pegawai Penerima MyFailPro. Jika beberapa pegawai dipilih, fail diserahkan kepada pegawai pertama dalam senarai pilihan.</span></div>
       <div class="field hidden" data-ped-category-fields="agency_in"><label for="pedOfficeReferenceFile">No. Fail Rujukan</label><select class="input" id="pedOfficeReferenceFile"><option value="">Pilih fail yang telah didaftarkan</option></select></div>
       <div class="field hidden" id="pedOfficeReferenceLetterNumberField" data-ped-category-fields="agency_in"><label for="pedOfficeReferenceLetterNumber">No. Surat</label><input class="input" id="pedOfficeReferenceLetterNumber" type="text" inputmode="numeric" pattern="[0-9]+" title="Gunakan digit sahaja." placeholder="Contoh: 1" autocomplete="off" disabled><span class="field-hint">Masukkan nombor surat selepas memilih No. Fail Rujukan.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedAgencyNotes">Catatan PPD</label><textarea class="input" id="pedAgencyNotes" rows="3"></textarea></div>
