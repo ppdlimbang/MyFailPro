@@ -265,6 +265,9 @@ body[data-page="ped"] .ped-panel th { padding: 12px 16px; border-bottom: 1px sol
   body[data-page="ped"] .ped-panel tbody td:first-child { padding-left: 36px; }
   body[data-page="ped"] .ped-panel thead th:nth-child(2),
   body[data-page="ped"] .ped-panel tbody td:nth-child(2) { text-align: center; }
+  body[data-page="ped"] .ped-panel thead th:last-child,
+  body[data-page="ped"] .ped-panel tbody td:last-child { padding-right: 36px; text-align: right; }
+  body[data-page="ped"] .ped-row-actions { justify-content: flex-end; }
 }
 body[data-page="ped"] .ped-panel td { padding: 18px 16px; border-top: 1px solid #eeedf5; vertical-align: top; color: #51546a; font-size: .82rem; line-height: 1.65; overflow-wrap: anywhere; }
 body[data-page="ped"] .ped-panel tbody tr { background: #fff; }
