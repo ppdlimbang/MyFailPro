@@ -2524,19 +2524,19 @@ function splitPedOutgoingReference(reference) {
 const pedCategoryMeta = {
   agency_in: {
     title: "Surat Masuk Jabatan dan Agensi", party: "Daripada", date: "Tarikh Terima",
-    referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"], defaultStatus: "Belum diminit"
+    referenceLabel: "No. Fail Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"], defaultStatus: "Belum diminit"
   },
   school_in: {
     title: "Surat Masuk Sekolah", party: "Nama Sekolah", date: "Tarikh Terima",
-    referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Dihantar", "Diterima", "Selesai", "Dikembalikan", "Dihantar Semula"], defaultStatus: "Belum diminit"
+    referenceLabel: "No. Fail Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Dihantar", "Diterima", "Selesai", "Dikembalikan", "Dihantar Semula"], defaultStatus: "Belum diminit"
   },
   school_received: {
     title: "Surat Masuk", party: "Daripada", date: "Tarikh Terima",
-    referenceLabel: "No. Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"], defaultStatus: "Belum diminit"
+    referenceLabel: "No. Fail Rujukan & Tarikh", statuses: ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"], defaultStatus: "Belum diminit"
   },
   outgoing: {
     title: "Surat Keluar", party: "Kepada", date: "Tarikh Surat",
-    referenceLabel: "No. Rujukan", statuses: ["Dihantar", "Diterima", "Dalam proses", "Selesai"], defaultStatus: "Dihantar"
+    referenceLabel: "No. Fail Rujukan", statuses: ["Dihantar", "Diterima", "Dalam proses", "Selesai"], defaultStatus: "Dihantar"
   }
 };
 
@@ -2943,8 +2943,8 @@ async function initPed() {
     manualReferenceInput.disabled = !outgoing || !manual || referenceViewOnly;
     manualReferenceInput.required = !manualReferenceInput.disabled;
     letterNumberHint.textContent = manual
-      ? "Masukkan nombor surat selepas menaip No. Rujukan."
-      : "Masukkan nombor surat selepas memilih No. Rujukan.";
+      ? "Masukkan nombor surat selepas menaip No. Fail Rujukan."
+      : "Masukkan nombor surat selepas memilih No. Fail Rujukan.";
     syncLetterNumberField();
   };
   referenceModeInputs.forEach(input => input.addEventListener("change", () => {
@@ -2972,7 +2972,7 @@ async function initPed() {
     const meta = pedCategoryMeta[category];
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
     table.querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
-    table.querySelector("thead th:nth-child(2)").textContent = "No. Rujukan";
+    table.querySelector("thead th:nth-child(2)").textContent = "No. Fail Rujukan";
     table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada" : meta.party;
   });
 
@@ -3106,7 +3106,7 @@ async function initPed() {
           : referenceParts.fileReference || "—";
         body.append(create("tr", {}, [
           create("td", { className: "ped-cell-date", "data-label": tableDateLabel }, create("time", { datetime: record.date, text: formatDate(record.date) })),
-          create("td", { className: "ped-cell-reference", "data-label": "No. Rujukan" },
+          create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" },
             create("strong", { className: "ped-reference", text: referenceDisplay })),
           create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, create("span", { className: "ped-party", text: party || "—" })),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
@@ -3369,7 +3369,7 @@ async function initPed() {
       return;
     }
     if (outgoingForm && (!referenceFile || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
-      toast("Lengkapkan rujukan surat", "Isi No. Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
+      toast("Lengkapkan rujukan surat", "Isi No. Fail Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
       (!referenceFile ? manualMode ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input : letterNumberInput).focus();
       return;
     }
