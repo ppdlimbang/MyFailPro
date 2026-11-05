@@ -3385,6 +3385,23 @@ async function initPed() {
             : category === "outgoing" ? document.querySelector("#pedOutgoingNotes").value.trim() : "",
       attachment_path: null
     };
+    const officeAssignmentChanged = officeAccount && category === "school_in" && payload.assigned_to
+      && (!existingRecord || existingRecord.assignedTo !== payload.assigned_to
+        || existingRecord.registryFileNumber !== payload.registry_file_number);
+    const normalizeFileReference = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms-MY");
+    const assignedMovementFile = officeAccount && category === "school_in" && payload.assigned_to && payload.registry_file_number
+      ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(payload.registry_file_number))
+      : null;
+    if (officeAssignmentChanged && !payload.registry_file_number) {
+      toast("Pilih fail jabatan", "Pilih Tindakan Registri (No Fail Jabatan) supaya pergerakan fail dapat direkodkan kepada pegawai.", "error");
+      pedPickerStates.get(registryFileNumberSelect).input.focus();
+      return;
+    }
+    if (officeAssignmentChanged && !assignedMovementFile) {
+      toast("Fail tidak ditemui", "Fail yang dipilih tidak sepadan dengan Daftar Fail Pejabat. Pilih semula No Fail Jabatan.", "error");
+      pedPickerStates.get(registryFileNumberSelect).input.focus();
+      return;
+    }
     setBusy(submitButton, true, "Menyimpan...");
     try {
       if (category === "outgoing" && selectedAttachment) {
@@ -3423,9 +3440,30 @@ async function initPed() {
       state.pedRecords = recordId
         ? state.pedRecords.map(record => record.id === saved.id ? saved : record)
         : [saved, ...state.pedRecords];
+      let movementError = null;
+      if (assignedMovementFile && payload.assigned_to
+        && normalizeRecipientName(assignedMovementFile.pemegangTerkini) !== normalizeRecipientName(payload.assigned_to)) {
+        const movedAtIso = new Date().toISOString();
+        try {
+          const movement = await moveFile(assignedMovementFile, {
+            p_file_id: assignedMovementFile.id,
+            p_to_holder: payload.assigned_to,
+            p_moved_at: movedAtIso,
+            p_note: `Penugasan melalui PeD: ${saved.reference || saved.subject || "Surat masuk sekolah"}`
+          });
+          Object.assign(assignedMovementFile, mapFile(movement.file));
+          state.lastMovementDates.set(assignedMovementFile.id, movement.movement?.moved_at || movedAtIso);
+        } catch (error) {
+          movementError = error;
+        }
+      }
       closeModal(modal);
       render();
-      toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD.");
+      if (movementError) {
+        toast("Rekod PeD disimpan, pergerakan gagal", `Surat telah disimpan tetapi fail belum bergerak kepada ${payload.assigned_to}. ${movementError.message}`, "error");
+      } else {
+        toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD.");
+      }
     } catch (error) {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
       toast("Tidak berjaya", error.message, "error");
