@@ -3079,12 +3079,13 @@ async function initPed() {
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
           : record.correspondent;
         const referenceParts = splitPedOutgoingReference(record.reference);
+        const referenceDisplay = referenceParts.letterNumber
+          ? `${referenceParts.fileReference} (${referenceParts.letterNumber})`
+          : referenceParts.fileReference || "—";
         body.append(create("tr", {}, [
           create("td", { className: "ped-cell-date", "data-label": tableDateLabel }, create("time", { datetime: record.date, text: formatDate(record.date) })),
-          create("td", { className: "ped-cell-reference", "data-label": "No. Rujukan" }, [
-            create("strong", { className: "ped-reference", text: referenceParts.fileReference || "—" }),
-            referenceParts.letterNumber ? create("span", { className: "ped-reference-number", text: `No. Surat ${referenceParts.letterNumber}` }) : null
-          ]),
+          create("td", { className: "ped-cell-reference", "data-label": "No. Rujukan" },
+            create("strong", { className: "ped-reference", text: referenceDisplay })),
           create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, create("span", { className: "ped-party", text: party || "—" })),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
           create("td", { className: "ped-cell-status", "data-label": "Status" }, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [

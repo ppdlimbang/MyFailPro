@@ -121,7 +121,7 @@ let browser;
           actionOverflow:[...document.querySelectorAll('.ped-row-actions')].some(a=>a.scrollWidth>a.clientWidth+1),
           statusOverflow:[...document.querySelectorAll('.ped-cell-status .ped-status')].some(b=>b.getBoundingClientRect().right>b.parentElement.getBoundingClientRect().right-parseFloat(getComputedStyle(b.parentElement).paddingRight)+1),
           animatedRows:document.querySelectorAll('.ped-panel tbody tr.reveal-item').length,
-          letterBadges:document.querySelectorAll('.ped-reference-number').length,
+          formattedReferences:[...document.querySelectorAll('.ped-reference')].filter(reference=>reference.textContent.includes(' (1)')).length,
           receiveButtons:document.querySelectorAll('.ped-receive-button').length};
       })()`);
       assert(metrics.pageWidth <= width + 1, `${role} ${width}: page overflow ${JSON.stringify(metrics)}`);
@@ -129,7 +129,7 @@ let browser;
       assert(!metrics.actionOverflow, `${role} ${width}: action overflow`);
       assert(!metrics.statusOverflow, `${role} ${width}: status overflow`);
       assert.equal(metrics.animatedRows, 0);
-      assert(metrics.letterBadges > 0);
+      assert(metrics.formattedReferences > 0, `${role} ${width}: formatted letter number missing`);
       assert.equal(metrics.receiveButtons, ['office', 'paging'].includes(role) ? 1 : 0, `${role} ${width}: receipt action visibility`);
       if (role === 'paging') {
         await evaluate(`document.querySelector('[data-ped-page="outgoing"][data-direction="next"]').click()`);

@@ -272,7 +272,6 @@ body[data-page="ped"] .ped-panel tbody tr:nth-child(even) { background: #fcfbfe;
 body[data-page="ped"] .ped-panel tbody tr:hover, body[data-page="ped"] .ped-panel tbody tr:focus-within { background: #f7f5ff; }
 body[data-page="ped"] .ped-panel tbody tr.reveal-item { opacity: 1; transform: none; filter: none; }
 .ped-reference { display: block; color: #493781; font-weight: 750; line-height: 1.55; }
-.ped-reference-number { display: inline-block; margin-top: 7px; padding: 2px 8px; border-radius: 6px; background: #f0ecfa; color: #725ca1; font-size: .7rem; font-weight: 650; }
 .ped-cell-date time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ped-party { color: #3d4156; font-weight: 650; }
 .ped-subject { color: #4b4e63; }
