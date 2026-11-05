@@ -3174,6 +3174,12 @@ async function initPed() {
       ? "Dihantar Semula" : record?.status || (schoolAccount ? schoolOutgoing ? "" : meta.defaultStatus : "");
     refreshPedPicker(statusSelect);
     setPedPickerRequired(statusSelect, true);
+    if (schoolOutgoing && !record) {
+      statusSelect.selectedIndex = 0;
+      statusSelect.value = "";
+      pedPickerStates.get(statusSelect).query = "";
+      refreshPedPicker(statusSelect);
+    }
     pedPickerStates.get(statusSelect).input.placeholder = schoolOutgoing && !record
       ? "Pilih status sebelum hantar" : "Taip untuk mencari pilihan…";
 
