@@ -179,6 +179,11 @@ body[data-page="dashboard"] :is(#file-list, #file-archive) .file-volume {
   background: #edf0f6;
   font-weight: 600;
 }
+body[data-page="dashboard"] :is(#file-list, #file-archive) .file-letter-number {
+  color: #626c7e;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
 body[data-page="dashboard"] :is(#file-list, #file-archive) .record-title {
   color: #293750;
   font-size: .88rem;

@@ -37,6 +37,7 @@ let session;
 let currentUser;
 const state = {
   files: [],
+  pedFileLetterNumbers: new Map(),
   lastMovementDates: new Map(),
   agencies: [],
   staffUsers: [],
@@ -627,6 +628,56 @@ async function loadFiles() {
   state.files = rows.map(mapFile);
 }
 
+function normalizePedFileReference(value) {
+  const normalized = normalizeRecipientName(value);
+  const volume = normalized.match(/\s*\(jilid\s+([^)]+)\)\s*$/i);
+  if (!volume) return normalized;
+  const reference = normalized.slice(0, volume.index).trim();
+  const code = reference.match(/^\d+(?:[-/]\d+)+/);
+  return `${code?.[0] || reference}|${volume[1].trim()}`;
+}
+
+async function loadLatestPedFileLetterNumbers() {
+  const columns = "id,owner_id,school_id,category,reference_number,office_reference_file,office_reference_letter_number,registry_file_number,registry_file_letter_number,created_at";
+  const legacyColumns = columns.replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
+  const rows = [];
+  let offset = 0;
+  let selectedColumns = columns;
+  const pageSize = 1000;
+  while (true) {
+    let page;
+    try {
+      page = await rest("ped_correspondence", `select=${selectedColumns}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}`);
+    } catch (error) {
+      if (selectedColumns !== columns || !/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
+      selectedColumns = legacyColumns;
+      page = await rest("ped_correspondence", `select=${selectedColumns}&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}`);
+    }
+    if (!page?.length) break;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    offset += page.length;
+  }
+
+  const latest = new Map();
+  const add = (ownerId, reference, letterNumber) => {
+    const fileReference = normalizePedFileReference(reference);
+    const number = String(letterNumber || "").trim();
+    if (!ownerId || !fileReference || !number) return;
+    const key = `${ownerId}|${fileReference}`;
+    if (!latest.has(key)) latest.set(key, number);
+  };
+  rows.forEach(row => {
+    add(row.owner_id, row.registry_file_number, row.registry_file_letter_number);
+    add(row.owner_id, row.office_reference_file, row.office_reference_letter_number);
+    if (row.category === "outgoing" || (row.category === "school_in" && row.school_id === row.owner_id)) {
+      const outgoingReference = splitPedOutgoingReference(row.reference_number);
+      add(row.owner_id, outgoingReference.fileReference, outgoingReference.letterNumber);
+    }
+  });
+  state.pedFileLetterNumbers = latest;
+}
+
 async function loadLastMovementDates() {
   const rows = await rest("movements", "select=file_id,moved_at&order=moved_at.desc,created_at.desc,id.desc");
   const dates = new Map();
@@ -1118,7 +1169,13 @@ async function initLogin() {
 
 async function initDashboard() {
   if (!await initShell()) return;
-  await Promise.all([loadSettings(), loadFiles(), loadLastMovementDates(), loadAgencies(), loadRecipientUsers()]);
+  await Promise.all([
+    loadSettings(), loadFiles(), loadLastMovementDates(), loadAgencies(), loadRecipientUsers(),
+    loadLatestPedFileLetterNumbers().catch(error => {
+      state.pedFileLetterNumbers = new Map();
+      console.warn("Nombor surat PeD untuk paparan fail tidak dapat dimuatkan.", error);
+    })
+  ]);
   const body = document.querySelector("#fileRows");
   const archiveBody = document.querySelector("#archiveRows");
   const search = document.querySelector("#searchFile");
@@ -1249,6 +1306,9 @@ async function initDashboard() {
       const parts = reference.match(/^(\d+(?:[-/]\d+)+)\s*(.*)$/);
       const code = parts && parts[2] ? parts[1] : "";
       const title = code ? parts[2] : reference;
+      const latestLetterNumber = state.pedFileLetterNumbers.get(
+        `${file.ownerId}|${normalizePedFileReference(`${file.transaksi} (Jilid ${file.jilid})`)}`
+      );
       const dateIcon = "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z";
       const dateElement = date => create("div", { className: "file-date" }, [
         tableIcon(dateIcon),
@@ -1269,7 +1329,8 @@ async function initDashboard() {
         create("td", {}, [
           create("div", { className: "file-reference" }, [
             code ? create("span", { className: "file-code", text: code }) : null,
-            create("span", { className: "file-volume", text: `Jilid ${file.jilid}` })
+            create("span", { className: "file-volume", text: `Jilid ${file.jilid}` }),
+            latestLetterNumber ? create("span", { className: "file-letter-number", text: `(No. Surat ${latestLetterNumber})` }) : null
           ]),
           create("div", { className: "record-title", text: title }),
           create("div", { className: "record-meta", text: file.subAktiviti })
