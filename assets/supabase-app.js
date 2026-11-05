@@ -3440,12 +3440,12 @@ async function initPed() {
       ? state.files.find(file => normalizeFileReference(`${file.transaksi} (Jilid ${file.jilid})`) === normalizeFileReference(payload.registry_file_number))
       : null;
     if (officeAssignmentChanged && !payload.registry_file_number) {
-      toast("Pilih fail jabatan", "Pilih Tindakan Registri (No Fail Jabatan) supaya pergerakan fail dapat direkodkan kepada pegawai.", "error");
+      toast("Pilih No. Fail Rujukan", "Pilih No. Fail Rujukan supaya pergerakan fail dapat direkodkan kepada pegawai.", "error");
       pedPickerStates.get(registryFileNumberSelect).input.focus();
       return;
     }
     if (officeAssignmentChanged && !assignedMovementFile) {
-      toast("Fail tidak ditemui", "Fail yang dipilih tidak sepadan dengan Daftar Fail Pejabat. Pilih semula No Fail Jabatan.", "error");
+      toast("Fail tidak ditemui", "Fail yang dipilih tidak sepadan dengan Daftar Fail Pejabat. Pilih semula No. Fail Rujukan.", "error");
       pedPickerStates.get(registryFileNumberSelect).input.focus();
       return;
     }
