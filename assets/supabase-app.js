@@ -2577,9 +2577,6 @@ async function initPed() {
   const officeAccount = user.role === "agency" && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY") === "pejabat";
   const canDeletePedRecord = record => {
     if (!record) return false;
-    const schoolLetterLocked = schoolAccount && record.category === "school_in"
-      && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
-    if (schoolLetterLocked) return false;
     if (user.role === "admin") return record.category !== "school_received";
     if (record.ownerId === user.id) return true;
     return officeAccount && record.category === "school_in" && record.officeId === user.id;
@@ -3230,7 +3227,7 @@ async function initPed() {
     dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     submitButton.classList.toggle("hidden", Boolean(viewOnly));
-    deleteRecordButton.classList.toggle("hidden", !canDeletePedRecord(record) || Boolean(viewOnly));
+    deleteRecordButton.classList.toggle("hidden", !canDeletePedRecord(record));
     showModal("#pedModal");
   };
 
