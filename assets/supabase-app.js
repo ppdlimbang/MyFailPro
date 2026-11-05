@@ -2575,6 +2575,15 @@ async function initPed() {
   document.querySelector("#pedWorkspace").classList.remove("hidden");
   const schoolAccount = user.role === "agency" && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY") === "sekolah";
   const officeAccount = user.role === "agency" && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms-MY") === "pejabat";
+  const canDeletePedRecord = record => {
+    if (!record) return false;
+    const schoolLetterLocked = schoolAccount && record.category === "school_in"
+      && (record.ownerId !== user.id || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+    if (schoolLetterLocked) return false;
+    if (user.role === "admin") return record.category !== "school_received";
+    if (record.ownerId === user.id) return true;
+    return officeAccount && record.category === "school_in" && record.officeId === user.id;
+  };
   const activeCategories = schoolAccount ? ["school_received", "school_in"] : ["agency_in", "school_in", "outgoing"];
   document.querySelectorAll("[data-ped-section]").forEach(section => {
     section.classList.toggle("hidden", !activeCategories.includes(section.dataset.pedSection));
@@ -3075,7 +3084,7 @@ async function initPed() {
             remove.removeAttribute("aria-busy");
           }
         });
-        const canDelete = !schoolLetterLocked && (user.role === "admin" || record.ownerId === user.id);
+        const canDelete = canDeletePedRecord(record);
         const party = schoolAccount && category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
           : record.correspondent;
@@ -3221,8 +3230,7 @@ async function initPed() {
     dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     submitButton.classList.toggle("hidden", Boolean(viewOnly));
-    deleteRecordButton.classList.toggle("hidden", !record || Boolean(viewOnly)
-      || !(user.role === "admin" || record.ownerId === user.id));
+    deleteRecordButton.classList.toggle("hidden", !canDeletePedRecord(record) || Boolean(viewOnly));
     showModal("#pedModal");
   };
 
