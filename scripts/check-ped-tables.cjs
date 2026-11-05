@@ -16,7 +16,9 @@ assert(browserPath, 'Set PED_BROWSER to an installed Chromium browser.');
 let scenario = 'office';
 const userId = 'preview-user';
 const profile = () => ({ id: userId, name: 'Akaun Pratonton', email: 'preview@example.test',
-  role: scenario === 'admin' ? 'admin' : 'agency', agency_type: scenario === 'school' ? 'Sekolah' : 'Pejabat', ped_office_id: 'preview-office' });
+  role: scenario === 'admin' ? 'admin' : 'agency',
+  agency_type: scenario === 'school' ? 'Sekolah' : scenario === 'agency' ? 'Agensi' : 'Pejabat',
+  ped_office_id: 'preview-office' });
 const record = (category, index, extras = {}) => ({
   id: `${category}-${index}`, owner_id: userId, school_id: userId, office_id: 'preview-office', category,
   correspondence_date: '2026-11-03', created_at: `2026-11-03T00:${String(index).padStart(2, '0')}:00Z`,
@@ -105,7 +107,7 @@ let browser;
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('Network.enable');
   await cdp.send('Network.setBlockedURLs', { urls: ['https://*'] });
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `sessionStorage.setItem('myfailpro_supabase_session',JSON.stringify({access_token:'preview',user:{id:'${userId}'}}));` });
-  for (const role of ['office', 'admin', 'school', 'paging']) {
+  for (const role of ['office', 'agency', 'admin', 'school', 'paging']) {
     scenario = role;
     for (const width of role === 'paging' ? [1440] : [1440, 900, 390, 320]) {
       await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false });
