@@ -11,3 +11,7 @@ node_modules/
 
 # Local backups are not deployed or committed
 MyFailPro.original.html
+
+# Old standalone PeD project (its own repository) and local browser-test output
+/PeD SYSTEM/
+.playwright-mcp/

@@ -8,9 +8,9 @@
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
   <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-07">
-  <link rel="stylesheet" href="assets/ped.css?v=20261106-03">
+  <link rel="stylesheet" href="assets/ped.css?v=20261106-04">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261106-03" defer></script>
+  <script src="assets/supabase-app.js?v=20261106-04" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -83,13 +83,13 @@
           <label class="ped-filter-field"><span>Status</span><select class="input" id="pedStatusFilter"><option value="">Semua status</option><option>Baru</option><option>Dalam Tindakan</option><option>Selesai</option></select></label>
           <label class="ped-filter-field"><span>Tarikh dari</span><input class="input" id="pedDateFrom" type="date"></label>
           <label class="ped-filter-field"><span>Tarikh hingga</span><input class="input" id="pedDateTo" type="date"></label>
-          <button class="button secondary small" id="pedClearFilters" type="button">Kosongkan tapisan</button>
-        </div>
-        <div class="ped-advanced-row">
-          <button class="ped-advanced-toggle" id="pedAdvancedToggle" type="button" aria-expanded="false" aria-controls="pedAdvancedFilters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Tapisan lanjut</span><span class="ped-advanced-count hidden" id="pedAdvancedCount">0</span></button>
+          <div class="ped-filter-actions">
+            <button class="ped-advanced-toggle" id="pedAdvancedToggle" type="button" aria-expanded="false" aria-controls="pedAdvancedFilters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Tapisan lanjut</span><span class="ped-advanced-count hidden" id="pedAdvancedCount">0</span></button>
+            <button class="button secondary small" id="pedClearFilters" type="button">Kosongkan tapisan</button>
+          </div>
         </div>
         <div class="ped-advanced-filters hidden" id="pedAdvancedFilters" role="group" aria-label="Tapisan lanjut">
-          <label class="ped-filter-field"><span>Sektor</span><select class="input" id="pedFilterSectors" multiple></select></label>
+          <label class="ped-filter-field" data-ped-filter-scope="office"><span>Sektor</span><select class="input" id="pedFilterSectors" multiple></select></label>
           <label class="ped-filter-field"><span>Untuk Tindakan / Pegawai</span><select class="input" id="pedFilterOfficers" multiple></select></label>
           <label class="ped-filter-field" data-ped-filter-scope="office"><span>Sekolah</span><select class="input" id="pedFilterSchools" multiple></select></label>
           <label class="ped-filter-field" data-ped-filter-scope="office"><span>Kaedah Penghantaran</span><select class="input" id="pedFilterDeliveryMethods" multiple></select></label>
@@ -189,7 +189,6 @@
       <div class="field hidden" data-ped-category-fields="outgoing"><label for="pedOriginSector">Daripada Sektor</label><select class="input" id="pedOriginSector"></select></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedDeliveryMethods">Kaedah Penghantaran Surat</label><select class="input ped-multi-select" id="pedDeliveryMethods" multiple size="4"></select><span class="field-hint">Pilih satu atau lebih kaedah.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedOutgoingNotes">Catatan</label><textarea class="input" id="pedOutgoingNotes" rows="3"></textarea></div>
-      <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedSector">Sektor</label><input class="input" id="pedSchoolReceivedSector" placeholder="Sektor penerima"></div>
       <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedOfficer">Untuk Tindakan / Nama Pegawai</label><select class="input" id="pedSchoolReceivedOfficer"><option value="">Pilih pegawai</option></select></div>
       <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedFile">No. Fail Rujukan</label><input class="input" id="pedSchoolReceivedFile"></div>
       <div class="field span-2 hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedNotes">Catatan Guru Besar/Pengetua</label><textarea class="input" id="pedSchoolReceivedNotes" rows="3"></textarea></div>

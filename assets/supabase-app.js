@@ -378,7 +378,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Keep the PeD entry point aligned with the current role-aware workflow.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261106-03");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261106-04");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -3096,8 +3096,8 @@ async function initPed() {
     const picker = {
       input, selected, menu, multiple, required,
       status: select.id === "pedStatus" || select.id === "pedStatusFilter",
-      // Filter-bar pickers show their choice inside the field so the row stays aligned.
-      inlineValue: select.id === "pedStatusFilter",
+      // Status dropdowns show the chosen status inside the field, like a native select.
+      inlineValue: select.id === "pedStatus" || select.id === "pedStatusFilter",
       open: false,
       query: "",
       renderMenu() {
@@ -3161,6 +3161,15 @@ async function initPed() {
       }
     };
     pedPickerStates.set(select, picker);
+    // Status is a fixed list: a plain dropdown with no typing and no phone keyboard.
+    if (picker.status) {
+      wrapper.classList.add("ped-picker-dropdown");
+      input.type = "text";
+      input.setAttribute("inputmode", "none");
+      input.setAttribute("aria-autocomplete", "none");
+      ["beforeinput", "paste", "drop"].forEach(type => input.addEventListener(type, event => event.preventDefault()));
+      input.addEventListener("click", () => { if (!picker.open) picker.show(); });
+    }
     input.addEventListener("focus", () => {
       picker.query = "";
       input.value = "";
@@ -3289,7 +3298,7 @@ async function initPed() {
   const advancedFileInput = document.querySelector("#pedFilterFileNumber");
   const advancedNotesInput = document.querySelector("#pedFilterNotes");
   const advancedFilters = () => ({
-    sectors: selectedValues("#pedFilterSectors").map(normalizeRecipientName),
+    sectors: schoolAccount ? [] : selectedValues("#pedFilterSectors").map(normalizeRecipientName),
     officers: selectedValues("#pedFilterOfficers").map(normalizeRecipientName),
     schools: schoolAccount ? [] : selectedValues("#pedFilterSchools").map(normalizeRecipientName),
     deliveryMethods: schoolAccount ? [] : selectedValues("#pedFilterDeliveryMethods").map(normalizeRecipientName),
@@ -3570,7 +3579,7 @@ async function initPed() {
       refreshPedPicker(statusSelect);
     }
     pedPickerStates.get(statusSelect).input.placeholder = schoolOutgoing && !record
-      ? "Pilih status sebelum hantar" : !record ? "Pilih status surat" : "Taip untuk mencari pilihan…";
+      ? "Pilih status sebelum hantar" : "Pilih status surat";
 
     document.querySelectorAll("[data-ped-category-fields]").forEach(field => {
       field.classList.toggle("hidden", field.dataset.pedCategoryFields !== category || schoolOutgoing);
@@ -3592,7 +3601,6 @@ async function initPed() {
     setMultiValues(deliveryMethodsSelect, record?.deliveryMethods || []);
     document.querySelector("#pedOutgoingNotes").value = category === "outgoing" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolReceivedNotes").value = category === "school_received" ? record?.notes || "" : "";
-    document.querySelector("#pedSchoolReceivedSector").value = category === "school_received" ? record?.schoolSector || "" : "";
     setSelectValue(document.querySelector("#pedSchoolReceivedOfficer"), category === "school_received" ? record?.assignedTo || "" : "");
     document.querySelector("#pedSchoolReceivedFile").value = category === "school_received" ? record?.registryFileNumber || "" : "";
     pedPickerStates.forEach((picker, select) => refreshPedPicker(select));
@@ -3776,7 +3784,7 @@ async function initPed() {
       department_sectors: category === "agency_in" ? selectedValues("#pedDepartmentSectors") : [],
       assigned_officers: category === "agency_in" ? selectedValues("#pedAssignedOfficers") : [],
       school_sector: category === "school_in" && !schoolAccount ? document.querySelector("#pedSchoolSector").value
-        : category === "school_received" ? document.querySelector("#pedSchoolReceivedSector").value.trim() : "",
+        : category === "school_received" ? existingRecord?.schoolSector || "" : "",
       assigned_to: category === "school_in" && !schoolAccount ? document.querySelector("#pedAssignedTo").value.trim()
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedOfficer").value : "",
       office_reference_file: category === "agency_in" ? officeReferenceFileSelect.value : "",
@@ -4262,7 +4270,7 @@ async function initPed() {
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
     if (category === "outgoing") fields.push(["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
       ["Catatan", record.notes], ["Gambar (Poslaju / Pos Biasa)", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
-    if (category === "school_received") fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
+    if (category === "school_received") fields.push(["Untuk Tindakan / Nama Pegawai", record.assignedTo],
       ["No. Fail Rujukan", record.registryFileNumber], ["Catatan Guru Besar/Pengetua", record.notes]);
     fields.push(["Tarikh Didaftarkan", formatDate(record.createdAt, true)]);
     return fields;

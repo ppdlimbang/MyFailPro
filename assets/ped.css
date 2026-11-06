@@ -450,8 +450,10 @@ body:not([data-page="login"]) .nav a[data-ped-nav] {
 }
 
 /* Tapisan lanjut — collapsible extra filters under the main filter bar. */
-.ped-advanced-row { display: flex; align-items: center; justify-content: flex-start; margin-top: -14px; }
-.ped-advanced-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--border-blue); border-radius: 10px; color: var(--purple); background: var(--lavender); font: inherit; font-size: .74rem; font-weight: 750; cursor: pointer; }
+/* "Tapisan lanjut" sits above "Kosongkan tapisan" in the last column of the filter row. */
+.ped-filter-actions { display: grid; gap: 8px; min-width: 0; }
+.ped-filter-actions .button { white-space: nowrap; }
+.ped-advanced-toggle { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 6px 12px; border: 1px solid var(--border-blue); border-radius: 12px; color: var(--purple); background: var(--lavender); font: inherit; font-size: .74rem; font-weight: 750; cursor: pointer; }
 .ped-advanced-toggle:hover { color: var(--purple-deep); border-color: rgba(109, 74, 255, .4); }
 .ped-advanced-toggle:focus-visible { outline: 2px solid #7655ca; outline-offset: 2px; }
 .ped-advanced-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -499,8 +501,8 @@ body:not([data-page="login"]) .nav a[data-ped-nav] {
   .ped-advanced-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
-  .ped-advanced-row { margin-top: -6px; }
-  .ped-advanced-toggle { width: 100%; justify-content: center; }
+  .ped-filter-actions { grid-template-columns: 1fr 1fr; align-items: stretch; }
+  .ped-filter-actions .button { width: 100%; }
   .ped-advanced-filters { grid-template-columns: 1fr; margin-top: -4px; padding: 12px; }
   .ped-view-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); width: 100%; }
   .ped-view-tab { padding: 8px 6px; font-size: .74rem; }
@@ -533,4 +535,15 @@ body:not([data-page="login"]) .nav a[data-ped-nav] {
 }
 @media (max-width: 900px) {
   body[data-page="ped"] .ped-panel-actions > .ped-count + .button { margin-left: auto; }
+}
+
+/* Status pickers are plain dropdowns: click or tap to choose, no typing. */
+body[data-page="ped"] .ped-picker-dropdown .ped-picker-search {
+  padding-right: 42px;
+  cursor: pointer;
+  caret-color: transparent;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center / 18px;
+}
+body[data-page="ped"] .ped-picker-dropdown.is-open .ped-picker-search {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d4aff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E");
 }
