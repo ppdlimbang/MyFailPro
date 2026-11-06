@@ -8,9 +8,9 @@
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
   <link rel="stylesheet" href="assets/styles.css?v=20261102-01">
   <link rel="stylesheet" href="assets/navigation.css?v=20261102-07">
-  <link rel="stylesheet" href="assets/ped.css?v=20261105-11">
+  <link rel="stylesheet" href="assets/ped.css?v=20261106-03">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261105-19" defer></script>
+  <script src="assets/supabase-app.js?v=20261106-03" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -85,31 +85,68 @@
           <label class="ped-filter-field"><span>Tarikh hingga</span><input class="input" id="pedDateTo" type="date"></label>
           <button class="button secondary small" id="pedClearFilters" type="button">Kosongkan tapisan</button>
         </div>
+        <div class="ped-advanced-row">
+          <button class="ped-advanced-toggle" id="pedAdvancedToggle" type="button" aria-expanded="false" aria-controls="pedAdvancedFilters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Tapisan lanjut</span><span class="ped-advanced-count hidden" id="pedAdvancedCount">0</span></button>
+        </div>
+        <div class="ped-advanced-filters hidden" id="pedAdvancedFilters" role="group" aria-label="Tapisan lanjut">
+          <label class="ped-filter-field"><span>Sektor</span><select class="input" id="pedFilterSectors" multiple></select></label>
+          <label class="ped-filter-field"><span>Untuk Tindakan / Pegawai</span><select class="input" id="pedFilterOfficers" multiple></select></label>
+          <label class="ped-filter-field" data-ped-filter-scope="office"><span>Sekolah</span><select class="input" id="pedFilterSchools" multiple></select></label>
+          <label class="ped-filter-field" data-ped-filter-scope="office"><span>Kaedah Penghantaran</span><select class="input" id="pedFilterDeliveryMethods" multiple></select></label>
+          <label class="ped-filter-field"><span>No. Fail Rujukan</span><input class="input" id="pedFilterFileNumber" type="search" placeholder="Cari no. fail rujukan atau registri" autocomplete="off"></label>
+          <label class="ped-filter-field"><span>Catatan</span><input class="input" id="pedFilterNotes" type="search" placeholder="Cari dalam catatan" autocomplete="off"></label>
+        </div>
       </div>
     </section>
 
-    <div class="ped-table-stack">
+    <nav class="ped-view-tabs" role="tablist" aria-label="Paparan rekod PeD">
+      <button class="ped-view-tab" type="button" role="tab" id="pedViewTabList" data-ped-view="list" aria-selected="true" aria-controls="pedListView">Senarai Surat</button>
+      <button class="ped-view-tab" type="button" role="tab" id="pedViewTabHistory" data-ped-view="history" aria-selected="false" aria-controls="pedHistoryView" tabindex="-1">Sejarah</button>
+      <button class="ped-view-tab" type="button" role="tab" id="pedViewTabSchools" data-ped-view="schools" aria-selected="false" aria-controls="pedSchoolsView" tabindex="-1">Surat Sekolah</button>
+    </nav>
+
+    <div class="ped-table-stack" id="pedListView" role="tabpanel" aria-labelledby="pedViewTabList">
       <section class="panel ped-panel" data-ped-section="agency_in" aria-labelledby="pedAgencyTitle">
-        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon agency" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span><div class="panel-title"><h2 id="pedAgencyTitle">Surat Masuk Jabatan dan Agensi</h2><p>Surat rasmi yang diterima daripada jabatan atau agensi luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="agency_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="agency_in">Tambah Rekod</button></div></div>
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon agency" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h2M13 11h2M9 15h2M13 15h2"/></svg></span><div class="panel-title"><h2 id="pedAgencyTitle">Surat Masuk Jabatan dan Agensi</h2><p>Surat rasmi yang diterima daripada jabatan atau agensi luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="agency_in">0</strong> rekod</span><button class="button secondary small" type="button" data-print-ped="agency_in">Cetak PDF</button><button class="button small" type="button" data-add-ped="agency_in">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk jabatan dan agensi"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="agency_in">Tarikh Terima ↓</button></th><th>No. Fail Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="agency_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="agency_in" aria-label="Halaman surat masuk jabatan"><span data-ped-page-info="agency_in">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="agency_in" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="agency_in" data-direction="next">Seterusnya</button></div></nav>
       </section>
 
       <section class="panel ped-panel" data-ped-section="school_in" aria-labelledby="pedSchoolTitle">
-        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><div class="panel-title"><h2 id="pedSchoolTitle">Surat Masuk Sekolah</h2><p id="pedSchoolDescription">Surat rasmi yang diterima daripada sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_in">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_in">Tambah Rekod</button></div></div>
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/></svg></span><div class="panel-title"><h2 id="pedSchoolTitle">Surat Masuk Sekolah</h2><p id="pedSchoolDescription">Surat rasmi yang diterima daripada sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_in">0</strong> rekod</span><button class="button secondary small" type="button" data-print-ped="school_in">Cetak PDF</button><button class="button small" type="button" data-add-ped="school_in">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk sekolah"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="school_in">Tarikh Terima ↓</button></th><th>No. Fail Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="school_in"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="school_in" aria-label="Halaman surat masuk sekolah"><span data-ped-page-info="school_in">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="school_in" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="school_in" data-direction="next">Seterusnya</button></div></nav>
       </section>
 
       <section class="panel ped-panel" data-ped-section="outgoing" aria-labelledby="pedOutgoingTitle">
-        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span><div class="panel-title"><h2 id="pedOutgoingTitle">Surat Keluar</h2><p>Surat rasmi yang dihantar kepada penerima luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="outgoing">0</strong> rekod</span><button class="button small" type="button" data-add-ped="outgoing">Tambah Rekod</button></div></div>
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6M16 4h4v4"/></svg></span><div class="panel-title"><h2 id="pedOutgoingTitle">Surat Keluar</h2><p>Surat rasmi yang dihantar kepada penerima luar.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="outgoing">0</strong> rekod</span><button class="button secondary small" type="button" data-print-ped="outgoing">Cetak PDF</button><button class="button small" type="button" data-add-ped="outgoing">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat keluar"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="outgoing">Tarikh Surat ↓</button></th><th>No. Fail Rujukan</th><th>Kepada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="outgoing"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="outgoing" aria-label="Halaman surat keluar"><span data-ped-page-info="outgoing">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="outgoing" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="outgoing" data-direction="next">Seterusnya</button></div></nav>
       </section>
       <section class="panel ped-panel hidden" data-ped-section="school_received" aria-labelledby="pedSchoolReceivedTitle">
-        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6"/></svg></span><div class="panel-title"><h2 id="pedSchoolReceivedTitle">Surat Masuk</h2><p>Daftar surat yang diterima oleh sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_received">0</strong> rekod</span><button class="button small" type="button" data-add-ped="school_received">Tambah Rekod</button></div></div>
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon outgoing" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6"/></svg></span><div class="panel-title"><h2 id="pedSchoolReceivedTitle">Surat Masuk</h2><p>Daftar surat yang diterima oleh sekolah.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong data-ped-count="school_received">0</strong> rekod</span><button class="button secondary small" type="button" data-print-ped="school_received">Cetak PDF</button><button class="button small" type="button" data-add-ped="school_received">Tambah Rekod</button></div></div>
         <div class="table-wrap" tabindex="0" aria-label="Jadual surat masuk sekolah"><table><thead><tr><th><button class="ped-sort-button" type="button" data-ped-sort="school_received">Tarikh Terima ↓</button></th><th>No. Fail Rujukan</th><th>Daripada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody data-ped-rows="school_received"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
         <nav class="ped-pagination" data-ped-pagination="school_received" aria-label="Halaman surat masuk sekolah"><span data-ped-page-info="school_received">0 rekod</span><div><button class="button secondary small" type="button" data-ped-page="school_received" data-direction="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-page="school_received" data-direction="next">Seterusnya</button></div></nav>
+      </section>
+    </div>
+
+    <div class="ped-table-stack hidden" id="pedHistoryView" role="tabpanel" aria-labelledby="pedViewTabHistory">
+      <section class="panel ped-panel" aria-labelledby="pedHistoryTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></span><div class="panel-title"><h2 id="pedHistoryTitle">Sejarah Surat</h2><p id="pedHistoryDescription">Semua surat masuk dan surat keluar dalam satu senarai mengikut tarikh.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong id="pedHistoryCount">0</strong> rekod</span><button class="button secondary small" type="button" id="pedHistoryPrint">Cetak PDF</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual sejarah surat"><table><thead><tr><th><button class="ped-sort-button" type="button" id="pedHistorySort">Tarikh ↓</button></th><th>No. Fail Rujukan</th><th>Daripada / Kepada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="pedHistoryRows"><tr class="ped-empty-row"><td colspan="6">Memuatkan rekod…</td></tr></tbody></table></div>
+        <nav class="ped-pagination" aria-label="Halaman sejarah surat"><span id="pedHistoryPageInfo">0 rekod</span><div><button class="button secondary small" type="button" data-ped-history-page="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-history-page="next">Seterusnya</button></div></nav>
+      </section>
+    </div>
+
+    <div class="ped-table-stack hidden" id="pedSchoolsView" role="tabpanel" aria-labelledby="pedViewTabSchools">
+      <section class="panel ped-panel" id="pedSchoolDirectory" aria-labelledby="pedSchoolDirectoryTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><span class="ped-panel-icon school" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3V7Z"/><path d="M3 10h18"/></svg></span><div class="panel-title"><h2 id="pedSchoolDirectoryTitle">Surat Sekolah</h2><p>Pilih sekolah untuk melihat semua surat masuk dan surat keluar yang berkaitan dengannya.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong id="pedSchoolDirectoryCount">0</strong> sekolah</span></div></div>
+        <div class="ped-school-grid" id="pedSchoolGrid"></div>
+      </section>
+      <section class="panel ped-panel hidden" id="pedSchoolDetail" aria-labelledby="pedSchoolDetailTitle">
+        <div class="panel-head"><div class="ped-panel-heading"><button class="ped-back-button" type="button" id="pedSchoolBack" aria-label="Kembali ke senarai sekolah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><div class="panel-title"><h2 id="pedSchoolDetailTitle">Sekolah</h2><p>Surat masuk daripada sekolah dan surat keluar kepada sekolah ini.</p></div></div><div class="ped-panel-actions"><span class="ped-count"><strong id="pedSchoolDetailCount">0</strong> rekod</span><button class="button secondary small" type="button" id="pedSchoolPrint">Cetak PDF</button></div></div>
+        <div class="table-wrap" tabindex="0" aria-label="Jadual surat sekolah"><table><thead><tr><th><button class="ped-sort-button" type="button" id="pedSchoolSort">Tarikh ↓</button></th><th>No. Fail Rujukan</th><th>Daripada / Kepada</th><th>Perkara</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="pedSchoolRows"></tbody></table></div>
+        <nav class="ped-pagination" aria-label="Halaman surat sekolah"><span id="pedSchoolPageInfo">0 rekod</span><div><button class="button secondary small" type="button" data-ped-school-page="previous">Sebelumnya</button><button class="button secondary small" type="button" data-ped-school-page="next">Seterusnya</button></div></nav>
       </section>
     </div>
     </div>
@@ -159,7 +196,7 @@
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedAttachment">Gambar (Poslaju / Pos Biasa)</label><input class="input ped-file-input" id="pedAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"><span class="field-hint" id="pedAttachmentName">Lampiran pilihan, maksimum 20 MB.</span><div class="ped-attachment-actions"><button class="button secondary small hidden" type="button" id="pedViewAttachment">Lihat gambar semasa</button><button class="button secondary small hidden" type="button" id="pedClearAttachment">Buang gambar semasa</button></div></div>
 
       <div class="field span-2"><label for="pedStatus">Status</label><select class="input" id="pedStatus" name="status"></select></div>
-      <div class="form-actions span-2"><button class="button danger hidden" id="pedDeleteRecord" type="button">Padam Surat</button><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Rekod</button></div>
+      <div class="form-actions span-2"><button class="button danger hidden" id="pedDeleteRecord" type="button">Padam Surat</button><button class="button secondary hidden" id="pedPrintRecord" type="button">Cetak PDF</button><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Rekod</button></div>
     </div>
   </form>
 </div>

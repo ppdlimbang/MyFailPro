@@ -448,3 +448,89 @@ body:not([data-page="login"]) .nav a[data-ped-nav] {
   body[data-page="ped"] .ped-panel .ped-empty-row td { padding: 14px 4px; text-align: center; }
   .ped-pagination { padding: 12px 18px; }
 }
+
+/* Tapisan lanjut — collapsible extra filters under the main filter bar. */
+.ped-advanced-row { display: flex; align-items: center; justify-content: flex-start; margin-top: -14px; }
+.ped-advanced-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--border-blue); border-radius: 10px; color: var(--purple); background: var(--lavender); font: inherit; font-size: .74rem; font-weight: 750; cursor: pointer; }
+.ped-advanced-toggle:hover { color: var(--purple-deep); border-color: rgba(109, 74, 255, .4); }
+.ped-advanced-toggle:focus-visible { outline: 2px solid #7655ca; outline-offset: 2px; }
+.ped-advanced-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.ped-advanced-toggle[aria-expanded="true"] { color: #fff; border-color: transparent; background: linear-gradient(120deg, #6d4aff, #7c3aed); }
+.ped-advanced-count { display: inline-grid; min-width: 20px; height: 20px; padding: 0 6px; place-items: center; border-radius: 99px; color: #fff; background: var(--purple); font-size: .66rem; font-variant-numeric: tabular-nums; }
+.ped-advanced-toggle[aria-expanded="true"] .ped-advanced-count { color: var(--purple); background: #fff; }
+.ped-advanced-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px 14px; margin-top: -10px; padding: 16px; border: 1px solid #ecebf4; border-radius: 16px; background: #fbfaff; }
+.ped-advanced-filters .ped-filter-field .input { font-size: .86rem; font-weight: 500; }
+
+/* View tabs: Senarai Surat, Sejarah and Surat Sekolah. */
+.ped-view-tabs { display: inline-flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; padding: 6px; border: 1px solid rgba(255, 255, 255, .62); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); backdrop-filter: blur(22px) saturate(135%); -webkit-backdrop-filter: blur(22px) saturate(135%); }
+.ped-view-tab { min-height: 40px; padding: 8px 18px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.ped-view-tab:hover { color: var(--purple-deep); background: var(--lavender); }
+.ped-view-tab:focus-visible { outline: 2px solid #7655ca; outline-offset: 2px; }
+.ped-view-tab[aria-selected="true"] { color: #fff; background: linear-gradient(120deg, #6d4aff, #7c3aed); box-shadow: 0 8px 18px rgba(109, 74, 255, .24); }
+
+/* Letter type tag shown under the date in the combined tables. */
+.ped-cell-date .ped-category-chip { display: block; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 7px; font-size: .64rem; font-weight: 750; line-height: 1.5; white-space: normal; }
+.ped-category-agency_in { color: #5b21b6; background: #f1eaff; }
+.ped-category-school_in { color: #087f6c; background: #e2f6f0; }
+.ped-category-outgoing { color: #b4470c; background: #fff0e2; }
+.ped-category-school_received { color: #3f4fbf; background: #eceffd; }
+
+/* Surat Sekolah folder grid. */
+.ped-school-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; padding: 20px 24px 24px; }
+.ped-school-card { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 84px; padding: 14px 16px; border: 1px solid #e7e5f0; border-radius: 16px; color: inherit; background: #fff; font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.ped-school-card:hover { border-color: #cfc5f6; box-shadow: 0 10px 24px rgba(91, 33, 182, .08); transform: translateY(-1px); }
+.ped-school-card:focus-visible { outline: 2px solid #7655ca; outline-offset: 2px; }
+.ped-school-card-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 13px; color: #087f6c; background: #e2f6f0; }
+.ped-school-card-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.ped-school-card-copy { display: grid; gap: 2px; min-width: 0; }
+.ped-school-card-copy strong { color: #2d2f45; font-size: .84rem; line-height: 1.4; overflow-wrap: anywhere; }
+.ped-school-card-copy span { color: #73758a; font-size: .72rem; }
+.ped-school-card-badge { grid-column: 2; width: fit-content; padding: 2px 8px; border: 1px solid #b9e5f2; border-radius: 99px; color: #087da1; background: #eaf9ff; font-size: .64rem; font-weight: 750; }
+.ped-school-empty { grid-column: 1 / -1; padding: 26px 12px; }
+.ped-back-button { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border: 1px solid var(--border-blue); border-radius: 13px; color: var(--blue); background: var(--lavender); cursor: pointer; }
+.ped-back-button:hover { color: #fff; background: var(--blue); }
+.ped-back-button:focus-visible { outline: 2px solid #7655ca; outline-offset: 2px; }
+.ped-back-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Print and receipt actions share the header and row action space. */
+@media (min-width: 761px) { body[data-page="ped"] .ped-panel table:has(.ped-receive-button) :is(th, td):nth-child(6) { width: 280px; } }
+
+@media (max-width: 900px) {
+  .ped-advanced-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .ped-advanced-row { margin-top: -6px; }
+  .ped-advanced-toggle { width: 100%; justify-content: center; }
+  .ped-advanced-filters { grid-template-columns: 1fr; margin-top: -4px; padding: 12px; }
+  .ped-view-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); width: 100%; }
+  .ped-view-tab { padding: 8px 6px; font-size: .74rem; }
+  .ped-school-grid { grid-template-columns: 1fr; padding: 14px; }
+}
+@media (max-width: 760px) {
+  body[data-page="ped"] .ped-panel-actions { flex-wrap: wrap; }
+}
+
+/* Cross-browser fallbacks: class twins of the :has() rules above (Firefox < 121,
+   Safari < 15.4), vh before dvh, and no iOS zoom-on-focus in PeD fields. */
+@media (min-width: 761px) { body[data-page="ped"] .ped-panel table.ped-table-has-receive :is(th, td):nth-child(6) { width: 280px; } }
+.ped-reference-modes label.is-checked { border-color: var(--purple); color: var(--purple-deep); background: var(--lavender); }
+@media (max-width: 680px) {
+  .ped-modal-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+}
+@supports (-webkit-touch-callout: none) {
+  body[data-page="ped"] :is(input.input, select.input, textarea.input, .ped-picker-search) { font-size: 16px; }
+}
+
+/* Tables wider than their panel (tablets, 1280px laptops) keep Tindakan pinned
+   to the right edge; on phones the row actions wrap instead of overflowing. */
+@media (min-width: 761px) {
+  body[data-page="ped"] .ped-panel thead th:last-child,
+  body[data-page="ped"] .ped-panel tbody tr:not(.ped-empty-row) > td:last-child { position: sticky; right: 0; z-index: 1; box-shadow: inset 1px 0 0 #eeedf5; }
+  body[data-page="ped"] .ped-panel tbody tr:not(.ped-empty-row) > td:last-child { background: inherit; }
+}
+@media (max-width: 760px) {
+  body[data-page="ped"] .ped-panel .ped-row-actions { flex-wrap: wrap; }
+}
+@media (max-width: 900px) {
+  body[data-page="ped"] .ped-panel-actions > .ped-count + .button { margin-left: auto; }
+}

@@ -117,12 +117,12 @@ let browser;
       assert(ready, `${role} ${width}: page failed to render`);
       await wait(500);
       const metrics = await evaluate(`(() => {
-        const panels=[...document.querySelectorAll('.ped-panel')].filter(p=>!p.classList.contains('hidden'));
+        const panels=[...document.querySelectorAll('.ped-panel')].filter(p=>p.offsetParent&&p.querySelector('.table-wrap'));
         return {pageWidth:document.documentElement.scrollWidth, viewport:innerWidth,
           panels:panels.map(p=>{const w=p.querySelector('.table-wrap');return {verticalOverflow:w.scrollHeight-w.clientHeight};}),
           actionOverflow:[...document.querySelectorAll('.ped-row-actions')].some(a=>a.scrollWidth>a.clientWidth+1),
           actionDataNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-cell-actions')].some(cell=>{const buttons=[...cell.querySelectorAll('button')].map(button=>button.getBoundingClientRect());if(!buttons.length)return false;const bounds=cell.getBoundingClientRect(),groupCenter=(buttons[0].left+buttons[buttons.length-1].right)/2;return Math.abs(groupCenter-(bounds.left+bounds.right)/2)>1.5;}),
-          actionColumnMismatch:innerWidth>640&&[...document.querySelectorAll('.ped-panel table')].filter(table=>table.querySelector('tbody tr:not(.ped-empty-row)')).some(table=>{const width=table.querySelector('th:last-child').getBoundingClientRect().width;return table.querySelector('.ped-receive-button')?Math.abs(width-230)>1.5:Math.abs(width-180)>1.5;}),
+          actionColumnMismatch:innerWidth>640&&[...document.querySelectorAll('.ped-panel table')].filter(table=>table.querySelector('tbody tr:not(.ped-empty-row)')).some(table=>{const width=table.querySelector('th:last-child').getBoundingClientRect().width;return table.querySelector('.ped-receive-button')?Math.abs(width-280)>1.5:Math.abs(width-180)>1.5;}),
           headersNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-panel thead th:nth-child(5),.ped-panel thead th:nth-child(6)')].some(header=>getComputedStyle(header).textAlign!=='center'),
           statusNotCentered:innerWidth>640&&[...document.querySelectorAll('.ped-cell-status')].some(cell=>getComputedStyle(cell).textAlign!=='center'),
           statusOverflow:[...document.querySelectorAll('.ped-cell-status .ped-status')].some(b=>b.getBoundingClientRect().right>b.parentElement.getBoundingClientRect().right-parseFloat(getComputedStyle(b.parentElement).paddingRight)+1),

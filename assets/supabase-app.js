@@ -378,7 +378,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Keep the PeD entry point aligned with the current role-aware workflow.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261105-17");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261106-03");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -806,13 +806,51 @@ async function pedStorageRequest(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+// Phone photos are several MB; delivery proof stays legible at 1600px JPEG.
+// Formats the browser cannot decode (e.g. HEIC outside Safari) upload as-is.
+const pedPhotoMaxDimension = 1600;
+const pedPhotoQuality = 0.8;
+
+// Decoding through an <img> applies the photo's EXIF rotation the same way in
+// Chrome, Firefox and Safari (Safari also decodes iPhone HEIC this way).
+async function shrinkPedPhoto(file) {
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type || "")) return file;
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    try { await image.decode(); }
+    catch { return file; }
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+    if (!width || !height) return file;
+    const scale = Math.min(1, pedPhotoMaxDimension / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", pedPhotoQuality));
+    if (!blob || (scale === 1 && blob.size >= file.size && file.type === "image/jpeg")) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// crypto.randomUUID needs Safari 15.4+ and a secure context; older browsers
+// fall back to 16 random bytes in hex.
+const pedRandomId = () => globalThis.crypto?.randomUUID?.()
+  || [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+
 async function uploadPedAttachment(file) {
-  const extension = file.name.split(".").pop().toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "") || "jpg";
-  const path = `${workspaceOwnerId()}/${crypto.randomUUID()}.${extension}`;
+  const upload = await shrinkPedPhoto(file);
+  const extension = upload.name.split(".").pop().toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${workspaceOwnerId()}/${pedRandomId()}.${extension}`;
   await pedStorageRequest(`object/ped-correspondence/${path.split("/").map(encodeURIComponent).join("/")}`, {
     method: "POST",
-    headers: { "content-type": file.type || "application/octet-stream", "x-upsert": "false" },
-    body: file
+    headers: { "content-type": upload.type || "application/octet-stream", "x-upsert": "false" },
+    body: upload
   });
   return path;
 }
@@ -2672,6 +2710,113 @@ const pedFormOptions = {
   deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL"]
 };
 
+// PeD printouts follow the office's paper log sheets: crest, boxed title,
+// Bil/Perkara/No. Rujukan/Daripada-Kepada/Tarikh table and a signature
+// block. The browser's print dialog saves them as PDF ("Save as PDF").
+// Empty @page margin boxes stop Chrome adding its own date/title/URL lines.
+function escapePrintText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+const pedPrintStyles = `
+@page { size: A4; margin: 16mm 14mm 18mm; @top-left { content: ""; } @top-center { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-center { content: ""; } @bottom-right { content: ""; } }
+* { box-sizing: border-box; }
+body { margin: 0; color: #000; font: 400 10pt/1.5 Poppins, Inter, "Segoe UI", Arial, sans-serif; background: #fff; }
+.sheet + .sheet { break-before: page; }
+.letterhead { display: grid; grid-template-columns: 34mm 1fr 34mm; align-items: center; gap: 4mm; margin-bottom: 7mm; }
+.letterhead img { width: 34mm; height: auto; }
+.title-box { justify-self: center; width: min(100%, 112mm); padding: 3.4mm 5mm; border: 1.5pt solid #000; text-align: center; font-size: 11.5pt; font-weight: 700; letter-spacing: .02em; line-height: 1.35; }
+.context { margin: 0 0 4mm; font-size: 10.5pt; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th { padding: 2.2mm 2mm; border: .6pt solid #000; color: #000; background: #fff; font-size: 9pt; font-weight: 700; text-align: left; }
+td { padding: 2.2mm 2mm; border: .6pt solid #000; vertical-align: top; font-size: 9pt; overflow-wrap: anywhere; }
+.col-bil { width: 10mm; text-align: center; }
+.col-ref { width: 42mm; }
+.col-party { width: 38mm; }
+.col-date { width: 22mm; text-align: center; white-space: nowrap; }
+.signature { margin-top: 12mm; break-inside: avoid; font-size: 10pt; }
+.signature .line { margin: 11mm 0 2mm; width: 70mm; border-bottom: .8pt solid #000; }
+.empty { padding: 8mm; border: .6pt solid #000; text-align: center; }
+.detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3mm; margin: 0 0 5mm; }
+.detail-category { font-size: 9pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.detail-status { padding: 1mm 3mm; border: .6pt solid #000; font-size: 8.5pt; font-weight: 700; }
+.detail-subject { margin: 0 0 6mm; font-size: 14pt; font-weight: 700; line-height: 1.35; }
+.detail th { width: 52mm; font-weight: 700; }
+.detail td { font-size: 10pt; }
+`;
+
+function pedLetterheadHtml(title) {
+  const crest = new URL("assets/ped-letterhead.png", location.href).href;
+  return `<header class="letterhead"><img src="${escapePrintText(crest)}" alt="Logo Korporat KPM"><div class="title-box">${escapePrintText(title)}</div><span></span></header>`;
+}
+
+function pedLogSheetHtml(section) {
+  const rows = section.rows.map((row, index) => `<tr><td class="col-bil">${index + 1}</td><td>${escapePrintText(row.subject || "-")}</td><td class="col-ref">${escapePrintText(row.reference || "-")}</td><td class="col-party">${escapePrintText(row.counterpart || "-")}</td><td class="col-date">${escapePrintText(row.date ? new Intl.DateTimeFormat("ms-MY", { day: "numeric", month: "numeric", year: "numeric" }).format(new Date(`${row.date}T00:00:00`)) : "-")}</td></tr>`).join("");
+  return `<section class="sheet">${pedLetterheadHtml(section.title)}`
+    + (section.contextValue ? `<p class="context">${escapePrintText(section.contextValue)}</p>` : "")
+    + (section.rows.length
+      ? `<table><thead><tr><th class="col-bil">Bil</th><th>Perkara</th><th class="col-ref">No. Fail Rujukan</th><th class="col-party">${escapePrintText(section.counterpartLabel)}</th><th class="col-date">Tarikh</th></tr></thead><tbody>${rows}</tbody></table>`
+      : `<p class="empty">Tiada rekod surat bagi tapisan ini.</p>`)
+    + `<div class="signature"><div>Disahkan Oleh:</div><div class="line"></div><div>(${"&nbsp;".repeat(64)})</div></div></section>`;
+}
+
+function pedDetailSheetHtml(detail) {
+  const rows = detail.fields.map(([label, value]) => `<tr><th scope="row">${escapePrintText(label)}</th><td>${escapePrintText(value || "-")}</td></tr>`).join("");
+  return `<section class="sheet">${pedLetterheadHtml("BUTIRAN SURAT")}<div class="detail-meta"><span class="detail-category">${escapePrintText(detail.category)}</span><span class="detail-status">${escapePrintText(detail.status || "-")}</span></div><h1 class="detail-subject">${escapePrintText(detail.subject || "-")}</h1><table class="detail"><tbody>${rows}</tbody></table></section>`;
+}
+
+// Safari (desktop and every iOS browser) and phone browsers print the parent
+// page, or nothing, from a hidden iframe, so they print from a new tab instead.
+function pedPrintsInNewTab() {
+  const agent = navigator.userAgent;
+  const appleTouch = /iP(hone|ad|od)/.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
+  const desktopSafari = /Safari\//.test(agent) && !/(Chrome|Chromium|CriOS|FxiOS|EdgiOS|Edg|OPR|OPX|SamsungBrowser|Android)\//.test(agent);
+  return appleTouch || desktopSafari || /Android/.test(agent) || matchMedia("(pointer: coarse)").matches;
+}
+
+async function waitForPrintAssets(printDocument) {
+  const images = [...printDocument.images].map(image => image.complete ? null : new Promise(resolve => { image.onload = image.onerror = resolve; }));
+  await Promise.race([Promise.all([printDocument.fonts?.ready, ...images]), new Promise(resolve => setTimeout(resolve, 4000))]);
+}
+
+async function printPedDocument(documentTitle, sheetsHtml) {
+  const html = `<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapePrintText(documentTitle)}</title>`
+    + `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">`
+    + `<style>${pedPrintStyles}</style></head>`
+    + `<body>${sheetsHtml}</body></html>`;
+  // Opened before the first await so the browser treats it as part of the click.
+  const tab = pedPrintsInNewTab() ? window.open("", "_blank") : null;
+  if (tab) {
+    tab.document.open();
+    tab.document.write(html);
+    tab.document.close();
+    if (tab.document.readyState !== "complete") await new Promise(resolve => tab.addEventListener("load", resolve, { once: true }));
+    await waitForPrintAssets(tab.document);
+    tab.focus();
+    tab.print();
+    return;
+  }
+  document.querySelector("#pedPrintFrame")?.remove();
+  const frame = create("iframe", { id: "pedPrintFrame", title: "Cetakan PeD", "aria-hidden": "true", tabindex: "-1" });
+  // A page-sized frame off screen: some browsers lay out a 0×0 frame's print at that size.
+  frame.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;opacity:0;pointer-events:none";
+  // Wait for the srcdoc page itself, not an initial about:blank load.
+  const loaded = new Promise(resolve => frame.addEventListener("load", function ready() {
+    if (!frame.contentDocument?.querySelector(".sheet")) return;
+    frame.removeEventListener("load", ready);
+    resolve();
+  }));
+  frame.srcdoc = html;
+  document.body.append(frame);
+  await loaded;
+  await waitForPrintAssets(frame.contentDocument);
+  frame.contentWindow.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 1000), { once: true });
+  frame.contentWindow.focus();
+  frame.contentWindow.print();
+}
+
 async function initPed() {
   const shellUser = await initShell();
   if (!shellUser) return;
@@ -2712,6 +2857,17 @@ async function initPed() {
     if (user.role === "admin") return record.category !== "school_received";
     if (record.ownerId === pedOwnerId) return true;
     return officeAccount && record.category === "school_in" && record.officeId === pedOwnerId;
+  };
+  // Row Level Security refuses a delete silently (204, no rows), so ask for the
+  // deleted row back and treat "nothing deleted" as a failure.
+  const deletePedRecord = async record => {
+    const removed = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}&select=id`, {
+      method: "DELETE",
+      headers: { Prefer: "return=representation" }
+    });
+    if (!removed?.length) {
+      throw new Error("Surat ini tidak dipadam kerana pangkalan data menolak akses atau surat telah tiada. Muat semula halaman PeD dan cuba lagi.");
+    }
   };
   const activeCategories = schoolAccount ? ["school_received", "school_in"] : ["agency_in", "school_in", "outgoing"];
   document.querySelectorAll("[data-ped-section]").forEach(section => {
@@ -2793,6 +2949,7 @@ async function initPed() {
   const dateLabel = document.querySelector("#pedDateLabel");
   const submitButton = form.querySelector('button[type="submit"]');
   const deleteRecordButton = document.querySelector("#pedDeleteRecord");
+  const printRecordButton = document.querySelector("#pedPrintRecord");
   const partyTextField = document.querySelector("#pedPartyTextField");
   const partyInput = document.querySelector("#pedCorrespondent");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
@@ -2845,7 +3002,8 @@ async function initPed() {
   ].forEach(([selector, values]) => {
     document.querySelector(selector).replaceChildren(...values.map(value => create("option", { value, text: value })));
   });
-  const allStatuses = [...new Set(Object.values(pedCategoryMeta).flatMap(meta => meta.statuses))];
+  // Only statuses that can occur in this account's own tables are offered.
+  const allStatuses = [...new Set(activeCategories.flatMap(category => pedCategoryMeta[category].statuses))];
   fillSelect(statusFilter, allStatuses, "Semua status");
 
   const pedStatusVisuals = {
@@ -2894,9 +3052,9 @@ async function initPed() {
       });
       if (document.activeElement !== picker.input) picker.input.value = "";
     } else if (document.activeElement !== picker.input) {
-      picker.input.value = picker.status ? "" : selectedOptions[0]?.textContent || "";
+      picker.input.value = picker.status && !picker.inlineValue ? "" : selectedOptions[0]?.textContent || "";
     }
-    if (picker.status && selectedOptions[0]) {
+    if (picker.status && !picker.inlineValue && selectedOptions[0]) {
       const visual = pedStatusVisual(selectedOptions[0].value);
       picker.selected.append(create("span", { className: `ped-status-preview ped-tone-${visual.tone}` }, [
         pedStatusIcon(selectedOptions[0].value),
@@ -2919,7 +3077,8 @@ async function initPed() {
       id: `${select.id}PickerSearch`,
       type: "search",
       role: "combobox",
-      "aria-label": select.labels?.[0]?.textContent.trim() || select.closest("label")?.textContent.trim() || "Pilihan",
+      // A wrapping <label> also contains the option texts, so prefer its caption span.
+      "aria-label": select.closest("label")?.querySelector(":scope > span")?.textContent.trim() || select.labels?.[0]?.textContent.trim() || "Pilihan",
       "aria-autocomplete": "list",
       "aria-haspopup": "listbox",
       "aria-expanded": "false",
@@ -2937,6 +3096,8 @@ async function initPed() {
     const picker = {
       input, selected, menu, multiple, required,
       status: select.id === "pedStatus" || select.id === "pedStatusFilter",
+      // Filter-bar pickers show their choice inside the field so the row stays aligned.
+      inlineValue: select.id === "pedStatusFilter",
       open: false,
       query: "",
       renderMenu() {
@@ -2974,7 +3135,7 @@ async function initPed() {
               select.value = option.value;
               this.query = "";
               this.close();
-              input.value = this.status ? "" : option.textContent;
+              input.value = this.status && !this.inlineValue ? "" : option.textContent;
               select.dispatchEvent(new Event("change", { bubbles: true }));
             }
           });
@@ -3040,7 +3201,33 @@ async function initPed() {
     picker.required = required;
     refreshPedPicker(select);
   };
-  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus").forEach(mountPedPicker);
+  // Tapisan lanjut choices come from this account's own records plus the form lists.
+  const visiblePedRecords = () => state.pedRecords.filter(record => activeCategories.includes(record.category));
+  const recordSectors = record => [...record.departmentSectors, record.schoolSector, record.originSector].filter(Boolean);
+  const recordOfficers = record => [...record.assignedOfficers, record.assignedTo].filter(Boolean);
+  const sortedChoices = values => uniqueRecipientNames(values).sort((first, second) => first.localeCompare(second, "ms"));
+  const fillFilterChoices = (selector, values) => {
+    const select = document.querySelector(selector);
+    const selected = new Set([...select.selectedOptions].map(option => normalizeRecipientName(option.value)));
+    select.replaceChildren(...sortedChoices(values).map(value => create("option", {
+      value, text: value, ...(selected.has(normalizeRecipientName(value)) ? { selected: "selected" } : {})
+    })));
+    refreshPedPicker(select);
+  };
+  const refreshAdvancedChoices = () => {
+    const records = visiblePedRecords();
+    fillFilterChoices("#pedFilterSectors", [...(schoolAccount ? [] : [...pedFormOptions.sectors, ...pedFormOptions.schoolSectors]), ...records.flatMap(recordSectors)]);
+    fillFilterChoices("#pedFilterOfficers", [...recipientDirectoryNames, ...records.flatMap(recordOfficers)]);
+    fillFilterChoices("#pedFilterSchools", [
+      ...(officeAccount ? assignedSchools.map(school => school.name) : pedFormOptions.schools),
+      ...records.filter(record => record.category === "school_in").map(record => record.schoolName || record.correspondent)
+    ]);
+    fillFilterChoices("#pedFilterDeliveryMethods", [...pedFormOptions.deliveryMethods, ...records.flatMap(record => record.deliveryMethods)]);
+  };
+  refreshAdvancedChoices();
+  document.querySelectorAll('[data-ped-filter-scope="office"]').forEach(field => field.classList.toggle("hidden", schoolAccount));
+  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus, #pedFilterSectors, #pedFilterOfficers, #pedFilterSchools, #pedFilterDeliveryMethods").forEach(mountPedPicker);
+  pedPickerStates.get(statusFilter).input.placeholder = "Semua status";
   let referenceViewOnly = false;
   const schoolUsesManualReference = () => schoolAccount && form.elements.category.value === "school_in"
     && referenceModeInputs.find(input => input.checked)?.value === "manual";
@@ -3054,6 +3241,8 @@ async function initPed() {
   const syncReferenceMode = () => {
     const manual = schoolUsesManualReference();
     const outgoing = !outgoingReferenceField.classList.contains("hidden");
+    // Class twin of label:has(input:checked) for browsers without :has().
+    referenceModeInputs.forEach(input => input.closest("label").classList.toggle("is-checked", input.checked));
     registeredReferenceControl.classList.toggle("hidden", manual);
     manualReferenceControl.classList.toggle("hidden", !manual);
     outgoingReferenceField.querySelector("label").htmlFor = manual
@@ -3097,11 +3286,57 @@ async function initPed() {
     table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada" : meta.party;
   });
 
-  const render = () => {
+  const advancedFileInput = document.querySelector("#pedFilterFileNumber");
+  const advancedNotesInput = document.querySelector("#pedFilterNotes");
+  const advancedFilters = () => ({
+    sectors: selectedValues("#pedFilterSectors").map(normalizeRecipientName),
+    officers: selectedValues("#pedFilterOfficers").map(normalizeRecipientName),
+    schools: schoolAccount ? [] : selectedValues("#pedFilterSchools").map(normalizeRecipientName),
+    deliveryMethods: schoolAccount ? [] : selectedValues("#pedFilterDeliveryMethods").map(normalizeRecipientName),
+    fileNumber: normalizeRecipientName(advancedFileInput.value),
+    notes: normalizeRecipientName(advancedNotesInput.value)
+  });
+  const advancedFilterCount = filters => [filters.sectors.length, filters.officers.length, filters.schools.length,
+    filters.deliveryMethods.length, filters.fileNumber, filters.notes].filter(Boolean).length;
+  const pedFiltersActive = () => Boolean(String(search.value || "").trim() || statusFilter.value || dateFrom.value || dateTo.value
+    || advancedFilterCount(advancedFilters()));
+  const anyMatches = (values, wanted) => !wanted.length || values.map(normalizeRecipientName).some(value => wanted.includes(value));
+  // Lower-cased search text is built once per record object; saved records are
+  // replaced by new objects, so the cache never serves stale text.
+  const pedSearchText = new WeakMap();
+  const recordSearchText = record => {
+    let text = pedSearchText.get(record);
+    if (text === undefined) {
+      text = [record.reference, record.correspondent, record.subject, record.status]
+        .map(value => String(value || "").toLocaleLowerCase("ms-MY")).join("\u0000");
+      pedSearchText.set(record, text);
+    }
+    return text;
+  };
+  // Reads every filter control once, then tests records against that snapshot;
+  // reading the controls per record made each keystroke scale with the record count.
+  const pedRecordMatcher = () => {
     const term = String(search.value || "").trim().toLocaleLowerCase("ms-MY");
-    const selectedStatus = statusFilter.value;
+    const status = statusFilter.value;
     const from = dateFrom.value;
     const to = dateTo.value;
+    const filters = advancedFilters();
+    return record => (!term || recordSearchText(record).includes(term))
+      && (!status || record.status === status)
+      && (!from || record.date >= from)
+      && (!to || record.date <= to)
+      && anyMatches(recordSectors(record), filters.sectors)
+      && anyMatches(recordOfficers(record), filters.officers)
+      && anyMatches(record.category === "school_in" ? [record.schoolName || record.correspondent]
+        : record.category === "outgoing" ? [record.recipient || record.correspondent] : [], filters.schools)
+      && anyMatches(record.deliveryMethods, filters.deliveryMethods)
+      && (!filters.fileNumber || [record.officeReferenceFile, record.registryFileNumber]
+        .some(value => normalizeRecipientName(value).includes(filters.fileNumber)))
+      && (!filters.notes || normalizeRecipientName(record.notes).includes(filters.notes));
+  };
+
+  const render = () => {
+    const pedRecordMatches = pedRecordMatcher();
     const totalLetters = state.pedRecords.filter(record => activeCategories.includes(record.category)).length;
     const shareFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
     activeCategories.forEach(category => {
@@ -3116,14 +3351,7 @@ async function initPed() {
       if (statShare) statShare.textContent = shareFormat.format(share);
       if (statMeter) statMeter.style.width = `${share * 100}%`;
       const stateForTable = tableState[category];
-      const records = categoryRecords.filter(record => {
-        const matchesSearch = !term || [record.reference, record.correspondent, record.subject, record.status]
-          .some(value => String(value || "").toLocaleLowerCase("ms-MY").includes(term));
-        return matchesSearch
-          && (!selectedStatus || record.status === selectedStatus)
-          && (!from || record.date >= from)
-          && (!to || record.date <= to);
-      }).sort((a, b) => {
+      const records = categoryRecords.filter(pedRecordMatches).sort((a, b) => {
         const compared = String(a.date || "").localeCompare(String(b.date || ""))
           || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
         return stateForTable.dateAscending ? compared : -compared;
@@ -3152,8 +3380,9 @@ async function initPed() {
       sortButton.textContent = `${tableDateLabel} ${stateForTable.dateAscending ? "↑" : "↓"}`;
       sortButton.closest("th").setAttribute("aria-sort", stateForTable.dateAscending ? "ascending" : "descending");
       body.replaceChildren();
+      body.closest("table").classList.remove("ped-table-has-receive");
       if (!records.length) {
-        const filtered = Boolean(term || selectedStatus || from || to);
+        const filtered = pedFiltersActive();
         body.append(create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
           create("div", { className: "ped-empty-state" }, [
             create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h5" })),
@@ -3204,7 +3433,7 @@ async function initPed() {
           remove.disabled = true;
           remove.setAttribute("aria-busy", "true");
           try {
-            await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, { method: "DELETE" });
+            await deletePedRecord(record);
             state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
             if (record.attachmentPath) {
               await deletePedAttachment(record.attachmentPath).catch(error => console.warn("Lampiran rekod PeD tidak dapat dipadam.", error));
@@ -3240,7 +3469,10 @@ async function initPed() {
           ]))
         ]));
       });
+      // Class twin of table:has(.ped-receive-button) for browsers without :has().
+      body.closest("table").classList.toggle("ped-table-has-receive", Boolean(body.querySelector(".ped-receive-button")));
     });
+    renderPedExtraViews();
   };
 
   const setSelectValue = (select, value) => {
@@ -3328,7 +3560,7 @@ async function initPed() {
       ...statuses.map(status => create("option", { value: status, text: status }))
     );
     statusSelect.value = schoolOutgoing && record?.status === "Dikembalikan"
-      ? "Dihantar Semula" : record?.status || (schoolAccount ? schoolOutgoing ? "" : meta.defaultStatus : "");
+      ? "Dihantar Semula" : record?.status || "";
     refreshPedPicker(statusSelect);
     setPedPickerRequired(statusSelect, true);
     if (schoolOutgoing && !record) {
@@ -3338,7 +3570,7 @@ async function initPed() {
       refreshPedPicker(statusSelect);
     }
     pedPickerStates.get(statusSelect).input.placeholder = schoolOutgoing && !record
-      ? "Pilih status sebelum hantar" : "Taip untuk mencari pilihan…";
+      ? "Pilih status sebelum hantar" : !record ? "Pilih status surat" : "Taip untuk mencari pilihan…";
 
     document.querySelectorAll("[data-ped-category-fields]").forEach(field => {
       field.classList.toggle("hidden", field.dataset.pedCategoryFields !== category || schoolOutgoing);
@@ -3383,6 +3615,7 @@ async function initPed() {
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
     submitButton.classList.toggle("hidden", Boolean(viewOnly));
     deleteRecordButton.classList.toggle("hidden", !canDeletePedRecord(record));
+    printRecordButton.classList.toggle("hidden", !record);
     showModal("#pedModal");
   };
 
@@ -3394,7 +3627,7 @@ async function initPed() {
     setBusy(deleteRecordButton, true, "Memadam…");
     deleteRecordButton.setAttribute("aria-busy", "true");
     try {
-      await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, { method: "DELETE" });
+      await deletePedRecord(record);
       state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
       if (record.attachmentPath) {
         await deletePedAttachment(record.attachmentPath).catch(error => console.warn("Lampiran rekod PeD tidak dapat dipadam.", error));
@@ -3439,7 +3672,9 @@ async function initPed() {
     clearAttachmentButton.classList.add("hidden");
   });
   viewAttachmentButton.addEventListener("click", async () => {
-    const popup = window.open("about:blank", "_blank", "noopener");
+    // "noopener" would make window.open return null and replace this PeD page instead.
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     try {
       const url = await signedPedAttachmentUrl(viewAttachmentButton.dataset.path);
       if (popup) popup.location.href = url;
@@ -3449,7 +3684,11 @@ async function initPed() {
       toast("Gambar tidak dapat dibuka", error.message, "error");
     }
   });
-  const resetPages = () => Object.values(tableState).forEach(table => { table.page = 0; });
+  const resetPages = () => {
+    Object.values(tableState).forEach(table => { table.page = 0; });
+    extraViewState.historyPage = 0;
+    extraViewState.schoolPage = 0;
+  };
   search.addEventListener("input", () => { resetPages(); render(); });
   [statusFilter, dateFrom, dateTo].forEach(control => control.addEventListener("change", () => { resetPages(); render(); }));
   document.querySelector("#pedClearFilters").addEventListener("click", () => {
@@ -3457,6 +3696,13 @@ async function initPed() {
     statusFilter.value = "";
     dateFrom.value = "";
     dateTo.value = "";
+    ["#pedFilterSectors", "#pedFilterOfficers", "#pedFilterSchools", "#pedFilterDeliveryMethods"].forEach(selector => {
+      document.querySelectorAll(`${selector} option`).forEach(option => { option.selected = false; });
+    });
+    advancedFileInput.value = "";
+    advancedNotesInput.value = "";
+    pedPickerStates.forEach((picker, select) => refreshPedPicker(select));
+    updateAdvancedCount();
     resetPages();
     render();
   });
@@ -3703,6 +3949,330 @@ async function initPed() {
     } finally {
       setBusy(submitButton, false);
     }
+  });
+
+  // Tapisan lanjut: a collapsible panel under the main filter bar.
+  const advancedToggle = document.querySelector("#pedAdvancedToggle");
+  const advancedPanel = document.querySelector("#pedAdvancedFilters");
+  const advancedCount = document.querySelector("#pedAdvancedCount");
+  const updateAdvancedCount = () => {
+    const active = advancedFilterCount(advancedFilters());
+    advancedCount.textContent = String(active);
+    advancedCount.classList.toggle("hidden", !active);
+    advancedToggle.setAttribute("aria-label", active ? `Tapisan lanjut, ${active} tapisan aktif` : "Tapisan lanjut");
+  };
+  advancedToggle.addEventListener("click", () => {
+    const open = advancedPanel.classList.contains("hidden");
+    advancedPanel.classList.toggle("hidden", !open);
+    advancedToggle.setAttribute("aria-expanded", String(open));
+  });
+  const applyAdvancedFilters = () => { updateAdvancedCount(); resetPages(); render(); };
+  ["#pedFilterSectors", "#pedFilterOfficers", "#pedFilterSchools", "#pedFilterDeliveryMethods"].forEach(selector => {
+    document.querySelector(selector).addEventListener("change", applyAdvancedFilters);
+  });
+  [advancedFileInput, advancedNotesInput].forEach(input => input.addEventListener("input", applyAdvancedFilters));
+
+  // Shared presentation for the Sejarah and Surat Sekolah tables.
+  const extraViewState = { view: "list", historyPage: 0, historyAscending: false, schoolPage: 0, schoolAscending: false, school: null, choicesSource: null };
+  const isOutgoingCategory = category => category === "outgoing" || (schoolAccount && category === "school_in");
+  const pedCategoryLabel = category => schoolAccount && category === "school_in" ? "Surat Keluar"
+    : category === "school_received" ? "Surat Masuk" : pedCategoryMeta[category].title;
+  const pedPartyLabel = category => isOutgoingCategory(category) ? "Kepada" : category === "school_in" ? "Nama Sekolah" : "Daripada";
+  const pedPartyName = record => schoolAccount && record.category === "school_in"
+    ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
+    : record.correspondent;
+  const pedReferenceText = record => {
+    const parts = splitPedOutgoingReference(record.reference);
+    return parts.letterNumber ? `${parts.fileReference} (${parts.letterNumber})` : parts.fileReference;
+  };
+  const byPedDate = ascending => (a, b) => {
+    const compared = String(a.date || "").localeCompare(String(b.date || ""))
+      || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+    return ascending ? compared : -compared;
+  };
+  const pedEmptyRow = (title, message) => create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
+    create("div", { className: "ped-empty-state" }, [
+      create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h5" })),
+      create("strong", { text: title }),
+      create("span", { text: message })
+    ])
+  ));
+  const pedOverviewRow = record => {
+    const locked = schoolAccount && record.category === "school_in"
+      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+    const reference = pedReferenceText(record);
+    const open = create("button", { className: "button secondary small", type: "button", "aria-label": `${locked ? "Lihat" : "Kemas kini"} ${reference || "surat"}`, text: locked ? "Lihat" : "Kemas kini" });
+    open.addEventListener("click", () => openEditor(record.category, record));
+    return create("tr", {}, [
+      create("td", { className: "ped-cell-date", "data-label": isOutgoingCategory(record.category) ? "Tarikh Surat" : "Tarikh Terima" }, [
+        create("time", { datetime: record.date, text: formatDate(record.date) }),
+        create("span", { className: `ped-category-chip ped-category-${record.category}`, text: pedCategoryLabel(record.category) })
+      ]),
+      create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" }, create("strong", { className: "ped-reference", text: reference || "—" })),
+      create("td", { className: "ped-cell-party", "data-label": pedPartyLabel(record.category) }, create("span", { className: "ped-party", text: pedPartyName(record) || "—" })),
+      create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
+      create("td", { className: "ped-cell-status", "data-label": "Status" }, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
+        pedStatusIcon(record.status),
+        create("span", { text: record.status })
+      ])),
+      create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, open))
+    ]);
+  };
+  const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage }) => {
+    const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
+    const current = Math.min(Math.max(page, 0), totalPages - 1);
+    const start = current * pageSize;
+    body.replaceChildren(...(records.length
+      ? records.slice(start, start + pageSize).map(pedOverviewRow)
+      : [pedFiltersActive() ? pedEmptyRow("Tiada padanan ditemui", "Cuba carian lain atau kosongkan tapisan.") : pedEmptyRow(emptyTitle, emptyMessage)]));
+    info.textContent = records.length
+      ? `Paparan ${start + 1}–${Math.min(start + pageSize, records.length)} daripada ${records.length} · halaman ${current + 1}/${totalPages}`
+      : "0 rekod";
+    const [previous, next] = pager.querySelectorAll("button");
+    previous.disabled = current === 0;
+    next.disabled = current >= totalPages - 1;
+    previous.parentElement.classList.toggle("hidden", totalPages <= 1);
+    return current;
+  };
+  const setSortButton = (button, label, ascending) => {
+    button.textContent = `${label} ${ascending ? "↑" : "↓"}`;
+    button.closest("th").setAttribute("aria-sort", ascending ? "ascending" : "descending");
+  };
+
+  // Sejarah: every visible letter type in one date-ordered list.
+  const historyRows = document.querySelector("#pedHistoryRows");
+  const historySort = document.querySelector("#pedHistorySort");
+  historySort.closest("table").querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
+  if (schoolAccount) document.querySelector("#pedHistoryDescription").textContent = "Surat Masuk sekolah dan Surat Keluar kepada Pejabat dalam satu senarai mengikut tarikh.";
+  const historyRecords = () => visiblePedRecords().filter(pedRecordMatcher()).sort(byPedDate(extraViewState.historyAscending));
+  const renderHistory = () => {
+    const records = historyRecords();
+    document.querySelector("#pedHistoryCount").textContent = String(records.length);
+    setSortButton(historySort, "Tarikh", extraViewState.historyAscending);
+    extraViewState.historyPage = renderPagedRecords({
+      body: historyRows, info: document.querySelector("#pedHistoryPageInfo"),
+      pager: historyRows.closest(".ped-panel").querySelector(".ped-pagination"), records, page: extraViewState.historyPage,
+      emptyTitle: "Belum ada rekod surat", emptyMessage: "Surat yang didaftarkan akan dipaparkan di sini."
+    });
+  };
+  historySort.addEventListener("click", () => {
+    extraViewState.historyAscending = !extraViewState.historyAscending;
+    extraViewState.historyPage = 0;
+    renderHistory();
+  });
+  document.querySelectorAll("[data-ped-history-page]").forEach(button => button.addEventListener("click", () => {
+    extraViewState.historyPage += button.dataset.pedHistoryPage === "next" ? 1 : -1;
+    renderHistory();
+  }));
+
+  // Surat Sekolah: a folder per school, opening every letter from or to it.
+  const schoolGrid = document.querySelector("#pedSchoolGrid");
+  const schoolDirectory = document.querySelector("#pedSchoolDirectory");
+  const schoolDetail = document.querySelector("#pedSchoolDetail");
+  const schoolRows = document.querySelector("#pedSchoolRows");
+  const schoolSort = document.querySelector("#pedSchoolSort");
+  schoolSort.closest("table").querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
+  const schoolEntries = () => {
+    const entries = new Map();
+    const add = (name, id = null) => {
+      const key = normalizeRecipientName(name);
+      if (!key) return;
+      const entry = entries.get(key);
+      if (entry) entry.id ||= id;
+      else entries.set(key, { id, name: String(name).trim().replace(/\s+/g, " ") });
+    };
+    if (officeAccount) assignedSchools.forEach(school => add(school.name, school.id));
+    else pedFormOptions.schools.forEach(name => add(name));
+    state.pedRecords.filter(record => record.category === "school_in").forEach(record => add(record.schoolName || record.correspondent, record.schoolId));
+    return [...entries.values()].sort((first, second) => first.name.localeCompare(second.name, "ms"));
+  };
+  const recordBelongsToSchool = (record, school) => record.category === "school_in"
+    ? Boolean(school.id && record.schoolId === school.id) || normalizeRecipientName(record.schoolName || record.correspondent) === normalizeRecipientName(school.name)
+    : record.category === "outgoing" && normalizeRecipientName(record.recipient || record.correspondent) === normalizeRecipientName(school.name);
+  const recordsForSchool = school => visiblePedRecords().filter(record => recordBelongsToSchool(record, school));
+  const schoolCard = ({ school, matching, filtered }) => {
+    const awaiting = matching.filter(record => record.category === "school_in" && ["Dihantar", "Dihantar Semula"].includes(record.status)).length;
+    const card = create("button", { className: "ped-school-card", type: "button", "aria-label": `${school.name}, ${matching.length} surat${awaiting ? `, ${awaiting} belum diterima` : ""}` }, [
+      create("span", { className: "ped-school-card-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
+        create("path", { d: "M3 7h7l2 2h9v10H3V7Z" }), create("path", { d: "M3 10h18" })
+      ])),
+      create("span", { className: "ped-school-card-copy" }, [
+        create("strong", { text: school.name }),
+        create("span", { text: `${matching.length} surat${filtered ? " sepadan" : ""}` })
+      ]),
+      awaiting ? create("span", { className: "ped-school-card-badge", text: `${awaiting} belum diterima` }) : null
+    ]);
+    card.addEventListener("click", () => {
+      extraViewState.school = school;
+      extraViewState.schoolPage = 0;
+      renderSchools();
+      document.querySelector("#pedSchoolBack").focus();
+    });
+    return card;
+  };
+  const renderSchools = () => {
+    const filtered = pedFiltersActive();
+    const selected = extraViewState.school;
+    schoolDirectory.classList.toggle("hidden", Boolean(selected));
+    schoolDetail.classList.toggle("hidden", !selected);
+    if (selected) {
+      const records = recordsForSchool(selected).filter(pedRecordMatcher()).sort(byPedDate(extraViewState.schoolAscending));
+      document.querySelector("#pedSchoolDetailTitle").textContent = selected.name;
+      document.querySelector("#pedSchoolDetailCount").textContent = String(records.length);
+      setSortButton(schoolSort, "Tarikh", extraViewState.schoolAscending);
+      extraViewState.schoolPage = renderPagedRecords({
+        body: schoolRows, info: document.querySelector("#pedSchoolPageInfo"),
+        pager: schoolDetail.querySelector(".ped-pagination"), records, page: extraViewState.schoolPage,
+        emptyTitle: "Belum ada surat untuk sekolah ini", emptyMessage: "Surat masuk daripada sekolah dan surat keluar kepadanya akan dipaparkan di sini."
+      });
+      return;
+    }
+    const pedRecordMatches = pedRecordMatcher();
+    const cards = schoolEntries()
+      .map(school => ({ school, matching: recordsForSchool(school).filter(pedRecordMatches), filtered }))
+      .filter(item => !filtered || item.matching.length);
+    document.querySelector("#pedSchoolDirectoryCount").textContent = String(cards.length);
+    schoolGrid.replaceChildren(...(cards.length ? cards.map(schoolCard) : [create("div", { className: "ped-empty-state ped-school-empty" }, [
+      create("strong", { text: filtered ? "Tiada sekolah sepadan" : "Belum ada sekolah" }),
+      create("span", { text: filtered ? "Cuba carian lain atau kosongkan tapisan." : officeAccount ? "Admin sistem perlu menetapkan sekolah kepada Pejabat ini." : "Surat sekolah yang didaftarkan akan dipaparkan di sini." })
+    ])]));
+  };
+  document.querySelector("#pedSchoolBack").addEventListener("click", () => {
+    const previous = extraViewState.school;
+    extraViewState.school = null;
+    renderSchools();
+    [...schoolGrid.querySelectorAll(".ped-school-card")].find(card => card.querySelector("strong")?.textContent === previous?.name)?.focus();
+  });
+  schoolSort.addEventListener("click", () => {
+    extraViewState.schoolAscending = !extraViewState.schoolAscending;
+    extraViewState.schoolPage = 0;
+    renderSchools();
+  });
+  document.querySelectorAll("[data-ped-school-page]").forEach(button => button.addEventListener("click", () => {
+    extraViewState.schoolPage += button.dataset.pedSchoolPage === "next" ? 1 : -1;
+    renderSchools();
+  }));
+
+  // View tabs: Senarai Surat (the original tables), Sejarah and Surat Sekolah.
+  const viewTabs = [...document.querySelectorAll("[data-ped-view]")];
+  const viewPanels = { list: document.querySelector("#pedListView"), history: document.querySelector("#pedHistoryView"), schools: document.querySelector("#pedSchoolsView") };
+  document.querySelector("#pedViewTabSchools").classList.toggle("hidden", schoolAccount);
+  const setPedView = (view, focusTab = false) => {
+    extraViewState.view = view;
+    viewTabs.forEach(tab => {
+      const selected = tab.dataset.pedView === view;
+      tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && focusTab) tab.focus();
+    });
+    Object.entries(viewPanels).forEach(([name, panel]) => panel.classList.toggle("hidden", name !== view));
+    renderPedExtraViews();
+  };
+  viewTabs.forEach(tab => {
+    tab.addEventListener("click", () => setPedView(tab.dataset.pedView));
+    tab.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = viewTabs.filter(item => !item.classList.contains("hidden"));
+      const index = tabs.indexOf(tab);
+      const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      setPedView(tabs[nextIndex].dataset.pedView, true);
+    });
+  });
+  function renderPedExtraViews() {
+    if (extraViewState.choicesSource !== state.pedRecords) {
+      extraViewState.choicesSource = state.pedRecords;
+      refreshAdvancedChoices();
+    }
+    if (extraViewState.view === "history") renderHistory();
+    if (extraViewState.view === "schools") renderSchools();
+  }
+
+  // Cetak PDF: log sheets for lists, a detail sheet for one letter.
+  const ownName = user.role === "admin" ? "" : String(workspaceProfile.name || "").toLocaleUpperCase("ms-MY");
+  const pedLogSection = (category, records, context = null) => {
+    const title = category === "agency_in" ? "REKOD SURAT MASUK JABATAN DAN AGENSI"
+      : category === "school_in"
+        ? schoolAccount ? `REKOD PENYERAHAN SURAT KE ${String(assignedOffice?.name || "Pejabat").toLocaleUpperCase("ms-MY")}` : "REKOD SURAT MASUK SEKOLAH"
+        : category === "outgoing" ? "REKOD SURAT KELUAR" : "REKOD SURAT MASUK SEKOLAH";
+    let section = { contextValue: ownName };
+    if (category === "school_in" && !schoolAccount) {
+      const schools = uniqueRecipientNames(records.map(record => record.schoolName || record.correspondent));
+      if (schools.length === 1) section = { contextValue: schools[0].toLocaleUpperCase("ms-MY") };
+    }
+    return {
+      ...section, ...(context || {}), title,
+      counterpartLabel: isOutgoingCategory(category) ? "Kepada" : "Daripada",
+      rows: records.map(record => ({ subject: record.subject, reference: pedReferenceText(record), counterpart: pedPartyName(record), date: record.date }))
+    };
+  };
+  const printFileStamp = () => {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, "0");
+    return `${pad(now.getDate())}${pad(now.getMonth() + 1)}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  };
+  const runPrint = async (button, documentTitle, sheetsHtml) => {
+    setBusy(button, true, "Menyediakan…");
+    try { await printPedDocument(`${documentTitle} - ${printFileStamp()}`, sheetsHtml); }
+    catch (error) { toast("PDF tidak dapat disediakan", error.message, "error"); }
+    finally { setBusy(button, false); }
+  };
+  const printLogSections = (button, documentTitle, sections) => {
+    const filledSections = sections.filter(section => section.rows.length);
+    if (!filledSections.length) {
+      toast("Tiada rekod untuk dicetak", "Tiada surat yang sepadan dengan carian dan tapisan semasa.", "error");
+      return;
+    }
+    return runPrint(button, documentTitle, filledSections.map(pedLogSheetHtml).join(""));
+  };
+  document.querySelectorAll("[data-print-ped]").forEach(button => button.addEventListener("click", () => {
+    const category = button.dataset.printPed;
+    if (!activeCategories.includes(category)) return;
+    const records = state.pedRecords.filter(record => record.category === category).filter(pedRecordMatcher())
+      .sort(byPedDate(tableState[category].dateAscending));
+    printLogSections(button, `Rekod ${pedCategoryLabel(category)}`, [pedLogSection(category, records)]);
+  }));
+  document.querySelector("#pedHistoryPrint").addEventListener("click", event => {
+    const records = historyRecords();
+    printLogSections(event.currentTarget, "Rekod Sejarah Surat", activeCategories.map(category =>
+      pedLogSection(category, records.filter(record => record.category === category))));
+  });
+  document.querySelector("#pedSchoolPrint").addEventListener("click", event => {
+    const school = extraViewState.school;
+    if (!school) return;
+    const records = recordsForSchool(school).filter(pedRecordMatcher()).sort(byPedDate(extraViewState.schoolAscending));
+    const context = { contextValue: school.name.toLocaleUpperCase("ms-MY") };
+    printLogSections(event.currentTarget, `Rekod Surat ${school.name}`, ["school_in", "outgoing"].map(category =>
+      pedLogSection(category, records.filter(record => record.category === category), context)));
+  });
+  const pedDetailFields = record => {
+    const category = record.category;
+    const fields = [
+      ["Jenis Surat", pedCategoryLabel(category)],
+      [isOutgoingCategory(category) ? "Tarikh Surat" : "Tarikh Terima", formatDate(record.date)],
+      [isOutgoingCategory(category) ? "No. Fail Rujukan" : pedCategoryMeta[category].referenceLabel, pedReferenceText(record)],
+      [pedPartyLabel(category), pedPartyName(record)]
+    ];
+    // Labels follow the letter form, including the No. Surat beside each reference file.
+    if (category === "agency_in") fields.push(["Sektor", record.departmentSectors.join(", ")], ["Untuk Tindakan Pegawai", record.assignedOfficers.join(", ")],
+      ["No. Fail Rujukan", record.officeReferenceFile], ["No. Surat", record.officeReferenceLetterNumber], ["Catatan PPD", record.notes]);
+    if (category === "school_in" && schoolAccount) fields.push(["Nama Sekolah", record.schoolName || workspaceProfile.name]);
+    if (category === "school_in" && !schoolAccount) fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
+      ["No. Fail Rujukan", record.registryFileNumber], ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
+    if (category === "outgoing") fields.push(["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
+      ["Catatan", record.notes], ["Gambar (Poslaju / Pos Biasa)", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
+    if (category === "school_received") fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
+      ["No. Fail Rujukan", record.registryFileNumber], ["Catatan Guru Besar/Pengetua", record.notes]);
+    fields.push(["Tarikh Didaftarkan", formatDate(record.createdAt, true)]);
+    return fields;
+  };
+  printRecordButton.addEventListener("click", () => {
+    const record = state.pedRecords.find(item => item.id === form.elements.id.value);
+    if (!record) return;
+    runPrint(printRecordButton, `Butiran Surat ${pedReferenceText(record) || record.subject}`, pedDetailSheetHtml({
+      category: pedCategoryLabel(record.category), status: record.status, subject: record.subject, fields: pedDetailFields(record)
+    }));
   });
 
   render();
