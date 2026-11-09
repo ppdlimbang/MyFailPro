@@ -378,7 +378,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Keep the PeD entry point aligned with the current role-aware workflow.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261106-04");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261109-01");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2069,7 +2069,12 @@ async function initRegister() {
   const form = document.querySelector("#registerFile");
   const duplicateStatus = document.querySelector("#duplicateStatus");
   const ids = ["fungsi", "aktiviti", "subAktiviti", "transaksi"];
-  const classificationCode = value => String(value || "").trim().match(/^(\d+(?:[-/]\d+)*)/)?.[1] || "";
+  // Tolerate en dashes, spaces around separators and leading zeros ("600 – 12 / 01").
+  const classificationCode = value => (String(value || "").trim()
+    .replace(/[‐-―−]/g, "-")
+    .replace(/\s*([-/])\s*/g, "$1")
+    .match(/^(\d+(?:[-/]\d+)*)/)?.[1] || "")
+    .replace(/\d+/g, digits => String(Number(digits)));
   const hasChildCode = (value, parentCode) => {
     const code = classificationCode(value);
     return Boolean(parentCode && (code === parentCode || code.startsWith(`${parentCode}-`) || code.startsWith(`${parentCode}/`)));
@@ -2078,19 +2083,6 @@ async function initRegister() {
     select.value = value || "";
     if (value && select.value !== value) select.append(create("option", { value, text: value }));
     select.value = value || "";
-  };
-  const findByCode = (values, targetCode) => values.find(value => classificationCode(value) === targetCode) || "";
-  const transactionParents = value => {
-    const transactionCode = classificationCode(value);
-    const codeParts = transactionCode.split("/");
-    const activityCode = codeParts[0] || "";
-    const subActivityCode = codeParts.length > 1 ? codeParts.slice(0, -1).join("/") : "";
-    const functionCode = activityCode.split("-")[0] || "";
-    return {
-      fungsi: findByCode(settings.fungsi, functionCode),
-      aktiviti: findByCode(settings.aktiviti, activityCode),
-      subAktiviti: findByCode(settings.subAktiviti, subActivityCode)
-    };
   };
   const fillFilteredSelect = (key, parentValue, select = form.elements[key]) => {
     const parentCode = classificationCode(parentValue);
@@ -2116,38 +2108,36 @@ async function initRegister() {
         : "Pilih Transaksi Fail dan Nombor Jilid untuk menyemak rekod pendua.";
     return duplicate;
   };
-  ids.forEach(id => fillSelect(form.elements[id], settings[id] || []));
-  form.elements.fungsi.addEventListener("change", () => {
-    fillFilteredSelect("aktiviti", form.elements.fungsi.value);
-    fillSelect(form.elements.subAktiviti, []);
-    fillSelect(form.elements.transaksi, []);
-    updateDuplicateStatus();
-  });
-  form.elements.aktiviti.addEventListener("change", () => {
-    fillFilteredSelect("subAktiviti", form.elements.aktiviti.value);
-    fillSelect(form.elements.transaksi, []);
-    updateDuplicateStatus();
-  });
-  form.elements.subAktiviti.addEventListener("change", () => {
-    fillFilteredSelect("transaksi", form.elements.subAktiviti.value);
-    updateDuplicateStatus();
-  });
-  form.elements.transaksi.addEventListener("change", () => {
-    const selectedTransaction = form.elements.transaksi.value;
-    const parents = transactionParents(selectedTransaction);
-    if (selectedTransaction && parents.fungsi) {
-      selectValue(form.elements.fungsi, parents.fungsi);
-      fillFilteredSelect("aktiviti", parents.fungsi);
-      selectValue(form.elements.aktiviti, parents.aktiviti);
-      fillFilteredSelect("subAktiviti", parents.aktiviti);
-      selectValue(form.elements.subAktiviti, parents.subAktiviti);
-      fillFilteredSelect("transaksi", parents.subAktiviti);
-      selectValue(form.elements.transaksi, selectedTransaction);
+  // The closest parent by code, e.g. "600-12/1/3" -> "600-12/1 …" (or "600-12 …" when the
+  // sub-activity is not listed in Tetapan, so the levels above are still filled).
+  const findParent = (key, value) => (settings[key] || [])
+    .filter(parent => hasChildCode(value, classificationCode(parent)))
+    .sort((a, b) => classificationCode(b).length - classificationCode(a).length)[0] || "";
+  // Picking any level fills the levels above it, keeps the levels below that still belong,
+  // and fills a lower level automatically when only one choice remains.
+  const syncClassification = changedKey => {
+    const changedIndex = ids.indexOf(changedKey);
+    const chosen = ids.map(id => form.elements[id].value);
+    const changedValue = chosen[changedIndex];
+    for (let index = 0; index < changedIndex; index += 1) {
+      if (changedValue) chosen[index] = findParent(ids[index], changedValue);
     }
+    ids.forEach((id, index) => {
+      const ancestor = chosen.slice(0, index).reverse().find(Boolean);
+      const values = index && ancestor ? fillFilteredSelect(id, ancestor) : (fillSelect(form.elements[id], settings[id] || []), settings[id] || []);
+      if (index > changedIndex && !changedValue) chosen[index] = "";
+      else if (index > changedIndex) {
+        if (chosen[index] && !values.includes(chosen[index])) chosen[index] = "";
+        if (!chosen[index] && values.length === 1) chosen[index] = values[0];
+      }
+      selectValue(form.elements[id], chosen[index]);
+    });
     updateDuplicateStatus();
-  });
+  };
+  ids.forEach(id => fillSelect(form.elements[id], settings[id] || []));
+  ids.forEach(id => form.elements[id].addEventListener("change", () => syncClassification(id)));
   form.elements.jilid.addEventListener("input", updateDuplicateStatus);
-  form.addEventListener("reset", () => setTimeout(() => { ids.forEach(id => fillSelect(form.elements[id], id === "fungsi" ? settings.fungsi : [])); form.elements.jilid.value = 1; updateDuplicateStatus(); }, 0));
+  form.addEventListener("reset", () => setTimeout(() => { ids.forEach(id => fillSelect(form.elements[id], settings[id] || [])); form.elements.jilid.value = 1; updateDuplicateStatus(); }, 0));
   form.addEventListener("submit", async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
@@ -3951,6 +3941,8 @@ async function initPed() {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
       if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261105020000_add_ped_reference_letter_numbers.sql sebelum menyimpan nombor surat bagi fail rujukan.", "error");
+      } else if (/ped_correspondence_owner_category_reference_idx/i.test(error.message || "")) {
+        toast("Surat ini telah direkodkan", "Surat dengan rujukan, No. Fail Rujukan dan No. Surat yang sama telah wujud. Semak No. Surat atau cari surat tersebut dalam senarai.", "error");
       } else {
         toast("Tidak berjaya", error.message, "error");
       }
