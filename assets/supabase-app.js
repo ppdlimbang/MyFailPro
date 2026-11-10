@@ -378,7 +378,7 @@ function renderShell(user) {
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
   }
   // Keep the PeD entry point aligned with the current role-aware workflow.
-  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261109-01");
+  if (pedNavigation) pedNavigation.setAttribute("href", "ped.html?v=20261110-01");
   if (pedNavigation && document.body.dataset.page === "ped") pedNavigation.setAttribute("aria-current", "page");
   if (topbarInner && shellUserBox) {
     shellUserBox.classList.add("topbar-user-box");
@@ -2697,7 +2697,7 @@ const pedFormOptions = {
     "SEKTOR PERANCANGAN", "PPD", "SEKTOR PENTAKSIRAN & PEPERIKSAAN", "SEKTOR KAUNSELING",
     "PASUKAN TEKNIKAL ICT SEKOLAH"
   ],
-  deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL"]
+  deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL", "PETI SURAT SEKOLAH"]
 };
 
 // PeD printouts follow the office's paper log sheets: crest, boxed title,
@@ -3248,7 +3248,8 @@ async function initPed() {
       ? manualReferenceInput.id : pedPickerStates.get(outgoingReferenceSelect).input.id;
     outgoingReferenceSelect.disabled = !outgoing || manual || referenceViewOnly;
     pedPickerStates.get(outgoingReferenceSelect).input.disabled = outgoingReferenceSelect.disabled;
-    setPedPickerRequired(outgoingReferenceSelect, outgoing && !manual && !referenceViewOnly);
+    // No. Fail Rujukan is optional in Surat Keluar; school letters to the office still need it.
+    setPedPickerRequired(outgoingReferenceSelect, outgoing && !manual && !referenceViewOnly && form.elements.category.value !== "outgoing");
     manualReferenceInput.disabled = !outgoing || !manual || referenceViewOnly;
     manualReferenceInput.required = !manualReferenceInput.disabled;
     letterNumberHint.textContent = manual
@@ -3733,7 +3734,8 @@ async function initPed() {
       pedPickerStates.get(statusSelect).input.focus();
       return;
     }
-    if (outgoingForm && (!referenceFile || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
+    const outgoingReferenceSkipped = category === "outgoing" && !referenceFile;
+    if (outgoingForm && !outgoingReferenceSkipped && (!referenceFile || !/^[0-9]+$/.test(letterNumberInput.value.trim()))) {
       toast("Lengkapkan rujukan surat", "Isi No. Fail Rujukan dan masukkan Nombor Surat menggunakan digit.", "error");
       (!referenceFile ? manualMode ? manualReferenceInput : pedPickerStates.get(outgoingReferenceSelect).input : letterNumberInput).focus();
       return;
@@ -3747,10 +3749,10 @@ async function initPed() {
       referenceLetterNumber.focus();
       return;
     }
-    const referenceNumber = outgoingForm
+    const referenceNumber = outgoingReferenceSkipped ? null : outgoingForm
       ? `${referenceFile}${pedLetterNumberSeparator}${letterNumberInput.value.trim()}`
       : referenceInput.value.trim() || null;
-    if (outgoingForm && state.pedRecords.some(record =>
+    if (outgoingForm && referenceNumber && state.pedRecords.some(record =>
       record.id !== recordId && record.ownerId === workspaceOwnerId() && record.category === category
       && record.reference?.toLocaleLowerCase("ms-MY") === referenceNumber.toLocaleLowerCase("ms-MY"))) {
       toast("Nombor surat telah digunakan", "Pilih nombor surat lain untuk fail rujukan ini.", "error");
