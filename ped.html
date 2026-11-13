@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="assets/navigation.css?v=20261113-04">
   <link rel="stylesheet" href="assets/ped.css?v=20261106-04">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261113-01" defer></script>
+  <script src="assets/supabase-app.js?v=20261113-02" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -184,6 +184,7 @@
       <div class="field hidden" data-ped-category-fields="school_in"><label for="pedSchoolSector">Sektor</label><select class="input" id="pedSchoolSector"></select></div>
       <div class="field hidden" data-ped-category-fields="school_in"><label for="pedAssignedTo">Untuk Tindakan / Nama Pegawai</label><select class="input" id="pedAssignedTo"><option value="">Pilih pegawai</option></select></div>
       <div class="field hidden" data-ped-category-fields="school_in"><label for="pedRegistryFileNumber">No. Fail Rujukan</label><select class="input" id="pedRegistryFileNumber"><option value="">Pilih fail yang telah didaftarkan</option></select><span class="field-hint">Fail ini akan bergerak kepada pegawai yang dipilih dan direkod dalam Log Pergerakan.</span></div>
+      <div class="field hidden" data-ped-school-outgoing-personal-file><label for="pedSchoolOutgoingPersonalFileNumber">No. Fail Peribadi</label><input class="input" id="pedSchoolOutgoingPersonalFileNumber" type="text" placeholder="Masukkan jika surat masuk ke fail peribadi" autocomplete="off"></div>
       <div class="field hidden" id="pedRegistryLetterNumberField" data-ped-category-fields="school_in"><label for="pedRegistryLetterNumber">No. Surat</label><input class="input" id="pedRegistryLetterNumber" type="text" inputmode="numeric" pattern="[0-9]+" title="Gunakan digit sahaja." placeholder="Contoh: 1" autocomplete="off" disabled><span class="field-hint">Masukkan nombor surat selepas memilih No. Fail Rujukan.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="school_in"><label for="pedSchoolNotes">Catatan PPD</label><textarea class="input" id="pedSchoolNotes" rows="3"></textarea></div>
 
@@ -192,6 +193,7 @@
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedOutgoingNotes">Catatan</label><textarea class="input" id="pedOutgoingNotes" rows="3"></textarea></div>
       <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedOfficer">Untuk Tindakan / Nama Pegawai</label><select class="input" id="pedSchoolReceivedOfficer"><option value="">Pilih pegawai</option></select></div>
       <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedFile">No. Fail Rujukan</label><input class="input" id="pedSchoolReceivedFile"></div>
+      <div class="field hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedPersonalFileNumber">No. Fail Peribadi</label><input class="input" id="pedSchoolReceivedPersonalFileNumber" type="text" placeholder="Masukkan jika surat masuk ke fail peribadi" autocomplete="off"></div>
       <div class="field span-2 hidden" data-ped-category-fields="school_received"><label for="pedSchoolReceivedNotes">Catatan Guru Besar/Pengetua</label><textarea class="input" id="pedSchoolReceivedNotes" rows="3"></textarea></div>
       <div class="field span-2 hidden" data-ped-category-fields="outgoing"><label for="pedAttachment">Gambar (Poslaju / Pos Biasa)</label><input class="input ped-file-input" id="pedAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"><span class="field-hint" id="pedAttachmentName">Lampiran pilihan, maksimum 20 MB.</span><div class="ped-attachment-actions"><button class="button secondary small hidden" type="button" id="pedViewAttachment">Lihat gambar semasa</button><button class="button secondary small hidden" type="button" id="pedClearAttachment">Buang gambar semasa</button></div></div>
 

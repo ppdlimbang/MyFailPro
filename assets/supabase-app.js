@@ -3058,6 +3058,8 @@ async function initPed() {
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
   const officePersonalFileNumberInput = document.querySelector("#pedOfficePersonalFileNumber");
+  const schoolOutgoingPersonalFileNumberInput = document.querySelector("#pedSchoolOutgoingPersonalFileNumber");
+  const schoolReceivedPersonalFileNumberInput = document.querySelector("#pedSchoolReceivedPersonalFileNumber");
   const officeReferenceLetterNumberField = document.querySelector("#pedOfficeReferenceLetterNumberField");
   const officeReferenceLetterNumberInput = document.querySelector("#pedOfficeReferenceLetterNumber");
   const registryFileNumberSelect = document.querySelector("#pedRegistryFileNumber");
@@ -3667,12 +3669,17 @@ async function initPed() {
     document.querySelectorAll("[data-ped-category-fields]").forEach(field => {
       field.classList.toggle("hidden", field.dataset.pedCategoryFields !== category || schoolOutgoing);
     });
+    const schoolOutgoingPersonalFileField = document.querySelector("[data-ped-school-outgoing-personal-file]");
+    schoolOutgoingPersonalFileField.classList.toggle("hidden", !schoolOutgoing);
+    schoolOutgoingPersonalFileNumberInput.disabled = !schoolOutgoing || Boolean(viewOnly);
     setMultiValues(document.querySelector("#pedDepartmentSectors"), record?.departmentSectors || []);
     setMultiValues(document.querySelector("#pedAssignedOfficers"), record?.assignedOfficers || []);
     setSelectValue(document.querySelector("#pedSchoolSector"), record?.schoolSector || "");
     document.querySelector("#pedAssignedTo").value = record?.assignedTo || "";
     setSelectValue(officeReferenceFileSelect, record?.officeReferenceFile || "");
     officePersonalFileNumberInput.value = record?.officePersonalFileNumber || "";
+    schoolOutgoingPersonalFileNumberInput.value = record?.officePersonalFileNumber || "";
+    schoolReceivedPersonalFileNumberInput.value = record?.officePersonalFileNumber || "";
     setSelectValue(registryFileNumberSelect, record?.registryFileNumber || "");
     officeReferenceLetterNumberInput.value = record?.officeReferenceLetterNumber || "";
     registryLetterNumberInput.value = record?.registryFileLetterNumber || "";
@@ -3874,7 +3881,9 @@ async function initPed() {
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedOfficer").value : "",
       office_reference_file: category === "agency_in" ? officeReferenceFileSelect.value : "",
       office_reference_letter_number: category === "agency_in" && officeReferenceFileSelect.value ? officeReferenceLetterNumberInput.value.trim() : "",
-      office_personal_file_number: category === "agency_in" ? officePersonalFileNumberInput.value.trim() : undefined,
+      office_personal_file_number: category === "agency_in" ? officePersonalFileNumberInput.value.trim()
+        : schoolAccount && category === "school_in" ? schoolOutgoingPersonalFileNumberInput.value.trim()
+          : schoolAccount && category === "school_received" ? schoolReceivedPersonalFileNumberInput.value.trim() : undefined,
       registry_file_number: category === "school_in" && !schoolAccount ? registryFileNumberSelect.value
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedFile").value.trim() : "",
       registry_file_letter_number: category === "school_in" && !schoolAccount && registryFileNumberSelect.value ? registryLetterNumberInput.value.trim() : "",
@@ -3892,7 +3901,7 @@ async function initPed() {
       attachment_path: null
     };
     if (!payload.office_reference_letter_number) delete payload.office_reference_letter_number;
-    if (category !== "agency_in") delete payload.office_personal_file_number;
+    if (!payload.office_personal_file_number) delete payload.office_personal_file_number;
     if (!payload.registry_file_letter_number) delete payload.registry_file_letter_number;
     const movementRecipient = category === "agency_in" ? payload.assigned_officers[0] || ""
       : officeAccount && category === "school_in" ? payload.assigned_to : "";
@@ -4037,7 +4046,7 @@ async function initPed() {
     } catch (error) {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
       if (/office_personal_file_number/i.test(error.message || "")) {
-        toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261113010000_add_office_personal_file_number.sql sebelum menyimpan No. Fail Peribadi.", "error");
+        toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261113020000_allow_school_personal_file_numbers.sql sebelum menyimpan No. Fail Peribadi.", "error");
       } else if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261105020000_add_ped_reference_letter_numbers.sql sebelum menyimpan nombor surat bagi fail rujukan.", "error");
       } else if (/ped_correspondence_owner_category_reference_idx/i.test(error.message || "")) {
@@ -4357,13 +4366,15 @@ async function initPed() {
     if (category === "agency_in") fields.push(["Sektor", record.departmentSectors.join(", ")], ["Untuk Tindakan Pegawai", record.assignedOfficers.join(", ")],
       ["No. Fail Rujukan", record.officeReferenceFile], ["No. Fail Peribadi", record.officePersonalFileNumber],
       ["No. Surat", record.officeReferenceLetterNumber], ["Catatan PPD", record.notes]);
-    if (category === "school_in" && schoolAccount) fields.push(["Nama Sekolah", record.schoolName || workspaceProfile.name]);
+    if (category === "school_in" && schoolAccount) fields.push(["Nama Sekolah", record.schoolName || workspaceProfile.name],
+      ["No. Fail Peribadi", record.officePersonalFileNumber]);
     if (category === "school_in" && !schoolAccount) fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
     if (category === "outgoing") fields.push(["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
       ["Catatan", record.notes], ["Gambar (Poslaju / Pos Biasa)", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
     if (category === "school_received") fields.push(["Untuk Tindakan / Nama Pegawai", record.assignedTo],
-      ["No. Fail Rujukan", record.registryFileNumber], ["Catatan Guru Besar/Pengetua", record.notes]);
+      ["No. Fail Rujukan", record.registryFileNumber], ["No. Fail Peribadi", record.officePersonalFileNumber],
+      ["Catatan Guru Besar/Pengetua", record.notes]);
     fields.push(["Tarikh Didaftarkan", formatDate(record.createdAt, true)]);
     return fields;
   };
