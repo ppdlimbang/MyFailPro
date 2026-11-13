@@ -2196,15 +2196,75 @@ async function initSettings() {
         officeSchoolAccountsPanel.classList.remove("hidden");
         officePanelVisible = true;
         const accountRows = document.querySelector("#officeSchoolAccountRows");
-        const schools = await rest("profiles", `role=eq.agency&agency_type=ilike.sekolah&ped_office_id=eq.${encodeURIComponent(officeProfile.id)}&select=name,email&order=name.asc`);
-        if (!schools.length) {
-          accountRows.append(create("tr", {}, create("td", { colspan: "2", className: "empty-row", text: "Tiada akaun sekolah didaftarkan di bawah pejabat ini." })));
-        } else {
-          schools.forEach(school => accountRows.append(create("tr", {}, [
+        const editSchoolModal = document.querySelector("#officeSchoolAccountEditModal");
+        let officeSchools = [];
+        let officeSchoolUsageAvailable = true;
+        const renderOfficeSchools = () => {
+          accountRows.replaceChildren();
+          if (!officeSchools.length) {
+            accountRows.append(create("tr", {}, create("td", { colspan: "5", className: "empty-row", text: "Tiada akaun sekolah didaftarkan di bawah pejabat ini." })));
+            return;
+          }
+          officeSchools.forEach(school => accountRows.append(create("tr", {}, [
             create("td", { text: school.name || "Nama sekolah tidak dinyatakan" }),
-            create("td", { text: school.email || "E-mel tidak tersedia" })
+            create("td", { text: school.email || "E-mel tidak tersedia" }),
+            create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
+            create("td", {}, create("div", { className: "staff-usage-log" }, [
+              create("strong", { text: officeSchoolUsageAvailable ? `${school.loginCount} kali log masuk` : "Belum tersedia" }),
+              create("span", { text: officeSchoolUsageAvailable && school.lastLoginAt ? `Terakhir: ${formatDate(school.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
+            ])),
+            create("td", { className: "staff-account-actions" }, create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${school.name}`, onclick: () => {
+              editSchoolModal.querySelector("[data-school-account-reference]").textContent = "Kemas kini nama sekolah, e-mel log masuk atau kata laluan.";
+              editSchoolModal.elements.nama.value = school.name;
+              editSchoolModal.elements.emel.value = school.email;
+              editSchoolModal.elements.password.value = "";
+              editSchoolModal.onsubmit = async event => {
+                event.preventDefault();
+                const data = Object.fromEntries(new FormData(editSchoolModal));
+                const button = editSchoolModal.querySelector("button[type=submit]");
+                setBusy(button, true, "Menyimpan…");
+                try {
+                  const updated = await callAdminFunction("office-update-school-account", {
+                    id: school.id,
+                    name: data.nama,
+                    email: data.emel,
+                    password: data.password
+                  });
+                  school.name = updated.name;
+                  school.email = updated.email;
+                  closeModal(editSchoolModal);
+                  renderOfficeSchools();
+                  toast("Akaun sekolah dikemas kini", data.password ? "Nama, e-mel dan kata laluan akaun sekolah telah dikemas kini." : "Nama dan e-mel akaun sekolah telah dikemas kini.");
+                } catch (error) {
+                  toast("Akaun sekolah tidak dapat dikemas kini", error.message, "error");
+                } finally { setBusy(button, false); }
+              };
+              showModal("#officeSchoolAccountEditModal");
+              editSchoolModal.elements.nama.focus();
+            } }))
           ])));
-        }
+        };
+        const loadOfficeSchools = async () => {
+          const baseQuery = `role=eq.agency&agency_type=ilike.sekolah&ped_office_id=eq.${encodeURIComponent(officeProfile.id)}`;
+          let rows;
+          officeSchoolUsageAvailable = true;
+          try {
+            rows = await rest("profiles", `${baseQuery}&select=id,name,email,login_count,last_login_at&order=name.asc`);
+          } catch (error) {
+            if (!/login_count|last_login_at/i.test(error.message)) throw error;
+            officeSchoolUsageAvailable = false;
+            rows = await rest("profiles", `${baseQuery}&select=id,name,email&order=name.asc`);
+          }
+          officeSchools = rows.map(row => ({
+            id: row.id,
+            name: String(row.name || "").trim(),
+            email: row.email || "",
+            loginCount: Number(row.login_count || 0),
+            lastLoginAt: row.last_login_at || null
+          }));
+          renderOfficeSchools();
+        };
+        await loadOfficeSchools();
       }
     } catch (error) {
       if (officePanelVisible) {
