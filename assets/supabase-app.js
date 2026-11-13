@@ -2185,6 +2185,36 @@ async function initSettings() {
   const normalizeSettingValue = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
   const isAgencyOwner = user.role === "agency";
   const isAgencyMember = isAgencyOwner || user.role === "staff";
+  const officeSchoolAccountsPanel = document.querySelector("#officeSchoolAccountsPanel");
+  let officePanelVisible = false;
+  if (officeSchoolAccountsPanel) {
+    try {
+      const officeProfile = isAgencyOwner
+        ? { id: user.id, agency_type: user.data?.jenis || "" }
+        : user.role === "staff" ? await rpc("ped_workspace_profile", {}) : null;
+      if (String(officeProfile?.agency_type || "").trim().toLocaleLowerCase("ms") === "pejabat") {
+        officeSchoolAccountsPanel.classList.remove("hidden");
+        officePanelVisible = true;
+        const accountRows = document.querySelector("#officeSchoolAccountRows");
+        const schools = await rest("profiles", `role=eq.agency&agency_type=ilike.sekolah&ped_office_id=eq.${encodeURIComponent(officeProfile.id)}&select=name,email&order=name.asc`);
+        if (!schools.length) {
+          accountRows.append(create("tr", {}, create("td", { colspan: "2", className: "empty-row", text: "Tiada akaun sekolah didaftarkan di bawah pejabat ini." })));
+        } else {
+          schools.forEach(school => accountRows.append(create("tr", {}, [
+            create("td", { text: school.name || "Nama sekolah tidak dinyatakan" }),
+            create("td", { text: school.email || "E-mel tidak tersedia" })
+          ])));
+        }
+      }
+    } catch (error) {
+      if (officePanelVisible) {
+        officeSchoolAccountsPanel.classList.remove("hidden");
+        const status = document.querySelector("#officeSchoolAccountsStatus");
+        status.classList.remove("hidden");
+        status.textContent = `Senarai akaun sekolah tidak dapat dimuatkan: ${error.message}`;
+      }
+    }
+  }
   let staffUsersError = null;
   if (isAgencyOwner) {
     try { await loadStaffUsers(); }
