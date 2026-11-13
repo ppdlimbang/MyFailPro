@@ -2766,6 +2766,10 @@ const pedCategoryMeta = {
   }
 };
 
+const pedOtherDeliveryMethod = "Lain-lain";
+const pedOtherDeliveryPrefix = `${pedOtherDeliveryMethod}: `;
+const pedDeliveryFilterValue = method => method.startsWith(pedOtherDeliveryPrefix) ? pedOtherDeliveryMethod : method;
+
 const pedFormOptions = {
   schools: [
     "SK BUKIT LUBA", "SK KUBONG", "SK BATU EMPAT", "SK KAMPUNG PAHLAWAN", "SK LIMPAKU PINANG",
@@ -2788,7 +2792,7 @@ const pedFormOptions = {
     "SEKTOR PERANCANGAN", "PPD", "SEKTOR PENTAKSIRAN & PEPERIKSAAN", "SEKTOR KAUNSELING",
     "PASUKAN TEKNIKAL ICT SEKOLAH"
   ],
-  deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL", "PETI SURAT SEKOLAH"]
+  deliveryMethods: ["POSLAJU", "POS BIASA", "SERAHAN TANGAN", "E-MEL", "PETI SURAT SEKOLAH", pedOtherDeliveryMethod]
 };
 
 // PeD printouts follow the office's paper log sheets: crest, boxed title,
@@ -3048,6 +3052,9 @@ async function initPed() {
   const letterNumberInput = document.querySelector("#pedLetterNumber");
   const letterNumberHint = letterNumberField.querySelector(".field-hint");
   const statusSelect = document.querySelector("#pedStatus");
+  const deliveryMethodsSelect = document.querySelector("#pedDeliveryMethods");
+  const otherDeliveryMethodField = document.querySelector("#pedOtherDeliveryMethodField");
+  const otherDeliveryMethodInput = document.querySelector("#pedOtherDeliveryMethod");
   const attachmentInput = document.querySelector("#pedAttachment");
   const attachmentName = document.querySelector("#pedAttachmentName");
   const viewAttachmentButton = document.querySelector("#pedViewAttachment");
@@ -3317,11 +3324,19 @@ async function initPed() {
       ...(officeAccount ? assignedSchools.map(school => school.name) : pedFormOptions.schools),
       ...records.filter(record => record.category === "school_in").map(record => record.schoolName || record.correspondent)
     ]);
-    fillFilterChoices("#pedFilterDeliveryMethods", [...pedFormOptions.deliveryMethods, ...records.flatMap(record => record.deliveryMethods)]);
+    fillFilterChoices("#pedFilterDeliveryMethods", [...pedFormOptions.deliveryMethods, ...records.flatMap(record => record.deliveryMethods.map(pedDeliveryFilterValue))]);
   };
   refreshAdvancedChoices();
   document.querySelectorAll('[data-ped-filter-scope="office"]').forEach(field => field.classList.toggle("hidden", schoolAccount));
   document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus, #pedFilterSectors, #pedFilterOfficers, #pedFilterSchools, #pedFilterDeliveryMethods").forEach(mountPedPicker);
+  const syncOtherDeliveryMethod = () => {
+    const visible = form.elements.category.value === "outgoing"
+      && [...deliveryMethodsSelect.selectedOptions].some(option => option.value === pedOtherDeliveryMethod);
+    otherDeliveryMethodField.classList.toggle("hidden", !visible);
+    otherDeliveryMethodInput.disabled = !visible;
+    otherDeliveryMethodInput.required = visible;
+  };
+  deliveryMethodsSelect.addEventListener("change", syncOtherDeliveryMethod);
   pedPickerStates.get(statusFilter).input.placeholder = "Semua status";
   let referenceViewOnly = false;
   const schoolUsesManualReference = () => schoolAccount && form.elements.category.value === "school_in"
@@ -3425,7 +3440,7 @@ async function initPed() {
       && anyMatches(recordOfficers(record), filters.officers)
       && anyMatches(record.category === "school_in" ? [record.schoolName || record.correspondent]
         : record.category === "outgoing" ? [record.recipient || record.correspondent] : [], filters.schools)
-      && anyMatches(record.deliveryMethods, filters.deliveryMethods)
+      && anyMatches(record.deliveryMethods.map(pedDeliveryFilterValue), filters.deliveryMethods)
       && (!filters.fileNumber || [record.officeReferenceFile, record.registryFileNumber]
         .some(value => normalizeRecipientName(value).includes(filters.fileNumber)))
       && (!filters.notes || normalizeRecipientName(record.notes).includes(filters.notes));
@@ -3692,8 +3707,10 @@ async function initPed() {
     document.querySelector("#pedAgencyNotes").value = category === "agency_in" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolNotes").value = category === "school_in" ? record?.notes || "" : "";
     setSelectValue(document.querySelector("#pedOriginSector"), record?.originSector || "");
-    const deliveryMethodsSelect = document.querySelector("#pedDeliveryMethods");
-    setMultiValues(deliveryMethodsSelect, record?.deliveryMethods || []);
+    const otherDeliveryMethod = record?.deliveryMethods.find(method => method.startsWith(pedOtherDeliveryPrefix));
+    setMultiValues(deliveryMethodsSelect, (record?.deliveryMethods || []).map(pedDeliveryFilterValue));
+    otherDeliveryMethodInput.value = otherDeliveryMethod?.slice(pedOtherDeliveryPrefix.length) || "";
+    syncOtherDeliveryMethod();
     document.querySelector("#pedOutgoingNotes").value = category === "outgoing" ? record?.notes || "" : "";
     document.querySelector("#pedSchoolReceivedNotes").value = category === "school_received" ? record?.notes || "" : "";
     setSelectValue(document.querySelector("#pedSchoolReceivedOfficer"), category === "school_received" ? record?.assignedTo || "" : "");
@@ -3832,6 +3849,13 @@ async function initPed() {
       ? schoolAccount ? workspaceProfile.name : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
       : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
+    const deliveryMethods = category === "outgoing" ? selectedValues("#pedDeliveryMethods").map(method =>
+      method === pedOtherDeliveryMethod ? `${pedOtherDeliveryPrefix}${otherDeliveryMethodInput.value.trim()}` : method) : [];
+    if (category === "outgoing" && deliveryMethods.some(method => method === pedOtherDeliveryPrefix)) {
+      toast("Nyatakan kaedah penghantaran", "Isi kaedah penghantaran surat bagi pilihan Lain-lain.", "error");
+      otherDeliveryMethodInput.focus();
+      return;
+    }
     const officeProcessingSchoolLetter = Boolean(officeAccount && category === "school_in" && existingRecord && existingRecord.ownerId !== pedOwnerId);
     if (schoolAccount && category === "school_in" && !statusSelect.value) {
       toast("Pilih status surat", "Pilih status surat sebelum menghantar Surat Keluar kepada Pejabat.", "error");
@@ -3893,7 +3917,7 @@ async function initPed() {
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedFile").value.trim() : "",
       registry_file_letter_number: category === "school_in" && !schoolAccount && registryFileNumberSelect.value ? registryLetterNumberInput.value.trim() : "",
       origin_sector: category === "outgoing" ? document.querySelector("#pedOriginSector").value : "",
-      delivery_methods: category === "outgoing" ? selectedValues("#pedDeliveryMethods") : [],
+      delivery_methods: deliveryMethods,
       subject: document.querySelector("#pedSubject").value.trim(),
       status: statusSelect.value,
       notes: category === "agency_in"
