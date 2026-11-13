@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="assets/navigation.css?v=20261113-04">
   <link rel="stylesheet" href="assets/ped.css?v=20261106-04">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-  <script src="assets/supabase-app.js?v=20261110-01" defer></script>
+  <script src="assets/supabase-app.js?v=20261113-01" defer></script>
 </head>
 <body data-page="ped">
 <div class="app-shell">
@@ -177,6 +177,7 @@
       <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedDepartmentSectors">Sektor</label><select class="input ped-multi-select" id="pedDepartmentSectors" multiple size="5"></select><span class="field-hint">Pilih satu atau lebih sektor.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedAssignedOfficers">Untuk Tindakan Pegawai</label><select class="input ped-multi-select" id="pedAssignedOfficers" multiple size="5"></select><span class="field-hint">Nama dipaparkan mengikut Direktori Pegawai Penerima MyFailPro. Jika beberapa pegawai dipilih, fail diserahkan kepada pegawai pertama dalam senarai pilihan.</span></div>
       <div class="field hidden" data-ped-category-fields="agency_in"><label for="pedOfficeReferenceFile">No. Fail Rujukan</label><select class="input" id="pedOfficeReferenceFile"><option value="">Pilih fail yang telah didaftarkan</option></select></div>
+      <div class="field hidden" data-ped-category-fields="agency_in"><label for="pedOfficePersonalFileNumber">No. Fail Peribadi</label><input class="input" id="pedOfficePersonalFileNumber" type="text" placeholder="Masukkan jika surat masuk ke fail peribadi" autocomplete="off"></div>
       <div class="field hidden" id="pedOfficeReferenceLetterNumberField" data-ped-category-fields="agency_in"><label for="pedOfficeReferenceLetterNumber">No. Surat</label><input class="input" id="pedOfficeReferenceLetterNumber" type="text" inputmode="numeric" pattern="[0-9]+" title="Gunakan digit sahaja." placeholder="Contoh: 1" autocomplete="off" disabled><span class="field-hint">Masukkan nombor surat selepas memilih No. Fail Rujukan.</span></div>
       <div class="field span-2 hidden" data-ped-category-fields="agency_in"><label for="pedAgencyNotes">Catatan PPD</label><textarea class="input" id="pedAgencyNotes" rows="3"></textarea></div>
 

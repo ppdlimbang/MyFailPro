@@ -755,6 +755,7 @@ function mapPedRecord(row) {
     assignedTo: row.assigned_to || "",
     officeReferenceFile: row.office_reference_file || "",
     officeReferenceLetterNumber: row.office_reference_letter_number || "",
+    officePersonalFileNumber: row.office_personal_file_number || "",
     registryFileNumber: row.registry_file_number || "",
     registryFileLetterNumber: row.registry_file_letter_number || "",
     originSector: row.origin_sector || "",
@@ -768,8 +769,8 @@ function mapPedRecord(row) {
 }
 
 async function loadPedRecords() {
-  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,office_reference_letter_number,registry_file_number,registry_file_letter_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
-  const legacyColumns = columns.replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
+  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,office_reference_letter_number,office_personal_file_number,registry_file_number,registry_file_letter_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
+  const legacyColumns = columns.replace("office_personal_file_number,", "").replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
   const fetchSize = 1000;
   const rows = [];
   let offset = 0;
@@ -779,7 +780,7 @@ async function loadPedRecords() {
     try {
       page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
     } catch (error) {
-      if (selectedColumns !== columns || !/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
+      if (selectedColumns !== columns || !/office_personal_file_number|office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
       selectedColumns = legacyColumns;
       page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
     }
@@ -3056,6 +3057,7 @@ async function initPed() {
 
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
+  const officePersonalFileNumberInput = document.querySelector("#pedOfficePersonalFileNumber");
   const officeReferenceLetterNumberField = document.querySelector("#pedOfficeReferenceLetterNumberField");
   const officeReferenceLetterNumberInput = document.querySelector("#pedOfficeReferenceLetterNumber");
   const registryFileNumberSelect = document.querySelector("#pedRegistryFileNumber");
@@ -3670,6 +3672,7 @@ async function initPed() {
     setSelectValue(document.querySelector("#pedSchoolSector"), record?.schoolSector || "");
     document.querySelector("#pedAssignedTo").value = record?.assignedTo || "";
     setSelectValue(officeReferenceFileSelect, record?.officeReferenceFile || "");
+    officePersonalFileNumberInput.value = record?.officePersonalFileNumber || "";
     setSelectValue(registryFileNumberSelect, record?.registryFileNumber || "");
     officeReferenceLetterNumberInput.value = record?.officeReferenceLetterNumber || "";
     registryLetterNumberInput.value = record?.registryFileLetterNumber || "";
@@ -3871,6 +3874,7 @@ async function initPed() {
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedOfficer").value : "",
       office_reference_file: category === "agency_in" ? officeReferenceFileSelect.value : "",
       office_reference_letter_number: category === "agency_in" && officeReferenceFileSelect.value ? officeReferenceLetterNumberInput.value.trim() : "",
+      office_personal_file_number: category === "agency_in" ? officePersonalFileNumberInput.value.trim() : undefined,
       registry_file_number: category === "school_in" && !schoolAccount ? registryFileNumberSelect.value
         : category === "school_received" ? document.querySelector("#pedSchoolReceivedFile").value.trim() : "",
       registry_file_letter_number: category === "school_in" && !schoolAccount && registryFileNumberSelect.value ? registryLetterNumberInput.value.trim() : "",
@@ -3888,6 +3892,7 @@ async function initPed() {
       attachment_path: null
     };
     if (!payload.office_reference_letter_number) delete payload.office_reference_letter_number;
+    if (category !== "agency_in") delete payload.office_personal_file_number;
     if (!payload.registry_file_letter_number) delete payload.registry_file_letter_number;
     const movementRecipient = category === "agency_in" ? payload.assigned_officers[0] || ""
       : officeAccount && category === "school_in" ? payload.assigned_to : "";
@@ -4031,7 +4036,9 @@ async function initPed() {
       }
     } catch (error) {
       if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
-      if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
+      if (/office_personal_file_number/i.test(error.message || "")) {
+        toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261113010000_add_office_personal_file_number.sql sebelum menyimpan No. Fail Peribadi.", "error");
+      } else if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261105020000_add_ped_reference_letter_numbers.sql sebelum menyimpan nombor surat bagi fail rujukan.", "error");
       } else if (/ped_correspondence_owner_category_reference_idx/i.test(error.message || "")) {
         toast("Surat ini telah direkodkan", "Surat dengan rujukan, No. Fail Rujukan dan No. Surat yang sama telah wujud. Semak No. Surat atau cari surat tersebut dalam senarai.", "error");
@@ -4348,7 +4355,8 @@ async function initPed() {
     ];
     // Labels follow the letter form, including the No. Surat beside each reference file.
     if (category === "agency_in") fields.push(["Sektor", record.departmentSectors.join(", ")], ["Untuk Tindakan Pegawai", record.assignedOfficers.join(", ")],
-      ["No. Fail Rujukan", record.officeReferenceFile], ["No. Surat", record.officeReferenceLetterNumber], ["Catatan PPD", record.notes]);
+      ["No. Fail Rujukan", record.officeReferenceFile], ["No. Fail Peribadi", record.officePersonalFileNumber],
+      ["No. Surat", record.officeReferenceLetterNumber], ["Catatan PPD", record.notes]);
     if (category === "school_in" && schoolAccount) fields.push(["Nama Sekolah", record.schoolName || workspaceProfile.name]);
     if (category === "school_in" && !schoolAccount) fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
