@@ -62,12 +62,12 @@ body:not([data-page="login"]) .topbar .nav {
   max-width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 5px;
-  gap: 4px;
+  padding: 8px;
+  gap: 6px;
   border: 1px solid #ece8f4;
-  border-radius: 18px;
+  border-radius: 999px;
   background: #f5f3fa;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .9);
+  box-shadow: 0 6px 22px rgba(44, 31, 77, .06), inset 0 1px 0 #fff;
   overflow: visible;
 }
 
@@ -76,61 +76,81 @@ body:not([data-page="login"]) .topbar .nav a {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: 46px;
   width: auto;
   min-width: 0;
   margin: 0;
-  padding: 8px 13px;
-  gap: 9px;
+  padding: 10px 18px;
+  gap: 10px;
   border: 1px solid transparent;
-  border-radius: 13px;
+  border-radius: 999px;
   color: #635b73;
   background: transparent;
   box-shadow: none;
-  font-size: .77rem;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: .875rem;
   font-weight: 600;
   line-height: 1.35;
   white-space: nowrap;
-  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 
 body:not([data-page="login"]) .topbar .nav a:hover {
   color: #3c245f;
+  border-color: transparent;
   background: #fff;
-  box-shadow: 0 2px 6px rgba(44, 31, 77, .05);
+  box-shadow: none;
 }
 
 body:not([data-page="login"]) .topbar .nav a[aria-current="page"] {
   color: #fff;
   font-weight: 700;
-  border-color: rgba(255, 255, 255, .22);
+  border-color: rgba(255, 255, 255, .3);
   background: linear-gradient(120deg, #6525ce, #8245e8);
-  box-shadow: 0 4px 10px rgba(109, 40, 217, .19), inset 0 1px rgba(255, 255, 255, .17);
+  box-shadow: 0 6px 14px rgba(109, 40, 217, .24), inset 0 1px 0 rgba(255, 255, 255, .24);
 }
 
-body:not([data-page="login"]) .topbar .nav a[data-ped-nav] .nav-icon {
-  color: #0f8c8f;
-  background: #d9f5f2;
-  box-shadow: inset 0 0 0 1px rgba(15, 140, 143, .13);
+body:not([data-page="login"]) .topbar .nav a[aria-current="page"]::after {
+  content: none;
+}
+
+body:not([data-page="login"]) .topbar .nav .nav-settings {
+  margin-left: 10px;
+}
+body:not([data-page="login"]) .topbar .nav .nav-settings::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: #e9e4f1;
+}
+
+body:not([data-page="login"]) .topbar .nav a[data-ped-nav] {
+  --tab-icon-color: #0f8c8f;
 }
 
 body:not([data-page="login"]) .topbar .nav a .nav-icon {
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
-  flex: 0 0 30px;
-  border-radius: 9px;
+  flex: 0 0 20px;
+  border-radius: 0;
+  color: var(--tab-icon-color, #6d4aff);
+  background: transparent;
   transform: none;
   box-shadow: none;
 }
 body:not([data-page="login"]) .topbar .nav a .nav-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 body:not([data-page="login"]) .topbar .nav a[aria-current="page"] .nav-icon {
-  background: rgba(255, 255, 255, .16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
 }
 
 body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box {
@@ -230,10 +250,18 @@ body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible
   body:not([data-page="login"]) .topbar .nav {
     grid-column: 1 / -1;
     grid-row: 2;
-    justify-self: stretch;
-    width: 100%;
+    justify-self: center;
+    width: max-content;
   }
-  body:not([data-page="login"]) .topbar .nav a { flex: 1 1 0; }
+  body:not([data-page="login"]) .topbar .nav a { flex: 1 1 auto; }
+}
+
+@media (min-width: 851px) and (max-width: 1100px) {
+  body:not([data-page="login"]) .topbar .nav a {
+    padding-inline: 12px;
+    gap: 8px;
+    font-size: .8rem;
+  }
 }
 
 @media (max-width: 780px) {
@@ -243,13 +271,26 @@ body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible
     padding-block: 12px;
   }
   body:not([data-page="login"]) .topbar .brand-copy small { display: none; }
-  body:not([data-page="login"]) .topbar .nav { gap: 3px; }
-  body:not([data-page="login"]) .topbar .nav a { padding-inline: 8px; font-size: .72rem; gap: 7px; }
-  body:not([data-page="login"]) .topbar .nav a span:last-child {
-    min-width: 0;
-    white-space: normal;
-    text-align: left;
+}
+
+@media (max-width: 850px) {
+  body:not([data-page="login"]) .topbar .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    padding: 7px;
+    gap: 5px;
+    border-radius: 28px;
   }
+  body:not([data-page="login"]) .topbar .nav a {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 8px;
+    gap: 8px;
+    font-size: .8rem;
+  }
+  body:not([data-page="login"]) .topbar .nav .nav-settings { margin-left: 0; }
+  body:not([data-page="login"]) .topbar .nav .nav-settings::before { content: none; }
 }
 
 @media (max-width: 680px) {
@@ -264,27 +305,9 @@ body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible
     flex-basis: 36px;
   }
   body:not([data-page="login"]) .topbar .brand-copy strong { font-size: 1rem; }
-  body:not([data-page="login"]) .topbar .nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 5px;
-    gap: 4px;
-    border-radius: 16px;
-  }
   body:not([data-page="login"]) .topbar .nav a {
-    justify-content: flex-start;
-    width: 100%;
-    min-height: 46px;
-    padding: 7px 8px;
     gap: 7px;
-    font-size: .7rem;
-    white-space: normal;
-  }
-  body:not([data-page="login"]) .topbar .nav a span:last-child { white-space: normal; }
-  body:not([data-page="login"]) .topbar .nav a .nav-icon {
-    width: 28px;
-    height: 28px;
-    flex-basis: 28px;
+    font-size: .75rem;
   }
   body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box { gap: 6px; }
   body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .logout-button {
@@ -296,6 +319,8 @@ body:not([data-page="login"]) .topbar :is(a, button, .user-avatar):focus-visible
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body:not([data-page="login"]) .topbar .nav a { transition: none; }
+  body:not([data-page="login"]) .topbar .nav a .nav-icon { transition: none; }
   body:not([data-page="login"]) .topbar a:active,
   body:not([data-page="login"]) .topbar button:active { transform: none; }
 }
