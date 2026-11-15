@@ -3116,6 +3116,89 @@ async function initPed() {
     return pedStatusVisuals[key] || pedStatusVisuals.baru;
   };
   const pedStatusIcon = status => createIcon(pedStatusVisual(status).icon, "ped-status-icon");
+  const statusChoices = (category, record = null) => {
+    if (schoolAccount && category === "school_in") {
+      return [record && ["Dikembalikan", "Dihantar Semula"].includes(record.status) ? "Dihantar Semula" : "Dihantar"];
+    }
+    return pedCategoryMeta[category].statuses.filter(status =>
+      !(officeAccount && category === "school_in" && status === "Dihantar Semula"));
+  };
+  const canChangeStatus = record => canDeletePedRecord(record)
+    && (!schoolAccount || record.category === "school_received"
+      || (record.category === "school_in" && assignedOffice && record.ownerId === pedOwnerId
+        && ["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status)));
+  const pendingStatusUpdates = new Set();
+  const syncStatusBusy = id => {
+    document.querySelectorAll("[data-ped-status-record]").forEach(control => {
+      if (control.dataset.pedStatusRecord !== id) return;
+      control.disabled = pendingStatusUpdates.has(id);
+      control.setAttribute("aria-busy", String(control.disabled));
+    });
+  };
+  const saveInlineStatus = async (record, status) => {
+    if (pendingStatusUpdates.has(record.id)) return false;
+    if (!canChangeStatus(record) || !statusChoices(record.category, record).includes(status)) {
+      throw new Error("Status ini tidak boleh ditetapkan oleh akaun anda.");
+    }
+    if (status === record.status) return false;
+    pendingStatusUpdates.add(record.id);
+    syncStatusBusy(record.id);
+    try {
+      // Match the last known status too, so another user's update is not overwritten.
+      const rows = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}&status=eq.${encodeURIComponent(record.status)}`, {
+        method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ status })
+      });
+      if (!rows?.[0] || rows[0].id !== record.id || rows[0].status !== status) {
+        throw new Error("Status tidak disimpan. Rekod mungkin telah berubah atau akses ditolak. Muat semula halaman dan cuba lagi.");
+      }
+      const saved = mapPedRecord(rows[0]);
+      state.pedRecords = state.pedRecords.map(item => item.id === saved.id ? saved : item);
+      return true;
+    } finally {
+      pendingStatusUpdates.delete(record.id);
+      syncStatusBusy(record.id);
+    }
+  };
+  const inlineStatus = record => {
+    const choices = statusChoices(record.category, record);
+    const editable = canChangeStatus(record) && choices.some(status => status !== record.status);
+    const badge = create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, pedStatusIcon(record.status));
+    if (!editable) {
+      badge.append(create("span", { text: record.status }));
+      badge.title = "Status ini dikawal oleh aliran kerja atau kebenaran akaun.";
+      return badge;
+    }
+    badge.classList.add("ped-inline-status");
+    const select = create("select", {
+      className: "ped-inline-status-select", "data-ped-status-record": record.id,
+      "aria-label": `Ubah status ${record.reference || record.subject || "surat"}`,
+      title: `${record.status} — pilih status untuk simpan terus`
+    }, [...new Set([record.status, ...choices])].map(status => create("option", { value: status, text: status })));
+    select.value = record.status;
+    select.disabled = pendingStatusUpdates.has(record.id);
+    select.setAttribute("aria-busy", String(select.disabled));
+    select.addEventListener("change", async () => {
+      const nextStatus = select.value;
+      if (pendingStatusUpdates.has(record.id) || nextStatus === record.status) return;
+      const tableBody = select.closest("tbody");
+      try {
+        if (await saveInlineStatus(record, nextStatus)) {
+          render();
+          toast("Status dikemas kini", `${record.reference || "Surat"}: ${nextStatus}.`);
+        }
+      } catch (error) {
+        render();
+        toast("Status tidak dapat dikemas kini", error.message, "error");
+      } finally {
+        // Preserve keyboard position when the row still matches the active filters.
+        [...(tableBody?.querySelectorAll(".ped-inline-status-select") || [])]
+          .find(control => control.dataset.pedStatusRecord === record.id)?.focus({ preventScroll: true });
+      }
+    });
+    badge.append(select);
+    return badge;
+  };
   const pedPickerStates = new Map();
   const refreshPedPicker = select => {
     const picker = pedPickerStates.get(select);
@@ -3507,20 +3590,16 @@ async function initPed() {
         const receive = canMarkReceived ? create("button", {
           className: "button small ped-receive-button",
           type: "button",
+          "data-ped-status-record": record.id,
           "aria-label": `Tandakan ${referenceText} sebagai sudah diterima`,
           text: "Sudah Terima"
         }) : null;
+        if (receive) receive.disabled = pendingStatusUpdates.has(record.id);
         receive?.addEventListener("click", async () => {
+          if (pendingStatusUpdates.has(record.id)) return;
           setBusy(receive, true, "Menyimpan…");
           try {
-            const rows = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}`, {
-              method: "PATCH",
-              headers: { Prefer: "return=representation" },
-              body: JSON.stringify({ status: "Diterima" })
-            });
-            const saved = mapPedRecord(rows?.[0]);
-            if (!saved?.id) throw new Error("Pengesahan penerimaan surat tidak diterima daripada pelayan.");
-            state.pedRecords = state.pedRecords.map(item => item.id === saved.id ? saved : item);
+            if (!await saveInlineStatus(record, "Diterima")) return;
             render();
             toast("Surat diterima", `${referenceText} telah ditandakan sebagai diterima.`);
           } catch (error) {
@@ -3562,10 +3641,7 @@ async function initPed() {
             create("strong", { className: "ped-reference", text: referenceDisplay })),
           create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, create("span", { className: "ped-party", text: party || "—" })),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
-          create("td", { className: "ped-cell-status", "data-label": "Status" }, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
-            pedStatusIcon(record.status),
-            create("span", { text: record.status })
-          ])),
+          create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
           create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [
             ...(receive ? [receive] : []), edit, ...(canDelete ? [remove] : [])
           ]))
@@ -3650,12 +3726,7 @@ async function initPed() {
     syncReferenceMode();
     form.elements.subject.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     form.elements.subject.value = record?.subject || "";
-    const statuses = schoolOutgoing
-      ? record?.status === "Dikembalikan" || record?.status === "Dihantar Semula"
-        ? ["Dihantar Semula"] : ["Dihantar"]
-      : officeAccount && category === "school_in"
-        ? meta.statuses.filter(status => status !== "Dihantar Semula")
-        : [...meta.statuses];
+    const statuses = statusChoices(category, record);
     if (record?.status && !statuses.includes(record.status) && (!schoolOutgoing || viewOnly)) statuses.push(record.status);
     statusSelect.replaceChildren(
       ...(schoolOutgoing && !record ? [create("option", { value: "", text: "Pilih status sebelum hantar" })] : []),
@@ -4139,10 +4210,7 @@ async function initPed() {
       create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" }, create("strong", { className: "ped-reference", text: reference || "—" })),
       create("td", { className: "ped-cell-party", "data-label": pedPartyLabel(record.category) }, create("span", { className: "ped-party", text: pedPartyName(record) || "—" })),
       create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
-      create("td", { className: "ped-cell-status", "data-label": "Status" }, create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, [
-        pedStatusIcon(record.status),
-        create("span", { text: record.status })
-      ])),
+      create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
       create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, open))
     ]);
   };

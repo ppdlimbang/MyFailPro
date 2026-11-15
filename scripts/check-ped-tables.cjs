@@ -14,6 +14,9 @@ const browserPath = process.env.PED_BROWSER || [
 ].find(file => fs.existsSync(file));
 assert(browserPath, 'Set PED_BROWSER to an installed Chromium browser.');
 let scenario = 'office';
+let storedRecords = null;
+let patchMode = 'success';
+const patches = [];
 const userId = 'preview-user';
 const profile = () => ({ id: userId, name: 'Akaun Pratonton', email: 'preview@example.test',
   role: scenario === 'admin' ? 'admin' : 'agency',
@@ -27,9 +30,9 @@ const record = (category, index, extras = {}) => ({
   subject: 'Pelaksanaan program pembangunan murid dan penyelarasan aktiviti sekolah bagi sesi persekolahan semasa.',
   status: 'Dihantar', ...extras
 });
-const records = () => scenario === 'school'
+const records = () => storedRecords || (scenario === 'school'
   ? [record('school_in', 1), record('school_received', 2, { status: 'Dalam proses' })]
-  : [record('school_in', 1, { owner_id: 'another-school', school_id: 'another-school', office_id: userId }), ...Array.from({ length: scenario === 'paging' ? 12 : 2 }, (_, i) => record('outgoing', i + 1, { status: i ? 'Dihantar Semula' : 'Diterima' }))];
+  : [record('school_in', 1, { owner_id: 'another-school', school_id: 'another-school', office_id: userId }), ...Array.from({ length: scenario === 'paging' ? 12 : 2 }, (_, i) => record('outgoing', i + 1, { status: i ? 'Dihantar Semula' : 'Diterima' }))]);
 const allowed = new Set(['ped.html', 'assets/styles.css', 'assets/navigation.css', 'assets/ped.css', 'assets/icons.css', 'assets/supabase-app.js', 'file.png', 'Gemini_Generated_Image_vvxauovvxauovvxa.jpeg', ...fs.readdirSync(path.join(root, 'assets/icons')).map(name => `assets/icons/${name}`)]);
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -47,10 +50,19 @@ const server = http.createServer((req, res) => {
       req.on('data', chunk => { body += chunk; });
       req.on('end', () => {
         const payload = JSON.parse(body || '{}');
-        assert.deepEqual(payload, { status: 'Diterima' }, 'Receipt action may only update the status');
-        const source = records().find(item => item.id === 'school_in-1');
+        assert.deepEqual(Object.keys(payload), ['status'], 'Inline updates may only change status');
+        const source = records().find(item => `eq.${item.id}` === url.searchParams.get('id'));
+        assert(source, 'Update must target a known record');
+        assert.equal(url.searchParams.get('status'), `eq.${source.status}`, 'Update must guard against concurrent status changes');
+        patches.push({ id: source.id, status: payload.status });
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify([{ ...source, ...payload }]));
+        if (patchMode === 'denied') { res.writeHead(403).end(JSON.stringify({ message: 'Akses ditolak untuk ujian.' })); return; }
+        if (patchMode === 'empty') { res.end('[]'); return; }
+        setTimeout(() => {
+          const saved = { ...source, ...payload };
+          storedRecords = records().map(item => item.id === source.id ? saved : item);
+          res.end(JSON.stringify([saved]));
+        }, patchMode === 'slow' ? 350 : 0);
       });
       return;
     }
@@ -107,9 +119,10 @@ let browser;
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('Network.enable');
   await cdp.send('Network.setBlockedURLs', { urls: ['https://*'] });
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `sessionStorage.setItem('myfailpro_supabase_session',JSON.stringify({access_token:'preview',user:{id:'${userId}'}}));` });
-  for (const role of ['office', 'agency', 'admin', 'school', 'paging']) {
+  for (const role of process.env.PED_INLINE_ONLY ? [] : ['office', 'agency', 'admin', 'school', 'paging']) {
     scenario = role;
     for (const width of role === 'paging' ? [1440] : [1440, 900, 390, 320]) {
+      storedRecords = null;
       await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false });
       await cdp.send('Page.navigate', { url: `${base}/ped.html?preview=${role}-${width}` });
       let ready = false;
@@ -159,7 +172,7 @@ let browser;
         let received = false;
         for (let i = 0; !received && i < 40; i++) {
           await wait(100);
-          received = await evaluate(`document.querySelector('[data-ped-rows="school_in"] .ped-cell-status')?.textContent.includes('Diterima')`);
+          received = await evaluate(`document.querySelector('[data-ped-rows="school_in"] .ped-inline-status-select')?.value === 'Diterima'`);
         }
         assert(received, `${role} ${width}: receipt status was not updated`);
         assert.equal(await evaluate(`document.querySelectorAll('.ped-receive-button').length`), 0);
@@ -169,6 +182,79 @@ let browser;
       console.log(`${role} ${width}px: PASS`);
     }
   }
+  const until = async (expression, message) => {
+    for (let i = 0; i < 80; i++) { if (await evaluate(expression)) return; await wait(50); }
+    assert.fail(message);
+  };
+  const inlineSelector = (id, scope = '#pedListView') => `${scope} select[data-ped-status-record="${id}"]`;
+  const choose = async (id, value, scope) => {
+    const selector = inlineSelector(id, scope);
+    await evaluate(`(() => { const select=document.querySelector(${JSON.stringify(selector)}); select.value=${JSON.stringify(value)}; select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+  };
+  const expectStatus = async (id, status, scope) => {
+    await until(`document.querySelector(${JSON.stringify(inlineSelector(id, scope))})?.value === ${JSON.stringify(status)} && !document.querySelector(${JSON.stringify(inlineSelector(id, scope))})?.disabled`, `Status ${id} did not settle at ${status}`);
+    assert.equal(storedRecords.find(item => item.id === id).status, status);
+  };
+  // All three table views share the same persisted status control.
+  scenario = 'office';
+  storedRecords = [record('agency_in',1,{status:'Belum diminit'}),record('outgoing',1),record('school_in',1,{owner_id:'another-school',school_id:'another-school',office_id:userId})];
+  await cdp.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await cdp.send('Page.navigate',{url:base+'/ped.html?inline'});
+  await until(`Boolean(document.querySelector(${JSON.stringify(inlineSelector('agency_in-1'))}))`,'Inline status control missing');
+  assert.equal(await evaluate(`document.querySelector('#pedModal').classList.contains('hidden')`),true);
+  await choose('agency_in-1','Dalam proses');
+  await expectStatus('agency_in-1','Dalam proses');
+  await choose('outgoing-1','Diterima');
+  await expectStatus('outgoing-1','Diterima');
+  assert.equal(await evaluate(`Array.from(document.querySelector(${JSON.stringify(inlineSelector('school_in-1'))}).options).some(o=>o.value==='Dihantar Semula')`),false);
+  await choose('school_in-1','Diterima');
+  await expectStatus('school_in-1','Diterima');
+  await evaluate(`document.querySelector('[data-ped-view="history"]').click()`);
+  await choose('outgoing-1','Selesai','#pedHistoryView');
+  await expectStatus('outgoing-1','Selesai','#pedHistoryView');
+  await expectStatus('outgoing-1','Selesai');
+  await evaluate(`document.querySelector('[data-ped-view="schools"]').click();document.querySelector('.ped-school-card').click()`);
+  await choose('school_in-1','Dalam proses','#pedSchoolsView');
+  await expectStatus('school_in-1','Dalam proses','#pedSchoolsView');
+  await expectStatus('school_in-1','Dalam proses');
+  await evaluate(`document.querySelector('[data-ped-view="list"]').click()`);
+  // Failed and empty writes must keep the last confirmed value and allow retry.
+  for (const mode of ['denied','empty']) {
+    patchMode=mode;
+    const count=patches.length;
+    await choose('agency_in-1','Selesai');
+    await until(`!document.querySelector(${JSON.stringify(inlineSelector('agency_in-1'))}).disabled && document.querySelector(${JSON.stringify(inlineSelector('agency_in-1'))}).value==='Dalam proses'`,'Failed write did not restore status');
+    assert.equal(patches.length,count+1);
+    assert.equal(storedRecords.find(r=>r.id==='agency_in-1').status,'Dalam proses');
+  }
+  patchMode='slow';
+  const before=patches.length;
+  await choose('agency_in-1','Selesai');
+  assert.equal(await evaluate(`document.querySelector(${JSON.stringify(inlineSelector('agency_in-1'))}).disabled`),true);
+  await choose('agency_in-1','Sudah diminit');
+  await expectStatus('agency_in-1','Selesai');
+  assert.equal(patches.length,before+1,'Duplicate writes were not prevented');
+  patchMode='success';
+  // Saving refreshes the active filter rather than leaving a stale row behind.
+  await evaluate(`const statusFilter=document.querySelector('#pedStatusFilter');statusFilter.value='Selesai';statusFilter.dispatchEvent(new Event('change',{bubbles:true}));`);
+  await choose('agency_in-1','Dalam proses');
+  await until(`!document.querySelector(${JSON.stringify(inlineSelector('agency_in-1'))})`,'Updated row did not leave the active status filter');
+  assert.equal(await evaluate(`document.querySelector('#pedModal').classList.contains('hidden')`),true);
+  console.log('Inline status: all categories/views, persistence, failures, concurrency and filters PASS');
+  // School processing locks and resend permissions remain enforced in the UI.
+  scenario='school';
+  storedRecords=[record('school_in',1,{status:'Diterima'}),record('school_in',2,{status:'Dikembalikan'}),record('school_in',3),record('school_received',1,{status:'Belum diminit'})];
+  await cdp.send('Page.navigate',{url:base+'/ped.html?school-inline'});
+  await until(`Boolean(document.querySelector(${JSON.stringify(inlineSelector('school_received-1'))}))`,'School incoming control missing');
+  assert.equal(await evaluate(`document.querySelector(${JSON.stringify(inlineSelector('school_in-1'))})`),null);
+  assert.equal(await evaluate(`document.querySelector(${JSON.stringify(inlineSelector('school_in-3'))})`),null);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelector(${JSON.stringify(inlineSelector('school_in-2'))}).options).map(o=>o.value)`),['Dikembalikan','Dihantar Semula']);
+  await choose('school_received-1','Selesai');
+  await expectStatus('school_received-1','Selesai');
+  await choose('school_in-2','Dihantar Semula');
+  await until(`!document.querySelector(${JSON.stringify(inlineSelector('school_in-2'))})`,'Resent school letter should have no further status choices');
+  assert.equal(storedRecords.find(r=>r.id==='school_in-2').status,'Dihantar Semula');
+  console.log('Inline status: school incoming, locked letters and permitted resend PASS');
   assert.equal(cdp.exceptions.length, 0, cdp.exceptions.join('\n'));
   console.log(`Screenshots: ${output}`);
   await cdp.send('Browser.close').catch(() => {}); cdp.ws.close();
