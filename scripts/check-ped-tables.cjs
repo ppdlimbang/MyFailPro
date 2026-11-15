@@ -30,7 +30,7 @@ const record = (category, index, extras = {}) => ({
 const records = () => scenario === 'school'
   ? [record('school_in', 1), record('school_received', 2, { status: 'Dalam proses' })]
   : [record('school_in', 1, { owner_id: 'another-school', school_id: 'another-school', office_id: userId }), ...Array.from({ length: scenario === 'paging' ? 12 : 2 }, (_, i) => record('outgoing', i + 1, { status: i ? 'Dihantar Semula' : 'Diterima' }))];
-const allowed = new Set(['ped.html', 'assets/styles.css', 'assets/navigation.css', 'assets/ped.css', 'assets/supabase-app.js', 'file.png', 'Gemini_Generated_Image_vvxauovvxauovvxa.jpeg']);
+const allowed = new Set(['ped.html', 'assets/styles.css', 'assets/navigation.css', 'assets/ped.css', 'assets/icons.css', 'assets/supabase-app.js', 'file.png', 'Gemini_Generated_Image_vvxauovvxauovvxa.jpeg', ...fs.readdirSync(path.join(root, 'assets/icons')).map(name => `assets/icons/${name}`)]);
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const file = url.pathname.slice(1);
@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(result)); return;
   }
   if (!allowed.has(file)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', file.endsWith('.css') ? 'text/css' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'image/png');
+  res.setHeader('Content-Type', file.endsWith('.css') ? 'text/css' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.svg') ? 'image/svg+xml' : 'image/png');
   res.end(fs.readFileSync(path.join(root, file)));
 });
 

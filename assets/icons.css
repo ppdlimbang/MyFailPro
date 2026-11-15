@@ -1,0 +1,109 @@
+/* Dimensional, locally hosted SVG artwork shared by every page. */
+.icon-3d { overflow: visible; flex-shrink: 0; }
+.icon-3d image { pointer-events: none; }
+
+body:not([data-page="login"]) .topbar .brand-symbol {
+  background: none;
+}
+body:not([data-page="login"]) .topbar .brand-symbol svg.icon-3d {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+body:not([data-page="login"]) .topbar :is(.nav a, .nav-settings) .nav-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+body:not([data-page="login"]) .topbar :is(.nav a, .nav-settings) .nav-icon svg.icon-3d {
+  width: 30px;
+  height: 30px;
+}
+body:not([data-page="login"]) :is(.notification-button, .logout-button) svg.icon-3d,
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box > .topbar-notification-button svg.icon-3d {
+  width: 28px;
+  height: 28px;
+}
+body:not([data-page="login"]) .stat .stat-icon,
+body[data-page="dashboard"] .stats .stat .stat-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+body:not([data-page="login"]) .stat .stat-icon svg.icon-3d,
+body[data-page="dashboard"] .stats .stat .stat-icon svg.icon-3d {
+  width: 50px;
+  height: 50px;
+}
+body[data-page="dashboard"] :is(#file-list, #file-archive) .file-panel-icon {
+  background: transparent;
+  border: 0;
+}
+body[data-page="dashboard"] :is(#file-list, #file-archive) .file-panel-icon svg.icon-3d,
+.ped-school-card-icon svg.icon-3d { width: 38px; height: 38px; }
+.ped-school-card-icon { background: transparent; }
+.ped-stat-icon { background: transparent; border: 0; box-shadow: none; }
+.ped-stat-icon svg.icon-3d { width: 42px; height: 42px; }
+.ped-empty-state svg.icon-3d { width: 44px; height: 44px; }
+.ped-status-icon.icon-3d { width: 22px; height: 22px; flex: 0 0 22px; }
+.button svg.icon-3d, .icon-button svg.icon-3d, .ped-delete svg.icon-3d { width: 23px; height: 23px; }
+body[data-page="dashboard"] :is(#file-list, #file-archive) :is(.file-date, .file-last-movement) svg.icon-3d {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+}
+body[data-page="dashboard"] :is(#file-list, #file-archive) .file-search > svg.icon-3d {
+  width: 22px;
+  height: 22px;
+  left: 11px;
+}
+.login-register-action svg.icon-3d, .login-shield svg.icon-3d { width: 28px; height: 28px; }
+/* Text symbols retain their accessible button names and click targets. */
+.icon-button[data-close] { font-size: 0; }
+.icon-button[data-close]::before {
+  content: "";
+  width: 27px;
+  height: 27px;
+  background: url("icons/close.svg") center / contain no-repeat;
+}
+.notification-item-icon, .notification-file-handoff-icon { font-size: 0; }
+.notification-item-icon::before, .notification-file-handoff-icon::before {
+  content: "";
+  width: 28px;
+  height: 28px;
+  background: url("icons/movement.svg") center / contain no-repeat;
+}
+.login-submit::after {
+  content: "";
+  width: 25px;
+  height: 25px;
+  background: url("icons/returned.svg") center / contain no-repeat;
+  transform: rotate(180deg);
+}
+body:not([data-page="login"]) .settings-grid h2::before {
+  content: "";
+  width: 32px;
+  height: 32px;
+  border: 0;
+  box-shadow: none;
+  background: url("icons/folder.svg") center / contain no-repeat;
+}
+body:not([data-page="login"]) .settings-grid .panel:nth-child(2) h2::before { content: ""; background-image: url("icons/document.svg"); }
+body:not([data-page="login"]) .settings-grid .panel:nth-child(3) h2::before { content: ""; background-image: url("icons/users.svg"); }
+body:not([data-page="login"]) .settings-grid .panel:nth-child(4) h2::before { content: ""; background-image: url("icons/settings.svg"); }
+@media (max-width: 680px) {
+  body:not([data-page="login"]) .topbar :is(.nav a, .nav-settings) .nav-icon {
+    width: 25px;
+    height: 25px;
+    flex-basis: 25px;
+  }
+  body:not([data-page="login"]) .topbar :is(.nav a, .nav-settings) .nav-icon svg.icon-3d { width: 25px; height: 25px; }
+}

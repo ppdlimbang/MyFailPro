@@ -50,7 +50,7 @@ const state = {
   settings: null
 };
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
-const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon"]);
+const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon", "image"]);
 
 function create(tag, options = {}, children = []) {
   const node = SVG_TAGS.has(tag)
@@ -67,6 +67,14 @@ function create(tag, options = {}, children = []) {
   });
   (Array.isArray(children) ? children : [children]).filter(Boolean).forEach(child => node.append(child));
   return node;
+}
+
+// Shared artwork for dynamic controls; each SVG keeps its existing layout hooks.
+function createIcon(name, className = "") {
+  return create("svg", {
+    className: `icon-3d ${className}`, viewBox: "0 0 64 64",
+    "aria-hidden": "true", focusable: "false", "data-icon": name
+  }, create("image", { href: `assets/icons/${name}.svg?v=20261115-01`, width: "64", height: "64" }));
 }
 
 function toast(title, message, type = "success") {
@@ -369,10 +377,7 @@ function renderShell(user) {
   let pedNavigation = shellNavigation?.querySelector('[data-ped-nav], a[href^="ped.html"]');
   if (shellNavigation && !pedNavigation) {
     pedNavigation = create("a", { href: "ped.html", "data-ped-nav": "" }, [
-      create("span", { className: "nav-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
-        create("path", { d: "M5 3h14v18H5Z" }),
-        create("path", { d: "M8 7h8M8 11h8M8 15h5" })
-      ])),
+      create("span", { className: "nav-icon", "aria-hidden": "true" }, createIcon("document")),
       create("span", { text: "PeD" })
     ]);
     shellNavigation.insertBefore(pedNavigation, settingsNavigation || null);
@@ -1322,9 +1327,7 @@ async function initDashboard() {
     title: "Padam fail",
     "aria-label": `Padam fail ${file.transaksi}, Jilid ${file.jilid}`,
     onclick: () => openDelete(file, refresh)
-  }, create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [
-    create("path", { d: "M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" })
-  ]));
+  }, createIcon("delete"));
   const render = () => {
     updateStats();
     const term = search.value.trim().toLowerCase();
@@ -1360,10 +1363,7 @@ async function initDashboard() {
     document.querySelector("#fileLocationFilter").classList.toggle("hidden", locationFilter === "all");
     locationSummary.textContent = locationFilter === "all" ? "" :
       `${locationFilter === "room" ? "Di bilik fail" : "Sedang beredar"}: ${activeFiles.length} fail aktif · ${archivedFiles.length} fail ditutup`;
-    const tableIcon = path => create("svg", {
-      viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
-      "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true"
-    }, create("path", { d: path }));
+    const tableIcon = name => createIcon(name);
     const action = (file, label, icon, callback, primary = false) => create("button", {
       className: `button small${primary ? "" : " secondary"}`,
       type: "button",
@@ -1379,7 +1379,7 @@ async function initDashboard() {
       const latestLetterNumber = state.pedFileLetterNumbers.get(
         `${file.ownerId}|${normalizePedFileReference(`${file.transaksi} (Jilid ${file.jilid})`)}`
       );
-      const dateIcon = "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z";
+      const dateIcon = "calendar";
       const dateElement = date => create("div", { className: "file-date" }, [
         tableIcon(dateIcon),
         create("time", { datetime: date, text: formatDate(date) })
@@ -1388,12 +1388,12 @@ async function initDashboard() {
       const lastMovementAt = state.lastMovementDates.get(file.id);
       const lastMovementDate = lastMovementAt
         ? create("div", { className: "file-last-movement" }, [
-          tableIcon("M12 8v5l3 2M21 12a9 9 0 1 1-3-6.7"),
+          tableIcon("history"),
           create("time", { datetime: lastMovementAt, text: formatDate(lastMovementAt, true) })
         ])
         : create("span", { className: "muted", text: "Tiada log" });
       const inFileRoom = isInFileRoom(file);
-      const editButton = action(file, "Edit", "m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z", openEdit);
+      const editButton = action(file, "Edit", "edit", openEdit);
       if (closed) editButton.title = "Ubah tarikh atau buka semula fail";
       const rowCells = [
         create("td", {}, [
@@ -1416,9 +1416,9 @@ async function initDashboard() {
       if (!closed) rowCells.push(create("td", {}, lastMovementDate));
       rowCells.push(
         create("td", {}, create("div", { className: "actions" }, [
-          !closed ? action(file, "Pindah", "M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3", openMovement, true) : null,
+          !closed ? action(file, "Pindah", "movement", openMovement, true) : null,
           editButton,
-          action(file, "Log", "M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2", openHistory),
+          action(file, "Log", "history", openHistory),
           deleteAction(file, render)
         ]))
       );
@@ -3100,31 +3100,22 @@ async function initPed() {
   fillSelect(statusFilter, allStatuses, "Semua status");
 
   const pedStatusVisuals = {
-    baru: { tone: "new", paths: ["M6 2.8h5.5L16 7v10.2H5V2.8h1Z", "M11.5 3v4.5H16", "M8 11h5M8 14h5"] },
-    "belum diminit": { tone: "pending", paths: ["M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z", "M10 6v4.5l3 1.8"] },
-    "dalam proses": { tone: "processing", paths: ["M16.8 6.2A7 7 0 0 0 5 5.7L3.5 7.2", "M3.5 3.8v3.5H7", "M3.2 13.8A7 7 0 0 0 15 14.3l1.5-1.5", "M16.5 16.2v-3.5H13"] },
-    "dalam tindakan": { tone: "action", paths: ["M12 16.5a4.5 4.5 0 0 0-9 0", "M7.5 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M15 10.5v5", "M12.5 13h5"] },
-    "sudah diminit": { tone: "reviewed", paths: ["M10 2.7 12 4l2.5-.2 1 2.2 2 1.3-.6 2.5.6 2.5-2 1.3-1 2.2L12 15.6l-2 1.3-2.5-1.3-2.5.2-1-2.2-2-1.3.6-2.5L2 7.3l2-1.3 1-2.2L7.5 4l2.5-1.3Z", "m6.5 10 2.2 2.2 4.8-4.8"] },
-    dihantar: { tone: "sent", paths: ["m2.5 9.5 15-6-6 15-2.2-6.8-6.8-2.2Z", "m9.3 11.7 4-4"] },
-    "dihantar semula": { tone: "resent", paths: ["M16.5 6.5H7a4 4 0 0 0 0 8h1", "m14 4 2.5 2.5L14 9", "M3.5 13.5H13a4 4 0 0 0 0-8h-1", "m6 16-2.5-2.5L6 11"] },
-    diterima: { tone: "received", paths: ["M3 8h14l1.5 8h-17L3 8Z", "M3 8l2-4h10l2 4", "m7 11 2 2 4-4"] },
-    dikembalikan: { tone: "returned", paths: ["M4 7V3.5L1.5 6 4 8.5V7h8a4.5 4.5 0 1 1-4.5 4.5", "M8 11.5 7.5 13A4.5 4.5 0 1 0 12 7"] },
-    selesai: { tone: "complete", paths: ["M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z", "m6.3 10.2 2.4 2.4 5-5"] }
+    baru: { tone: "new", icon: "document" },
+    "belum diminit": { tone: "pending", icon: "pending" },
+    "dalam proses": { tone: "processing", icon: "movement" },
+    "dalam tindakan": { tone: "action", icon: "users" },
+    "sudah diminit": { tone: "reviewed", icon: "shield" },
+    dihantar: { tone: "sent", icon: "sent" },
+    "dihantar semula": { tone: "resent", icon: "movement" },
+    diterima: { tone: "received", icon: "received" },
+    dikembalikan: { tone: "returned", icon: "returned" },
+    selesai: { tone: "complete", icon: "complete" }
   };
   const pedStatusVisual = status => {
     const key = String(status || "").trim().toLocaleLowerCase("ms-MY");
     return pedStatusVisuals[key] || pedStatusVisuals.baru;
   };
-  const pedStatusIcon = status => create("svg", {
-    className: "ped-status-icon",
-    viewBox: "0 0 20 20",
-    fill: "none",
-    stroke: "currentColor",
-    "stroke-width": "1.7",
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round",
-    "aria-hidden": "true"
-  }, pedStatusVisual(status).paths.map(d => create("path", { d })));
+  const pedStatusIcon = status => createIcon(pedStatusVisual(status).icon, "ped-status-icon");
   const pedPickerStates = new Map();
   const refreshPedPicker = select => {
     const picker = pedPickerStates.get(select);
@@ -3496,7 +3487,7 @@ async function initPed() {
         const filtered = pedFiltersActive();
         body.append(create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
           create("div", { className: "ped-empty-state" }, [
-            create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h5" })),
+            createIcon("document"),
             create("strong", { text: filtered ? "Tiada padanan ditemui" : "Belum ada rekod surat" }),
             create("span", { text: filtered ? "Cuba carian lain atau kosongkan tapisan." : "Gunakan Tambah Rekod untuk mendaftarkan surat dalam kategori ini." })
           ])
@@ -3538,7 +3529,7 @@ async function initPed() {
           }
         });
         const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${referenceText}`, title: "Padam rekod" },
-          create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.7", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" })));
+          createIcon("delete"));
         remove.addEventListener("click", async () => {
           if (!confirm(`Padam rekod ${referenceText}?`)) return;
           remove.disabled = true;
@@ -4129,7 +4120,7 @@ async function initPed() {
   };
   const pedEmptyRow = (title, message) => create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
     create("div", { className: "ped-empty-state" }, [
-      create("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, create("path", { d: "M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h5" })),
+      createIcon("document"),
       create("strong", { text: title }),
       create("span", { text: message })
     ])
@@ -4230,9 +4221,7 @@ async function initPed() {
   const schoolCard = ({ school, matching, filtered }) => {
     const awaiting = matching.filter(record => record.category === "school_in" && ["Dihantar", "Dihantar Semula"].includes(record.status)).length;
     const card = create("button", { className: "ped-school-card", type: "button", "aria-label": `${school.name}, ${matching.length} surat${awaiting ? `, ${awaiting} belum diterima` : ""}` }, [
-      create("span", { className: "ped-school-card-icon", "aria-hidden": "true" }, create("svg", { viewBox: "0 0 24 24" }, [
-        create("path", { d: "M3 7h7l2 2h9v10H3V7Z" }), create("path", { d: "M3 10h18" })
-      ])),
+      create("span", { className: "ped-school-card-icon", "aria-hidden": "true" }, createIcon("folder")),
       create("span", { className: "ped-school-card-copy" }, [
         create("strong", { text: school.name }),
         create("span", { text: `${matching.length} surat${filtered ? " sepadan" : ""}` })
