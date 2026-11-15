@@ -3,12 +3,14 @@
 .icon-3d image { pointer-events: none; }
 
 body:not([data-page="login"]) .topbar .brand-symbol {
-  background: none;
-}
-body:not([data-page="login"]) .topbar .brand-symbol svg.icon-3d {
-  display: block;
-  width: 100%;
-  height: 100%;
+  /* Preserve the original brand artwork; add depth without redrawing it. */
+  background-image: url("../file.png?v=20260914-03");
+  background-position: center 30.5%;
+  background-repeat: no-repeat;
+  background-size: 320% auto;
+  filter: drop-shadow(0 1px 0 rgba(22, 58, 113, .45))
+    drop-shadow(1px 2px 0 rgba(22, 58, 113, .22))
+    drop-shadow(0 3px 3px rgba(22, 58, 113, .18));
 }
 body:not([data-page="login"]) .topbar :is(.nav a, .nav-settings) .nav-icon {
   width: 30px;
