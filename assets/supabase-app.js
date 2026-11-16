@@ -1242,8 +1242,59 @@ async function initLogin() {
   });
 }
 
+function initLoginTraffic() {
+  const panel = document.querySelector("#loginTraffic");
+  if (!panel) return;
+  const refresh = document.querySelector("#refreshTraffic");
+  const updated = document.querySelector("#trafficUpdated");
+  const message = document.querySelector("#trafficMessage");
+  const numberFormat = new Intl.NumberFormat("ms-MY");
+  const dateFormat = new Intl.DateTimeFormat("ms-MY", {
+    dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kuala_Lumpur"
+  });
+  const metrics = [...panel.querySelectorAll("[data-traffic]")];
+  let loading = false;
+  let hasSnapshot = false;
+  const load = async () => {
+    if (loading) return;
+    loading = true;
+    refresh.disabled = true;
+    refresh.textContent = "Memuatkan…";
+    panel.setAttribute("aria-busy", "true");
+    message.classList.add("hidden");
+    try {
+      const summary = await rpc("login_traffic_summary", {});
+      const timestamp = new Date(summary?.generated_at);
+      if (!summary || !Number.isFinite(timestamp.getTime()) || summary.timezone !== "Asia/Kuala_Lumpur"
+        || metrics.some(metric => !Number.isSafeInteger(summary[metric.dataset.traffic]) || summary[metric.dataset.traffic] < 0)) {
+        throw new Error("Ringkasan trafik tidak sah.");
+      }
+      metrics.forEach(metric => { metric.textContent = numberFormat.format(summary[metric.dataset.traffic]); });
+      updated.textContent = `Dikemas kini ${dateFormat.format(timestamp)}`;
+      message.textContent = "";
+      hasSnapshot = true;
+    } catch (error) {
+      if (!hasSnapshot) updated.textContent = "Trafik belum tersedia";
+      message.textContent = missingRpc(error, "login_traffic_summary")
+        ? "Statistik trafik belum diaktifkan. Hubungi pentadbir sistem."
+        : hasSnapshot
+          ? "Trafik terkini tidak dapat dimuatkan. Angka terakhir dikekalkan. Cuba muat semula."
+          : "Trafik pengguna tidak dapat dimuatkan. Cuba muat semula.";
+      message.classList.remove("hidden");
+    } finally {
+      loading = false;
+      refresh.disabled = false;
+      refresh.textContent = "Muat semula";
+      panel.setAttribute("aria-busy", "false");
+    }
+  };
+  refresh.addEventListener("click", load);
+  void load();
+}
+
 async function initDashboard() {
   if (!await initShell()) return;
+  initLoginTraffic();
   await Promise.all([
     loadSettings(), loadFiles(), loadLastMovementDates(), loadAgencies(), loadRecipientUsers(),
     loadLatestPedFileLetterNumbers().catch(error => {

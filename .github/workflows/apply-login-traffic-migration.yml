@@ -1,0 +1,59 @@
+name: Apply Login Traffic Migration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261116000000_add_login_traffic_summary.sql'
+      - '.github/workflows/apply-login-traffic-migration.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-login-traffic-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_DATABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ucneczznmwkyeemkdoxw
+      MIGRATION_FILE: supabase/migrations/20261116000000_add_login_traffic_summary.sql
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify database token
+        run: test -n "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Apply migration
+        run: |
+          jq -Rs '{ query: . }' "$MIGRATION_FILE" > "$RUNNER_TEMP/migration.json"
+          status=$(curl --silent --show-error \
+            --request POST \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary "@$RUNNER_TEMP/migration.json" \
+            --output "$RUNNER_TEMP/migration-result.json" \
+            --write-out '%{http_code}')
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            message=$(jq -r '.message // .error // "Supabase menolak permintaan migrasi."' "$RUNNER_TEMP/migration-result.json")
+            echo "::error title=Supabase migration rejected::$message (HTTP $status)"
+            exit 1
+          fi
+
+      - name: Verify traffic summary access and response
+        run: |
+          jq -n --arg query "with actor as materialized (select set_config('request.jwt.claim.sub', coalesce((select id::text from public.profiles limit 1), ''), true) as id) select to_regprocedure('public.login_traffic_summary()') is not null as summary_ready, has_function_privilege('authenticated', 'public.login_traffic_summary()', 'execute') as authenticated_allowed, not has_function_privilege('anon', 'public.login_traffic_summary()', 'execute') as anonymous_denied, case when actor.id <> '' then jsonb_typeof(public.login_traffic_summary()->'total_logins') = 'number' else true end as response_ready from actor" '{ query: $query, read_only: true }' > "$RUNNER_TEMP/verify.json"
+          curl --silent --show-error --fail-with-body \
+            --request POST \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary "@$RUNNER_TEMP/verify.json" \
+            --output "$RUNNER_TEMP/verify-result.json"
+          jq -e '.[0].summary_ready == true and .[0].authenticated_allowed == true and .[0].anonymous_denied == true and .[0].response_ready == true' "$RUNNER_TEMP/verify-result.json" > /dev/null
