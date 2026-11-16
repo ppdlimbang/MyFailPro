@@ -17,6 +17,9 @@ let scenario = 'office';
 let storedRecords = null;
 let patchMode = 'success';
 const patches = [];
+let attachmentChecks = false;
+let uploadDenied = false;
+const uploads = [], deletedAttachments = [], formWrites = [];
 const userId = 'preview-user';
 const profile = () => ({ id: userId, name: 'Akaun Pratonton', email: 'preview@example.test',
   role: scenario === 'admin' ? 'admin' : 'agency',
@@ -37,6 +40,25 @@ const allowed = new Set(['ped.html', 'assets/styles.css', 'assets/navigation.css
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const file = url.pathname.slice(1);
+  if (attachmentChecks && url.pathname.startsWith('/storage/v1/')) {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      const body = Buffer.concat(chunks);
+      res.setHeader('Content-Type', 'application/json');
+      if (req.method === 'DELETE') {
+        deletedAttachments.push(...JSON.parse(body).prefixes);
+        res.end('[]');
+      } else if (url.pathname.includes('/object/sign/')) {
+        res.end(JSON.stringify({ signedURL: '/object/sign/ped-correspondence/test.pdf?token=fixture' }));
+      } else {
+        uploads.push({ path: url.pathname.split('/ped-correspondence/')[1], type: req.headers['content-type'], body });
+        if (uploadDenied) res.writeHead(400).end(JSON.stringify({ message: 'PDF MIME type not allowed (test).' }));
+        else res.end('{}');
+      }
+    });
+    return;
+  }
   if (file === 'assets/runtime-config.js') {
     res.setHeader('Content-Type', 'text/javascript');
     res.end(`globalThis.MYFAILPRO_CONFIG={url:'http://127.0.0.1:${server.address().port}',publishableKey:'preview-only'};`);
@@ -44,6 +66,22 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname.startsWith('/rest/v1/')) {
     const table = url.pathname.split('/').pop();
+    if (attachmentChecks && table === 'ped_correspondence' && ['POST', 'PATCH'].includes(req.method)) {
+      let body = '';
+      req.setEncoding('utf8'); req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        const payload = JSON.parse(body);
+        formWrites.push(payload);
+        res.setHeader('Content-Type', 'application/json');
+        if (patchMode === 'denied') { res.writeHead(403).end(JSON.stringify({ message: 'Akses ditolak untuk ujian.' })); return; }
+        if (patchMode === 'empty') { res.end('[]'); return; }
+        const source = records().find(item => `eq.${item.id}` === url.searchParams.get('id'));
+        const saved = { ...(source || record(payload.category, 9)), ...payload };
+        storedRecords = source ? records().map(item => item.id === source.id ? saved : item) : [...records(), saved];
+        res.end(JSON.stringify([saved]));
+      });
+      return;
+    }
     if (table === 'ped_correspondence' && req.method === 'PATCH') {
       let body = '';
       req.setEncoding('utf8');
@@ -255,6 +293,11 @@ let browser;
   await until(`!document.querySelector(${JSON.stringify(inlineSelector('school_in-2'))})`,'Resent school letter should have no further status choices');
   assert.equal(storedRecords.find(r=>r.id==='school_in-2').status,'Dihantar Semula');
   console.log('Inline status: school incoming, locked letters and permitted resend PASS');
+  attachmentChecks = true;
+  await require('./check-ped-attachments.cjs')({ assert, evaluate, until, cdp, base, record, userId,
+    setup(role, rows) { scenario = role; storedRecords = rows; patchMode = 'success'; uploadDenied = false; },
+    mode(value) { patchMode = value; }, denyUpload(value) { uploadDenied = value; },
+    records: () => storedRecords, uploads, deletedAttachments, formWrites });
   assert.equal(cdp.exceptions.length, 0, cdp.exceptions.join('\n'));
   console.log(`Screenshots: ${output}`);
   await cdp.send('Browser.close').catch(() => {}); cdp.ws.close();

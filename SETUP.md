@@ -40,6 +40,20 @@ The Project URL and browser-safe publishable key are stored in
 table access remains protected by Row Level Security. Never place a secret or
 service-role key in that file.
 
+### Optional PeD outgoing attachments
+
+Run `supabase/migrations/20261116010000_allow_ped_pdf_attachments.sql` in the
+Supabase SQL Editor after the PeD workspace migration. This adds PDF to the
+existing private attachment bucket and lets schools maintain their own outgoing
+attachment while the letter is editable. Offices can read a school attachment
+through the existing correspondence permissions, but cannot replace it.
+
+The outgoing form accepts one optional PDF or image, up to 20 MB. PDF bytes are
+uploaded unchanged; supported photos keep the existing compression. Saving
+without an attachment remains valid. Replacing/removing a saved attachment takes
+effect only after the record saves successfully. The old file is kept if saving
+fails, and a newly uploaded file is cleaned up if the record write fails.
+
 ## 2. Allow GitHub to deploy Edge Functions
 
 1. In Supabase, open **Account > Access Tokens** and generate an access token.

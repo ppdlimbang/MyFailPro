@@ -849,9 +849,28 @@ async function shrinkPedPhoto(file) {
 const pedRandomId = () => globalThis.crypto?.randomUUID?.()
   || [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, "0")).join("");
 
+const pedAttachmentTypes = {
+  "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
+  "image/webp": "webp", "image/heic": "heic", "image/heif": "heif"
+};
+function pedAttachmentMime(file) {
+  const type = String(file.type || "").toLowerCase();
+  if (Object.hasOwn(pedAttachmentTypes, type)) return type;
+  // Some mobile file pickers omit the MIME type; use a restricted extension list.
+  if (type && type !== "application/octet-stream") return "";
+  const extension = file.name.split(".").pop().toLowerCase();
+  return Object.keys(pedAttachmentTypes).find(mime => pedAttachmentTypes[mime] === extension)
+    || (extension === "jpeg" ? "image/jpeg" : "");
+}
+const validPedAttachment = file => file.size > 0 && file.size <= 20 * 1024 * 1024 && Boolean(pedAttachmentMime(file));
+
 async function uploadPedAttachment(file) {
-  const upload = await shrinkPedPhoto(file);
-  const extension = upload.name.split(".").pop().toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "") || "jpg";
+  if (!validPedAttachment(file)) throw new Error("Pilih fail PDF atau gambar yang tidak kosong dan tidak melebihi 20 MB.");
+  const type = pedAttachmentMime(file);
+  const source = file.type === type ? file : new File([file], file.name, { type });
+  // PDFs retain their original bytes; only photos go through image compression.
+  const upload = type === "application/pdf" ? source : await shrinkPedPhoto(source);
+  const extension = pedAttachmentTypes[upload.type];
   const path = `${workspaceOwnerId()}/${pedRandomId()}.${extension}`;
   await pedStorageRequest(`object/ped-correspondence/${path.split("/").map(encodeURIComponent).join("/")}`, {
     method: "POST",
@@ -3116,6 +3135,11 @@ async function initPed() {
   const clearAttachmentButton = document.querySelector("#pedClearAttachment");
   let selectedAttachment = null;
   let clearExistingAttachment = false;
+  const refreshAttachmentName = () => {
+    attachmentName.textContent = selectedAttachment?.name || (clearExistingAttachment
+      ? "Lampiran semasa akan dibuang apabila rekod disimpan."
+      : viewAttachmentButton.dataset.path ? "Lampiran telah disimpan." : "Tiada fail dipilih.");
+  };
 
   const recipientDirectoryNames = [...new Set((state.settings?.pegawai || []).map(person => formatPersonName(person.nama)).filter(Boolean))];
   const officeReferenceFileSelect = document.querySelector("#pedOfficeReferenceFile");
@@ -3847,11 +3871,14 @@ async function initPed() {
     selectedAttachment = null;
     clearExistingAttachment = false;
     attachmentInput.value = "";
-    attachmentName.textContent = record?.attachmentPath ? "Gambar telah dilampirkan." : "Lampiran pilihan, maksimum 20 MB.";
+    document.querySelector("#pedAttachmentField").classList.toggle("hidden", !outgoingForm && !record?.attachmentPath);
+    attachmentInput.disabled = !outgoingForm || Boolean(viewOnly);
     viewAttachmentButton.classList.toggle("hidden", !record?.attachmentPath);
-    clearAttachmentButton.classList.toggle("hidden", !record?.attachmentPath);
+    clearAttachmentButton.classList.toggle("hidden", !record?.attachmentPath || attachmentInput.disabled);
+    clearAttachmentButton.disabled = attachmentInput.disabled;
     viewAttachmentButton.dataset.path = record?.attachmentPath || "";
     clearAttachmentButton.dataset.path = record?.attachmentPath || "";
+    refreshAttachmentName();
 
     const title = schoolOutgoing ? "Surat Keluar" : meta.title;
     modalTitle.textContent = viewOnly ? `Lihat ${title}` : record ? `Kemas Kini ${title}` : `Tambah ${title}`;
@@ -3901,20 +3928,24 @@ async function initPed() {
   });
   attachmentInput.addEventListener("change", () => {
     const file = attachmentInput.files?.[0] || null;
-    if (file && (!file.type.startsWith("image/") || file.size > 20 * 1024 * 1024)) {
+    if (file && !validPedAttachment(file)) {
       attachmentInput.value = "";
-      toast("Lampiran tidak sah", "Pilih fail gambar berukuran tidak melebihi 20 MB.", "error");
+      selectedAttachment = null;
+      refreshAttachmentName();
+      clearAttachmentButton.classList.toggle("hidden", !viewAttachmentButton.dataset.path || clearExistingAttachment);
+      toast("Lampiran tidak sah", "Pilih fail PDF atau gambar yang tidak kosong dan tidak melebihi 20 MB.", "error");
       return;
     }
     selectedAttachment = file;
     if (file) clearExistingAttachment = false;
-    attachmentName.textContent = file?.name || (clearExistingAttachment ? "Gambar semasa akan dibuang." : "Lampiran pilihan, maksimum 20 MB.");
+    refreshAttachmentName();
+    clearAttachmentButton.classList.toggle("hidden", !file && (!viewAttachmentButton.dataset.path || clearExistingAttachment));
   });
   clearAttachmentButton.addEventListener("click", () => {
-    clearExistingAttachment = true;
+    clearExistingAttachment = Boolean(viewAttachmentButton.dataset.path);
     selectedAttachment = null;
     attachmentInput.value = "";
-    attachmentName.textContent = "Gambar semasa akan dibuang.";
+    refreshAttachmentName();
     viewAttachmentButton.classList.add("hidden");
     clearAttachmentButton.classList.add("hidden");
   });
@@ -3928,7 +3959,7 @@ async function initPed() {
       else window.location.assign(url);
     } catch (error) {
       popup?.close();
-      toast("Gambar tidak dapat dibuka", error.message, "error");
+      toast("Lampiran tidak dapat dibuka", error.message, "error");
     }
   });
   const resetPages = () => {
@@ -3973,6 +4004,7 @@ async function initPed() {
   }));
   form.addEventListener("submit", async event => {
     event.preventDefault();
+    if (submitButton.disabled || referenceViewOnly) return;
     const data = Object.fromEntries(new FormData(form));
     const recordId = data.id;
     const category = data.category;
@@ -4022,6 +4054,7 @@ async function initPed() {
       return;
     }
     let uploadedAttachmentPath = "";
+    let attachmentCommitted = false;
     let attachmentPath = clearExistingAttachment ? null : existingRecord?.attachmentPath || null;
     const payload = {
       category,
@@ -4122,8 +4155,10 @@ async function initPed() {
       return;
     }
     setBusy(submitButton, true, "Menyimpan...");
+    attachmentInput.disabled = true;
+    clearAttachmentButton.disabled = true;
     try {
-      if (category === "outgoing" && selectedAttachment) {
+      if (outgoingForm && selectedAttachment) {
         uploadedAttachmentPath = await uploadPedAttachment(selectedAttachment);
         attachmentPath = uploadedAttachmentPath;
       }
@@ -4139,7 +4174,7 @@ async function initPed() {
           ? {
             correspondence_date: payload.correspondence_date, reference_number: payload.reference_number,
             correspondent: payload.correspondent, school_name: payload.school_name,
-            subject: payload.subject, status: payload.status
+            subject: payload.subject, status: payload.status, attachment_path: payload.attachment_path
           }
           : payload;
       const rows = recordId
@@ -4153,7 +4188,12 @@ async function initPed() {
           headers: { Prefer: "return=representation" },
           body: JSON.stringify({ ...payload, owner_id: workspaceOwnerId() })
         });
+      if (!rows?.[0]?.id) throw new Error("Rekod tidak disimpan. Akses mungkin ditolak atau rekod telah tiada.");
       const saved = mapPedRecord(rows[0]);
+      if (uploadedAttachmentPath && saved.attachmentPath !== uploadedAttachmentPath) {
+        throw new Error("Lampiran tidak disahkan oleh pelayan. Sila cuba lagi.");
+      }
+      attachmentCommitted = true;
       if (existingRecord?.attachmentPath && existingRecord.attachmentPath !== saved.attachmentPath) {
         await deletePedAttachment(existingRecord.attachmentPath).catch(error => console.warn("Lampiran lama PeD tidak dapat dipadam.", error));
       }
@@ -4207,7 +4247,7 @@ async function initPed() {
         toast(recordId ? "Rekod dikemas kini" : "Rekod ditambah", (saved.reference || "Rekod tanpa nombor rujukan") + " telah disimpan dalam PeD." + movementMessage);
       }
     } catch (error) {
-      if (uploadedAttachmentPath) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
+      if (uploadedAttachmentPath && !attachmentCommitted) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
       if (/office_personal_file_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261113030000_allow_office_personal_file_numbers.sql sebelum menyimpan No. Fail Peribadi.", "error");
       } else if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
@@ -4219,6 +4259,8 @@ async function initPed() {
       }
     } finally {
       setBusy(submitButton, false);
+      attachmentInput.disabled = !outgoingForm || referenceViewOnly;
+      clearAttachmentButton.disabled = attachmentInput.disabled;
     }
   });
 
@@ -4533,7 +4575,8 @@ async function initPed() {
       ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
     if (category === "outgoing") fields.push(["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
       ["No. Fail Peribadi", record.officePersonalFileNumber], ["Catatan", record.notes],
-      ["Gambar (Poslaju / Pos Biasa)", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
+      ["Lampiran PDF / Gambar", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
+    if (category === "school_in") fields.push(["Lampiran PDF / Gambar", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
     if (category === "school_received") fields.push(["Untuk Tindakan / Nama Pegawai", record.assignedTo],
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Fail Peribadi", record.officePersonalFileNumber],
       ["Catatan Guru Besar/Pengetua", record.notes]);
