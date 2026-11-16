@@ -4156,6 +4156,10 @@ body[data-page="settings"] .staff-account-identity-fields {
   gap: 16px;
 }
 
+body[data-page="settings"] .staff-account-identity-fields > .field {
+  align-self: start;
+}
+
 body[data-page="settings"] .staff-account-modal .avatar-options {
   grid-template-columns: repeat(6, minmax(80px, 1fr));
 }
