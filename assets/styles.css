@@ -4160,6 +4160,10 @@ body[data-page="settings"] .staff-account-identity-fields > .field {
   align-self: start;
 }
 
+body[data-page="settings"] .staff-account-identity-fields > .field + .field {
+  margin-top: 0;
+}
+
 body[data-page="settings"] .staff-account-modal .avatar-options {
   grid-template-columns: repeat(6, minmax(80px, 1fr));
 }
