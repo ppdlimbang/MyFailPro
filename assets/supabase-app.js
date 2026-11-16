@@ -1259,7 +1259,7 @@ function initLoginTraffic() {
     if (loading) return;
     loading = true;
     refresh.disabled = true;
-    refresh.textContent = "Memuatkan…";
+    refresh.setAttribute("aria-label", "Memuatkan jumlah log masuk");
     panel.setAttribute("aria-busy", "true");
     message.classList.add("hidden");
     try {
@@ -1271,6 +1271,8 @@ function initLoginTraffic() {
       }
       metrics.forEach(metric => { metric.textContent = numberFormat.format(summary[metric.dataset.traffic]); });
       updated.textContent = `Dikemas kini ${dateFormat.format(timestamp)}`;
+      panel.title = `Jumlah log masuk berjaya seluruh MyFailPro. ${updated.textContent} (waktu Malaysia).`;
+      panel.dataset.state = "ready";
       message.textContent = "";
       hasSnapshot = true;
     } catch (error) {
@@ -1281,10 +1283,12 @@ function initLoginTraffic() {
           ? "Trafik terkini tidak dapat dimuatkan. Angka terakhir dikekalkan. Cuba muat semula."
           : "Trafik pengguna tidak dapat dimuatkan. Cuba muat semula.";
       message.classList.remove("hidden");
+      panel.title = message.textContent;
+      panel.dataset.state = "error";
     } finally {
       loading = false;
       refresh.disabled = false;
-      refresh.textContent = "Muat semula";
+      refresh.setAttribute("aria-label", "Muat semula jumlah log masuk");
       panel.setAttribute("aria-busy", "false");
     }
   };

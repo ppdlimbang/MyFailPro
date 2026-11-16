@@ -29,7 +29,7 @@ const server = http.createServer((req,res) => {
       if(mode==='missing') { json(404,{message:'Could not find the function public.login_traffic_summary in the schema cache',code:'PGRST202'});return; }
       if(mode==='error') { json(503,{message:'Unavailable'});return; }
       const data=mode==='zero' ? {...summary,total_logins:0,unique_users:0,users_today:0,users_last_7_days:0}
-        : mode==='invalid' ? {...summary,users_today:-1} : summary;
+        : mode==='invalid' ? {...summary,total_logins:-1} : summary;
       setTimeout(()=>json(200,data),mode==='slow'?400:0);return;
     }
     if(table==='record_login_activity') { activityRequests++;json(200,{});return; }
@@ -86,19 +86,19 @@ let browser;
   for(role of ['admin','agency','staff']) {
     await cdp.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
     await navigate();
-    assert.deepEqual(await values(),['12,345','432','28','167']);
+    assert.deepEqual(await values(),['12,345']);
     assert(await evaluate(`document.querySelector('#trafficUpdated').textContent.includes('16 Nov')`),'Timestamp must use Malaysia date even in another timezone');
     assert.equal(await evaluate(`document.querySelector('#trafficMessage').classList.contains('hidden')`),true);
   }
   // An unavailable or malformed response must not display a fabricated zero.
   for(mode of ['missing','error','invalid','zero']) {
     await navigate();
-    assert.deepEqual(await values(),mode==='zero'?['0','0','0','0']:['—','—','—','—']);
+    assert.deepEqual(await values(),mode==='zero'?['0']:['—']);
     assert.equal(await evaluate(`document.querySelector('#emptyFiles').classList.contains('hidden')`),false,'File dashboard must remain usable');
   }
   mode='normal';await navigate();
   mode='error';await evaluate(`document.querySelector('#refreshTraffic').click()`);await until(ready);
-  assert.deepEqual(await values(),['12,345','432','28','167']);
+  assert.deepEqual(await values(),['12,345']);
   assert(await evaluate(`document.querySelector('#trafficMessage').textContent.includes('Angka terakhir')`));
   mode='slow';const before=summaryRequests;
   await evaluate(`document.querySelector('#refreshTraffic').click();document.querySelector('#refreshTraffic').click()`);
@@ -108,10 +108,10 @@ let browser;
   for(const width of [1440,900,390,320]) {
     await cdp.send('Emulation.setDeviceMetricsOverride',{width,height:1100,deviceScaleFactor:1,mobile:false});
     await navigate();
-    await evaluate(`document.querySelector('#loginTraffic').scrollIntoView({block:'center',behavior:'instant'})`);
+    await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
     await wait(400);
     assert(await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`),'Horizontal overflow at '+width);
-    assert(await evaluate(`Array.from(document.querySelectorAll('.traffic-metric')).every(n=>n.scrollWidth<=n.clientWidth+1)`),'Clipped traffic metric at '+width);
+    assert(await evaluate(`(()=>{const n=document.querySelector('#loginTraffic'),r=n.getBoundingClientRect(),p=n.parentElement.getBoundingClientRect();return n.scrollWidth<=n.clientWidth+1&&r.height<=44&&Math.abs(r.right-p.right)<2;})()`),'Clipped traffic metric at '+width);
     if(width===1440||width===390){const shot=await cdp.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(output,`traffic-${width}.png`),Buffer.from(shot.data,'base64'));}
   }
   assert.equal(activityRequests,0,'Loading or refreshing dashboard must not add sign-ins');

@@ -70,17 +70,17 @@ Successful sign-ins are counted for each profile. Agency owners can view each
 staff account's total sign-ins and most recent sign-in under **Tetapan Sistem >
 Akaun Pengguna Pegawai**.
 
-**Paparan Utama > Trafik Pengguna** shows global aggregate sign-in statistics to
-signed-in users, without returning other users' names, emails, or profile rows.
+**Paparan Utama** shows a compact **Jumlah Log Masuk** counter at the upper right.
+It displays the global cumulative successful sign-in total to signed-in users,
+without returning other users' names, emails, or profile rows.
 Apply `supabase/migrations/20261116000000_add_login_traffic_summary.sql` after the
 login-activity migration above. The dedicated **Apply Login Traffic Migration**
 workflow can also apply and verify it using `SUPABASE_DATABASE_ACCESS_TOKEN`
 (or the existing `SUPABASE_ACCESS_TOKEN` when the dedicated token is unset).
 The token must have database-query access to the project.
-Counts cover current profiles: cumulative successful sign-ins, users who have
-ever signed in, users who signed in today, and users who signed in during the
-last seven calendar days including today, using `Asia/Kuala_Lumpur` boundaries.
-These are sign-in statistics, not online-presence or page-view counts. Refreshing
+The counter covers current profiles and shows its last update time in a tooltip,
+using `Asia/Kuala_Lumpur`. The refresh icon reloads the total.
+This is a sign-in count, not online-presence or page-view traffic. Refreshing
 the dashboard does not add a sign-in. Accounts deleted from the system no longer
 contribute to the totals. If the summary is unavailable, the panel shows an
 unavailable state rather than zero; file management continues to work.
