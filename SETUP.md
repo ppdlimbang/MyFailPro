@@ -74,7 +74,9 @@ Akaun Pengguna Pegawai**.
 signed-in users, without returning other users' names, emails, or profile rows.
 Apply `supabase/migrations/20261116000000_add_login_traffic_summary.sql` after the
 login-activity migration above. The dedicated **Apply Login Traffic Migration**
-workflow can also apply and verify it using `SUPABASE_DATABASE_ACCESS_TOKEN`.
+workflow can also apply and verify it using `SUPABASE_DATABASE_ACCESS_TOKEN`
+(or the existing `SUPABASE_ACCESS_TOKEN` when the dedicated token is unset).
+The token must have database-query access to the project.
 Counts cover current profiles: cumulative successful sign-ins, users who have
 ever signed in, users who signed in today, and users who signed in during the
 last seven calendar days including today, using `Asia/Kuala_Lumpur` boundaries.
