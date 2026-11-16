@@ -3492,7 +3492,10 @@ async function initPed() {
   const recordSearchText = record => {
     let text = pedSearchText.get(record);
     if (text === undefined) {
-      text = [record.reference, record.correspondent, record.subject, record.status]
+      text = [record.reference, record.officeReferenceFile, record.officeReferenceLetterNumber,
+        record.officePersonalFileNumber, record.registryFileNumber, record.registryFileLetterNumber,
+        record.correspondent, record.sender, record.recipient, record.schoolName, record.subject,
+        record.schoolSector, record.assignedTo, record.notes, record.status, record.date]
         .map(value => String(value || "").toLocaleLowerCase("ms-MY")).join("\u0000");
       pedSearchText.set(record, text);
     }
@@ -3519,6 +3522,12 @@ async function initPed() {
         .some(value => normalizeRecipientName(value).includes(filters.fileNumber)))
       && (!filters.notes || normalizeRecipientName(record.notes).includes(filters.notes));
   };
+  const tableSearchTerm = key => String(document.querySelector(`[data-ped-table-search="${key}"]`)?.value || "")
+    .trim().toLocaleLowerCase("ms-MY");
+  const tableRecordMatcher = key => {
+    const term = tableSearchTerm(key);
+    return record => !term || recordSearchText(record).includes(term);
+  };
 
   const render = () => {
     const pedRecordMatches = pedRecordMatcher();
@@ -3536,7 +3545,8 @@ async function initPed() {
       if (statShare) statShare.textContent = shareFormat.format(share);
       if (statMeter) statMeter.style.width = `${share * 100}%`;
       const stateForTable = tableState[category];
-      const records = categoryRecords.filter(pedRecordMatches).sort((a, b) => {
+      const tableMatches = tableRecordMatcher(category);
+      const records = categoryRecords.filter(record => pedRecordMatches(record) && tableMatches(record)).sort((a, b) => {
         const compared = String(a.date || "").localeCompare(String(b.date || ""))
           || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
         return stateForTable.dateAscending ? compared : -compared;
@@ -3567,7 +3577,7 @@ async function initPed() {
       body.replaceChildren();
       body.closest("table").classList.remove("ped-table-has-receive");
       if (!records.length) {
-        const filtered = pedFiltersActive();
+        const filtered = pedFiltersActive() || Boolean(tableSearchTerm(category));
         body.append(create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
           create("div", { className: "ped-empty-state" }, [
             createIcon("document"),
@@ -3871,6 +3881,13 @@ async function initPed() {
     extraViewState.historyPage = 0;
     extraViewState.schoolPage = 0;
   };
+  document.querySelectorAll("[data-ped-table-search]").forEach(input => input.addEventListener("input", () => {
+    const key = input.dataset.pedTableSearch;
+    if (tableState[key]) tableState[key].page = 0;
+    if (key === "history") extraViewState.historyPage = 0;
+    if (key === "school_detail") extraViewState.schoolPage = 0;
+    render();
+  }));
   search.addEventListener("input", () => { resetPages(); render(); });
   [statusFilter, dateFrom, dateTo].forEach(control => control.addEventListener("change", () => { resetPages(); render(); }));
   document.querySelector("#pedClearFilters").addEventListener("click", () => {
@@ -4214,13 +4231,13 @@ async function initPed() {
       create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, open))
     ]);
   };
-  const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage }) => {
+  const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage, localSearchActive = false }) => {
     const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
     const current = Math.min(Math.max(page, 0), totalPages - 1);
     const start = current * pageSize;
     body.replaceChildren(...(records.length
       ? records.slice(start, start + pageSize).map(pedOverviewRow)
-      : [pedFiltersActive() ? pedEmptyRow("Tiada padanan ditemui", "Cuba carian lain atau kosongkan tapisan.") : pedEmptyRow(emptyTitle, emptyMessage)]));
+      : [pedFiltersActive() || localSearchActive ? pedEmptyRow("Tiada padanan ditemui", "Cuba carian lain atau kosongkan tapisan.") : pedEmptyRow(emptyTitle, emptyMessage)]));
     info.textContent = records.length
       ? `Paparan ${start + 1}–${Math.min(start + pageSize, records.length)} daripada ${records.length} · halaman ${current + 1}/${totalPages}`
       : "0 rekod";
@@ -4240,7 +4257,7 @@ async function initPed() {
   const historySort = document.querySelector("#pedHistorySort");
   historySort.closest("table").querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
   if (schoolAccount) document.querySelector("#pedHistoryDescription").textContent = "Surat Masuk sekolah dan Surat Keluar kepada Pejabat dalam satu senarai mengikut tarikh.";
-  const historyRecords = () => visiblePedRecords().filter(pedRecordMatcher()).sort(byPedDate(extraViewState.historyAscending));
+  const historyRecords = () => visiblePedRecords().filter(pedRecordMatcher()).filter(tableRecordMatcher("history")).sort(byPedDate(extraViewState.historyAscending));
   const renderHistory = () => {
     const records = historyRecords();
     document.querySelector("#pedHistoryCount").textContent = String(records.length);
@@ -4248,7 +4265,8 @@ async function initPed() {
     extraViewState.historyPage = renderPagedRecords({
       body: historyRows, info: document.querySelector("#pedHistoryPageInfo"),
       pager: historyRows.closest(".ped-panel").querySelector(".ped-pagination"), records, page: extraViewState.historyPage,
-      emptyTitle: "Belum ada rekod surat", emptyMessage: "Surat yang didaftarkan akan dipaparkan di sini."
+      emptyTitle: "Belum ada rekod surat", emptyMessage: "Surat yang didaftarkan akan dipaparkan di sini.",
+      localSearchActive: Boolean(tableSearchTerm("history"))
     });
   };
   historySort.addEventListener("click", () => {
@@ -4310,14 +4328,15 @@ async function initPed() {
     schoolDirectory.classList.toggle("hidden", Boolean(selected));
     schoolDetail.classList.toggle("hidden", !selected);
     if (selected) {
-      const records = recordsForSchool(selected).filter(pedRecordMatcher()).sort(byPedDate(extraViewState.schoolAscending));
+      const records = recordsForSchool(selected).filter(pedRecordMatcher()).filter(tableRecordMatcher("school_detail")).sort(byPedDate(extraViewState.schoolAscending));
       document.querySelector("#pedSchoolDetailTitle").textContent = selected.name;
       document.querySelector("#pedSchoolDetailCount").textContent = String(records.length);
       setSortButton(schoolSort, "Tarikh", extraViewState.schoolAscending);
       extraViewState.schoolPage = renderPagedRecords({
         body: schoolRows, info: document.querySelector("#pedSchoolPageInfo"),
         pager: schoolDetail.querySelector(".ped-pagination"), records, page: extraViewState.schoolPage,
-        emptyTitle: "Belum ada surat untuk sekolah ini", emptyMessage: "Surat masuk daripada sekolah dan surat keluar kepadanya akan dipaparkan di sini."
+        emptyTitle: "Belum ada surat untuk sekolah ini", emptyMessage: "Surat masuk daripada sekolah dan surat keluar kepadanya akan dipaparkan di sini.",
+        localSearchActive: Boolean(tableSearchTerm("school_detail"))
       });
       return;
     }
