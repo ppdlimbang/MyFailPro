@@ -2253,94 +2253,99 @@ async function initRegister() {
 const labels = { fungsi: "Fungsi", aktiviti: "Aktiviti", subAktiviti: "Sub-Aktiviti", transaksi: "Transaksi Fail" };
 
 async function initSettings() {
-  const user = await initShell();
-  if (!user) return;
+  const shellUser = await initShell();
+  if (!shellUser) return;
+  // Recheck account permissions instead of trusting the cached shell profile.
+  const user = await loadProfile(shellUser.id);
+  renderShell(user);
   await loadSettings();
   const settings = state.settings;
   const normalizeSettingValue = value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
   const isAgencyOwner = user.role === "agency";
   const isAgencyMember = isAgencyOwner || user.role === "staff";
   const officeSchoolAccountsPanel = document.querySelector("#officeSchoolAccountsPanel");
+  const canViewSchoolAccounts = user.role === "admin" || (isAgencyOwner
+    && String(user.data?.jenis || "").trim().toLocaleLowerCase("ms") === "pejabat");
   let officePanelVisible = false;
-  if (officeSchoolAccountsPanel) {
+  if (officeSchoolAccountsPanel && canViewSchoolAccounts) {
     try {
-      const officeProfile = isAgencyOwner
-        ? { id: user.id, agency_type: user.data?.jenis || "" }
-        : user.role === "staff" ? await rpc("ped_workspace_profile", {}) : null;
-      if (String(officeProfile?.agency_type || "").trim().toLocaleLowerCase("ms") === "pejabat") {
-        officeSchoolAccountsPanel.classList.remove("hidden");
-        officePanelVisible = true;
-        const accountRows = document.querySelector("#officeSchoolAccountRows");
-        const editSchoolModal = document.querySelector("#officeSchoolAccountEditModal");
-        let officeSchools = [];
-        let officeSchoolUsageAvailable = true;
-        const renderOfficeSchools = () => {
-          accountRows.replaceChildren();
-          if (!officeSchools.length) {
-            accountRows.append(create("tr", {}, create("td", { colspan: "5", className: "empty-row", text: "Tiada akaun sekolah didaftarkan di bawah pejabat ini." })));
-            return;
-          }
-          officeSchools.forEach(school => accountRows.append(create("tr", {}, [
-            create("td", { text: school.name || "Nama sekolah tidak dinyatakan" }),
-            create("td", { text: school.email || "E-mel tidak tersedia" }),
-            create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
-            create("td", {}, create("div", { className: "staff-usage-log" }, [
-              create("strong", { text: officeSchoolUsageAvailable ? `${school.loginCount} kali log masuk` : "Belum tersedia" }),
-              create("span", { text: officeSchoolUsageAvailable && school.lastLoginAt ? `Terakhir: ${formatDate(school.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
-            ])),
-            create("td", { className: "staff-account-actions" }, create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${school.name}`, onclick: () => {
-              editSchoolModal.querySelector("[data-school-account-reference]").textContent = "Kemas kini nama sekolah, e-mel log masuk atau kata laluan.";
-              editSchoolModal.elements.nama.value = school.name;
-              editSchoolModal.elements.emel.value = school.email;
-              editSchoolModal.elements.password.value = "";
-              editSchoolModal.onsubmit = async event => {
-                event.preventDefault();
-                const data = Object.fromEntries(new FormData(editSchoolModal));
-                const button = editSchoolModal.querySelector("button[type=submit]");
-                setBusy(button, true, "Menyimpan…");
-                try {
-                  const updated = await callAdminFunction("office-update-school-account", {
-                    id: school.id,
-                    name: data.nama,
-                    email: data.emel,
-                    password: data.password
-                  });
-                  school.name = updated.name;
-                  school.email = updated.email;
-                  closeModal(editSchoolModal);
-                  renderOfficeSchools();
-                  toast("Akaun sekolah dikemas kini", data.password ? "Nama, e-mel dan kata laluan akaun sekolah telah dikemas kini." : "Nama dan e-mel akaun sekolah telah dikemas kini.");
-                } catch (error) {
-                  toast("Akaun sekolah tidak dapat dikemas kini", error.message, "error");
-                } finally { setBusy(button, false); }
-              };
-              showModal("#officeSchoolAccountEditModal");
-              editSchoolModal.elements.nama.focus();
-            } }))
-          ])));
-        };
-        const loadOfficeSchools = async () => {
-          const baseQuery = `role=eq.agency&agency_type=ilike.sekolah&ped_office_id=eq.${encodeURIComponent(officeProfile.id)}`;
-          let rows;
-          officeSchoolUsageAvailable = true;
-          try {
-            rows = await rest("profiles", `${baseQuery}&select=id,name,email,login_count,last_login_at&order=name.asc`);
-          } catch (error) {
-            if (!/login_count|last_login_at/i.test(error.message)) throw error;
-            officeSchoolUsageAvailable = false;
-            rows = await rest("profiles", `${baseQuery}&select=id,name,email&order=name.asc`);
-          }
-          officeSchools = rows.map(row => ({
-            id: row.id,
-            name: String(row.name || "").trim(),
-            email: row.email || "",
-            loginCount: Number(row.login_count || 0),
-            lastLoginAt: row.last_login_at || null
-          }));
-          renderOfficeSchools();
-        };
-        await loadOfficeSchools();
+      if (user.role === "admin") {
+        officeSchoolAccountsPanel.querySelector(".panel-title p").textContent = "Senarai semua akaun sekolah yang didaftarkan dalam sistem.";
+        officeSchoolAccountsPanel.querySelector("caption").textContent = "Semua akaun pengguna sekolah";
       }
+      officeSchoolAccountsPanel.classList.remove("hidden");
+      officePanelVisible = true;
+      const accountRows = document.querySelector("#officeSchoolAccountRows");
+      const editSchoolModal = document.querySelector("#officeSchoolAccountEditModal");
+      let officeSchools = [];
+      let officeSchoolUsageAvailable = true;
+      const renderOfficeSchools = () => {
+        accountRows.replaceChildren();
+        if (!officeSchools.length) {
+          accountRows.append(create("tr", {}, create("td", { colspan: "5", className: "empty-row", text: user.role === "admin" ? "Tiada akaun sekolah didaftarkan." : "Tiada akaun sekolah didaftarkan di bawah pejabat ini." })));
+          return;
+        }
+        officeSchools.forEach(school => accountRows.append(create("tr", {}, [
+          create("td", { text: school.name || "Nama sekolah tidak dinyatakan" }),
+          create("td", { text: school.email || "E-mel tidak tersedia" }),
+          create("td", {}, create("span", { className: "badge archive", text: "Aktif" })),
+          create("td", {}, create("div", { className: "staff-usage-log" }, [
+            create("strong", { text: officeSchoolUsageAvailable ? `${school.loginCount} kali log masuk` : "Belum tersedia" }),
+            create("span", { text: officeSchoolUsageAvailable && school.lastLoginAt ? `Terakhir: ${formatDate(school.lastLoginAt, true)}` : "Tiada rekod penggunaan" })
+          ])),
+          create("td", { className: "staff-account-actions" }, create("button", { className: "button secondary small staff-account-edit", type: "button", text: "Edit", "aria-label": `Edit akaun ${school.name}`, onclick: () => {
+            editSchoolModal.querySelector("[data-school-account-reference]").textContent = "Kemas kini nama sekolah, e-mel log masuk atau kata laluan.";
+            editSchoolModal.elements.nama.value = school.name;
+            editSchoolModal.elements.emel.value = school.email;
+            editSchoolModal.elements.password.value = "";
+            editSchoolModal.onsubmit = async event => {
+              event.preventDefault();
+              const data = Object.fromEntries(new FormData(editSchoolModal));
+              const button = editSchoolModal.querySelector("button[type=submit]");
+              setBusy(button, true, "Menyimpan…");
+              try {
+                const updated = await callAdminFunction("office-update-school-account", {
+                  id: school.id,
+                  name: data.nama,
+                  email: data.emel,
+                  password: data.password
+                });
+                school.name = updated.name;
+                school.email = updated.email;
+                closeModal(editSchoolModal);
+                renderOfficeSchools();
+                toast("Akaun sekolah dikemas kini", data.password ? "Nama, e-mel dan kata laluan akaun sekolah telah dikemas kini." : "Nama dan e-mel akaun sekolah telah dikemas kini.");
+              } catch (error) {
+                toast("Akaun sekolah tidak dapat dikemas kini", error.message, "error");
+              } finally { setBusy(button, false); }
+            };
+            showModal("#officeSchoolAccountEditModal");
+            editSchoolModal.elements.nama.focus();
+          } }))
+        ])));
+      };
+      const loadOfficeSchools = async () => {
+        const baseQuery = "role=eq.agency&agency_type=ilike.sekolah"
+          + (user.role === "admin" ? "" : `&ped_office_id=eq.${encodeURIComponent(user.id)}`);
+        let rows;
+        officeSchoolUsageAvailable = true;
+        try {
+          rows = await rest("profiles", `${baseQuery}&select=id,name,email,login_count,last_login_at&order=name.asc`);
+        } catch (error) {
+          if (!/login_count|last_login_at/i.test(error.message)) throw error;
+          officeSchoolUsageAvailable = false;
+          rows = await rest("profiles", `${baseQuery}&select=id,name,email&order=name.asc`);
+        }
+        officeSchools = rows.map(row => ({
+          id: row.id,
+          name: String(row.name || "").trim(),
+          email: row.email || "",
+          loginCount: Number(row.login_count || 0),
+          lastLoginAt: row.last_login_at || null
+        }));
+        renderOfficeSchools();
+      };
+      await loadOfficeSchools();
     } catch (error) {
       if (officePanelVisible) {
         officeSchoolAccountsPanel.classList.remove("hidden");
@@ -3057,7 +3062,12 @@ async function initPed() {
       const office = (await rest("profiles", `id=eq.${encodeURIComponent(officeId)}&select=id,name`))?.[0];
       return [{ ped_office_id: officeId, office_name: office?.name || "Pejabat" }];
     })() : Promise.resolve([]),
-    officeAccount ? rest("profiles", `ped_office_id=eq.${encodeURIComponent(pedOwnerId)}&role=eq.agency&select=id,name&order=name.asc`) : Promise.resolve([])
+    officeAccount ? rpc("ped_assigned_schools", {}).catch(error => {
+      // Keep correspondence usable while the new names-only RPC is deployed.
+      // Never request account details or bypass an authorization failure.
+      if (!/could not find the function.*ped_assigned_schools|function.*ped_assigned_schools.*does not exist/i.test(error.message)) throw error;
+      return rest("profiles", `ped_office_id=eq.${encodeURIComponent(pedOwnerId)}&role=eq.agency&select=id,name&order=name.asc`);
+    }) : Promise.resolve([])
   ]);
   if (recordsResult.status === "rejected") {
     state.pedRecords = [];

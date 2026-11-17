@@ -107,6 +107,7 @@ const server = http.createServer((req, res) => {
     assert.equal(req.method, url.pathname.includes('/rpc/') ? 'POST' : 'GET', 'Unexpected preview request method');
     let result = [];
     if (table === 'can_access_ped') result = true;
+    if (table === 'ped_assigned_schools') result = [{ id: 'another-school', name: 'SK Bandar Limbang' }];
     if (table === 'profiles') result = url.searchParams.has('ped_office_id')
       ? [{ id: 'another-school', name: 'SK Bandar Limbang' }]
       : url.searchParams.get('id') === 'eq.preview-office' ? [{ id: 'preview-office', name: 'PPD Limbang' }] : [profile()];

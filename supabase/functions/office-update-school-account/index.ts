@@ -22,19 +22,14 @@ Deno.serve(async request => {
   );
   const callerProfiles = callerResponse.ok ? await callerResponse.json() : [];
   const callerProfile = callerProfiles[0];
-  const officeId = callerProfile?.role === "staff" ? callerProfile.agency_id : callerProfile?.id;
-  if (!officeId || !["agency", "staff"].includes(callerProfile.role)) {
-    return json(request, { error: "Akses Pejabat Pendidikan diperlukan." }, 403);
+  const isAdmin = callerProfile?.role === "admin";
+  const officeId = callerProfile?.id;
+  if (!officeId || (!isAdmin && (callerProfile.role !== "agency"
+    || callerProfile.agency_type?.trim().toLocaleLowerCase("ms-MY") !== "pejabat"))) {
+    return json(request, { error: "Akses admin utama atau admin agensi pejabat diperlukan." }, 403);
   }
 
-  const officeResponse = await fetch(
-    `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(officeId)}&role=eq.agency&agency_type=ilike.pejabat&select=id`,
-    { headers: { apikey: config.secretKey, authorization: `Bearer ${config.secretKey}` } }
-  );
-  const officeRows = officeResponse.ok ? await officeResponse.json() : [];
-  if (!officeRows.length || (callerProfile.role === "agency" && callerProfile.agency_type?.trim().toLocaleLowerCase("ms-MY") !== "pejabat")) {
-    return json(request, { error: "Akses Pejabat Pendidikan diperlukan." }, 403);
-  }
+  const schoolScope = isAdmin ? "" : `&ped_office_id=eq.${encodeURIComponent(officeId)}`;
 
   let input: Record<string, unknown>;
   try {
@@ -53,7 +48,7 @@ Deno.serve(async request => {
 
   const headers = { apikey: config.secretKey, authorization: `Bearer ${config.secretKey}` };
   const schoolResponse = await fetch(
-    `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&role=eq.agency&agency_type=ilike.sekolah&ped_office_id=eq.${encodeURIComponent(officeId)}&select=id,name,email`,
+    `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&role=eq.agency&agency_type=ilike.sekolah${schoolScope}&select=id,name,email`,
     { headers }
   );
   const schools = schoolResponse.ok ? await schoolResponse.json() : [];
@@ -65,7 +60,7 @@ Deno.serve(async request => {
   if (!authLookup.ok) return json(request, { error: authUser.msg || authUser.message || "Akaun sekolah tidak ditemui." }, authLookup.status);
 
   const profileUpdate = await fetch(
-    `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&ped_office_id=eq.${encodeURIComponent(officeId)}`,
+    `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&role=eq.agency&agency_type=ilike.sekolah${schoolScope}`,
     {
       method: "PATCH",
       headers: { ...headers, "content-type": "application/json", prefer: "return=minimal" },
@@ -89,7 +84,7 @@ Deno.serve(async request => {
   });
   if (!authUpdate.ok) {
     await fetch(
-      `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&ped_office_id=eq.${encodeURIComponent(officeId)}`,
+      `${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(schoolId)}&role=eq.agency&agency_type=ilike.sekolah${schoolScope}`,
       {
         method: "PATCH",
         headers: { ...headers, "content-type": "application/json", prefer: "return=minimal" },

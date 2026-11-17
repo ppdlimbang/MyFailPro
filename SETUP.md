@@ -166,6 +166,13 @@ Changes under `supabase/functions/` trigger the Edge Function workflow.
 Database migrations are not applied automatically; run each new migration in
 the Supabase SQL Editor before using its related feature.
 
+For the school account access restriction, apply
+`20261117000000_restrict_school_accounts_to_admins.sql` before deploying the
+frontend and `office-update-school-account` Edge Function. System admins can
+view all school accounts; office agency admins can view only assigned schools.
+Staff retain school names in PeD through `ped_assigned_schools`, but cannot
+read the other schools' account profiles or edit their login credentials.
+
 Alternatively, create a scoped Supabase access token with **Database:
 Read-write**, save it as the GitHub Actions secret
 `SUPABASE_DATABASE_ACCESS_TOKEN`, then run **Apply Agency Staff Migration** from
