@@ -21,6 +21,16 @@ let attachmentChecks = false;
 let uploadDenied = false;
 let signingDenied = false;
 const signedPaths = [];
+const pdfParts = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+const pdfContent = 'BT /F1 24 Tf 60 760 Td (Surat Ujian MyFailPro) Tj 0 -40 Td /F1 14 Tf (Pratonton dokumen pada halaman yang sama.) Tj ET';
+pdfParts.push(`<< /Length ${Buffer.byteLength(pdfContent)} >>\nstream\n${pdfContent}\nendstream`);
+let previewPdf = '%PDF-1.4\n';
+const pdfOffsets = [0];
+pdfParts.forEach((part, i) => { pdfOffsets.push(Buffer.byteLength(previewPdf)); previewPdf += `${i + 1} 0 obj\n${part}\nendobj\n`; });
+const pdfXref = Buffer.byteLength(previewPdf);
+previewPdf += `xref\n0 6\n0000000000 65535 f \n${pdfOffsets.slice(1).map(offset => String(offset).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${pdfXref}\n%%EOF`;
 const uploads = [], deletedAttachments = [], formWrites = [];
 const userId = 'preview-user';
 const profile = () => ({ id: userId, name: 'Akaun Pratonton', email: 'preview@example.test',
@@ -43,6 +53,13 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const file = url.pathname.slice(1);
   if (attachmentChecks && url.pathname.startsWith('/storage/v1/')) {
+    if (req.method === 'GET' && url.searchParams.get('token') === 'fixture') {
+      const pdf = url.pathname.endsWith('.pdf');
+      res.setHeader('Content-Type', pdf ? 'application/pdf' : 'image/png');
+      res.setHeader('Content-Disposition', 'inline');
+      res.end(pdf ? previewPdf : fs.readFileSync(path.join(root, 'file.png')));
+      return;
+    }
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => {

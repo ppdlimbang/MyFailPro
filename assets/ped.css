@@ -411,6 +411,25 @@ body[data-page="ped"] .ped-panel .ped-empty-row td { padding: 30px 24px; text-al
 .ped-picker-chip button:hover { color: #fff; background: var(--purple); }
 .ped-file-input { padding: 10px; }
 .ped-attachment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ped-attachment-preview { width: min(1100px, calc(100% - 32px)); height: min(900px, calc(100vh - 32px)); height: min(900px, calc(100dvh - 32px)); max-width: none; max-height: none; margin: auto; padding: 0; border: 1px solid #e6e0f3; border-radius: 20px; color: var(--text); background: #fff; box-shadow: 0 24px 80px rgba(30, 20, 60, .3); overflow: hidden; }
+.ped-attachment-preview::backdrop { background: rgba(23, 20, 43, .58); backdrop-filter: blur(5px); }
+.ped-attachment-preview-layout { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ped-attachment-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e6e0f3; }
+.ped-attachment-preview-head > div { min-width: 0; }
+.ped-attachment-preview-head h2 { margin: 0; font-size: 1.05rem; }
+.ped-attachment-preview-head p { margin: 4px 0 0; color: #747087; font-size: .75rem; overflow-wrap: anywhere; }
+.ped-attachment-preview-head button { flex-shrink: 0; min-height: 40px; }
+.ped-attachment-preview-body { position: relative; flex: 1; min-height: 0; background: #f3f1f8; }
+.ped-attachment-preview-content { height: 100%; overflow: auto; }
+.ped-attachment-preview-content img { display: block; width: 100%; height: 100%; object-fit: contain; padding: 12px; }
+.ped-attachment-preview-content iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.ped-attachment-preview-status { position: absolute; z-index: 1; top: 16px; left: 16px; right: 16px; width: fit-content; max-width: calc(100% - 32px); margin: 0 auto; padding: 10px 16px; border-radius: 10px; background: #fff; color: #625478; font-size: .85rem; box-shadow: 0 2px 12px #21123d12; }
+.ped-attachment-preview-status.error { color: #a32b45; background: #fff1f4; }
+@media (max-width: 640px) {
+  .ped-attachment-preview { width: calc(100% - 16px); height: calc(100vh - 16px); height: calc(100dvh - 16px); border-radius: 14px; }
+  .ped-attachment-preview-head { gap: 8px; padding: 12px; }
+  .ped-attachment-preview-head button { padding-inline: 12px; }
+}
 
 body:not([data-page="login"]) .nav a[data-ped-nav] {
   --tab-icon-color: #0f8c8f;

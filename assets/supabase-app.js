@@ -898,22 +898,72 @@ async function signedPedAttachmentUrl(path) {
   return `${config.url}/storage/v1${result.signedURL}`;
 }
 
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "" };
+
 async function openPedAttachment(path, button) {
   if (!path || button?.disabled) return;
-  // Open during the click so browsers allow the tab while the signed URL loads.
-  const popup = window.open("about:blank", "_blank");
-  if (popup) popup.opener = null;
+  const dialog = document.querySelector("#pedAttachmentPreview");
+  if (!dialog) return;
+  const content = dialog.querySelector(".ped-attachment-preview-content");
+  const status = dialog.querySelector(".ped-attachment-preview-status");
+  const close = dialog.querySelector("[data-close-preview]");
+  if (pedAttachmentPreview.dialog !== dialog) {
+    pedAttachmentPreview.dialog = dialog;
+    close.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("close", () => {
+      // Ignore any signed URL still arriving after the user closes the preview.
+      pedAttachmentPreview.requestId++;
+      content.replaceChildren();
+      document.body.style.overflow = pedAttachmentPreview.overflow;
+      if (pedAttachmentPreview.opener?.isConnected) pedAttachmentPreview.opener.focus({ preventScroll: true });
+    });
+    dialog.addEventListener("click", event => {
+      const bounds = dialog.getBoundingClientRect();
+      if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right
+        || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
+    });
+  }
+  const requestId = ++pedAttachmentPreview.requestId;
+  const isCurrent = () => dialog.open && requestId === pedAttachmentPreview.requestId;
+  const filename = path.split("/").pop();
+  dialog.querySelector("#pedAttachmentPreviewName").textContent = filename;
+  content.replaceChildren();
+  status.textContent = "Memuatkan lampiran…";
+  status.classList.remove("hidden", "error");
+  if (!dialog.open) {
+    pedAttachmentPreview.opener = button || document.activeElement;
+    pedAttachmentPreview.overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    close.focus();
+  }
   if (button) {
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
   }
   try {
     const url = await signedPedAttachmentUrl(path);
-    if (popup) popup.location.href = url;
-    else window.location.assign(url);
+    if (!isCurrent()) return;
+    const pdf = /\.pdf$/i.test(path);
+    const media = pdf
+      ? create("iframe", { title: `Pratonton PDF: ${filename}`, src: `${url}#view=FitH` })
+      : create("img", { alt: `Lampiran ${filename}`, src: url });
+    media.addEventListener("load", () => {
+      if (isCurrent()) status.classList.add("hidden");
+    });
+    media.addEventListener("error", () => {
+      if (!isCurrent()) return;
+      media.remove();
+      status.textContent = "Lampiran tidak dapat dipaparkan. Tutup dan cuba buka semula.";
+      status.classList.add("error");
+      status.classList.remove("hidden");
+    });
+    content.replaceChildren(media);
   } catch (error) {
-    popup?.close();
-    toast("Lampiran tidak dapat dibuka", error.message, "error");
+    if (isCurrent()) {
+      status.textContent = `Lampiran tidak dapat dibuka: ${error.message}`;
+      status.classList.add("error");
+    }
   } finally {
     if (button) {
       button.disabled = false;
@@ -3044,7 +3094,8 @@ async function initPed() {
     if (!record.attachmentPath || !(record.category === "outgoing" || (schoolAccount && record.category === "school_in"))) return null;
     const button = create("button", {
       className: "button secondary small ped-view-attachment", type: "button",
-      title: "Lihat lampiran", "aria-label": `Lihat lampiran ${record.reference || record.subject || "surat"} (tab baharu)`
+      title: "Lihat lampiran", "aria-label": `Lihat lampiran ${record.reference || record.subject || "surat"}`,
+      "aria-haspopup": "dialog", "aria-controls": "pedAttachmentPreview"
     }, createIcon("eye"));
     button.addEventListener("click", () => openPedAttachment(record.attachmentPath, button));
     return button;

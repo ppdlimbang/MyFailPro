@@ -43,9 +43,10 @@ module.exports = async ({ assert, evaluate, until, cdp, base, record, userId,
   assert.match(records()[0].attachment_path, /^preview-user\/.+\.pdf$/);
   const firstPath = records()[0].attachment_path;
   await edit('outgoing');
-  await evaluate("window.testPopup={location:{},close(){}};window.open=()=>window.testPopup;document.querySelector('#pedViewAttachment').click()");
-  await until("Boolean(window.testPopup.location.href)", 'Signed attachment did not open');
-  assert.match(await evaluate('window.testPopup.location.href'), /\/storage\/v1\/object\/sign\//);
+  await evaluate("document.querySelector('#pedViewAttachment').click()");
+  await until("Boolean(document.querySelector('#pedAttachmentPreview iframe'))", 'Signed attachment did not open');
+  assert.match(await evaluate("document.querySelector('#pedAttachmentPreview iframe').src"), /\/storage\/v1\/object\/sign\//);
+  await evaluate("document.querySelector('#pedAttachmentPreview [data-close-preview]').click()");
 
   for (const failure of ['denied', 'empty']) {
     mode(failure); await selectFile('replacement.pdf'); await submit(false);
