@@ -4690,6 +4690,7 @@ async function initAdmin() {
   const agencyType = document.querySelector("#agencyType");
   const educationOfficeField = document.querySelector("#educationOfficeField");
   const educationOffice = document.querySelector("#educationOffice");
+  const passwordModal = document.querySelector("#agencyPasswordResetModal");
   const officeAccounts = () => state.agencies.filter(agency => String(agency.jenis).trim().toLocaleLowerCase("ms-MY") === "pejabat");
   const officeOptions = selectedId => [
     create("option", { value: "", text: "Pilih Pejabat" }),
@@ -4735,13 +4736,31 @@ async function initAdmin() {
           toast("Berjaya", "Akaun agensi telah dipadam.");
         } catch (error) { toast("Tidak berjaya", `${error.message} Pastikan agensi tidak mempunyai rekod fail.`, "error"); setBusy(remove, false); }
       } });
+      const resetPassword = create("button", { className: "button secondary small", type: "button", text: "Reset Kata Laluan", "aria-label": `Reset kata laluan ${agency.nama}`, onclick: () => {
+        passwordModal.querySelector("#agencyPasswordResetDescription").textContent = `Tetapkan kata laluan baharu untuk ${agency.nama} (${agency.emel}).`;
+        passwordModal.elements.password.value = "";
+        passwordModal.onsubmit = async event => {
+          event.preventDefault();
+          const submit = passwordModal.querySelector("button[type=submit]");
+          const password = passwordModal.elements.password.value;
+          setBusy(submit, true, "Mereset…");
+          try {
+            await callAdminFunction("admin-reset-agency-password", { id: agency.id, password });
+            closeModal(passwordModal);
+            toast("Kata laluan direset", `Kata laluan akaun ${agency.nama} telah ditukar.`);
+          } catch (error) { toast("Reset tidak berjaya", error.message, "error"); }
+          finally { setBusy(submit, false); }
+        };
+        showModal("#agencyPasswordResetModal");
+        passwordModal.elements.password.focus();
+      } });
       body.append(create("tr", {}, [
         create("td", { text: agency.emel }),
         create("td", { text: agency.jenis }),
         create("td", { text: agency.nama }),
         create("td", {}, assignedOfficeSelect || create("span", { text: "—" })),
         create("td", { text: "Supabase Auth" }),
-        create("td", {}, remove)
+        create("td", {}, create("div", { className: "agency-account-actions" }, [resetPassword, remove]))
       ]));
     });
   };

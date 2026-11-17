@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.admin-delete-user]
 verify_jwt = false
 
+[functions.admin-reset-agency-password]
+verify_jwt = false
+
 [functions.agency-create-staff]
 verify_jwt = false
 
