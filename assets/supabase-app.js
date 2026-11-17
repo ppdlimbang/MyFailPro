@@ -67,6 +67,7 @@ const state = {
   notificationsAvailable: true,
   staffUsageAvailable: true,
   staffAvatarsAvailable: true,
+  staffPhotosAvailable: true,
   pedRecords: [],
   settings: null
 };
@@ -1254,23 +1255,28 @@ async function loadStaffUsers() {
   let rows;
   state.staffUsageAvailable = true;
   state.staffAvatarsAvailable = true;
+  state.staffPhotosAvailable = true;
   try {
-    rows = await rest("profiles", `${baseQuery}&select=${baseColumns},login_count,last_login_at,avatar_key&order=name.asc`);
+    rows = await rest("profiles", `${baseQuery}&select=${baseColumns},login_count,last_login_at,avatar_key,avatar_url&order=name.asc`);
   } catch (error) {
-    if (!/login_count|last_login_at|avatar_key/i.test(error.message)) throw error;
+    if (!/login_count|last_login_at|avatar_key|avatar_url/i.test(error.message)) throw error;
     if (/login_count|last_login_at/i.test(error.message)) state.staffUsageAvailable = false;
     if (/avatar_key/i.test(error.message)) state.staffAvatarsAvailable = false;
+    if (/avatar_url/i.test(error.message)) state.staffPhotosAvailable = false;
     const optionalColumns = [
       ...(state.staffUsageAvailable ? ["login_count", "last_login_at"] : []),
-      ...(state.staffAvatarsAvailable ? ["avatar_key"] : [])
+      ...(state.staffAvatarsAvailable ? ["avatar_key"] : []),
+      ...(state.staffPhotosAvailable ? ["avatar_url"] : [])
     ];
     try {
       rows = await rest("profiles", `${baseQuery}&select=${[baseColumns, ...optionalColumns].join(",")}&order=name.asc`);
     } catch (fallbackError) {
-      if (!/login_count|last_login_at|avatar_key/i.test(fallbackError.message)) throw fallbackError;
+      if (!/login_count|last_login_at|avatar_key|avatar_url/i.test(fallbackError.message)) throw fallbackError;
       if (/login_count|last_login_at/i.test(fallbackError.message)) state.staffUsageAvailable = false;
       if (/avatar_key/i.test(fallbackError.message)) state.staffAvatarsAvailable = false;
-      rows = await rest("profiles", `${baseQuery}&select=${baseColumns}&order=name.asc`);
+      if (/avatar_url/i.test(fallbackError.message)) state.staffPhotosAvailable = false;
+      const finalColumns = [...(state.staffUsageAvailable ? ["login_count", "last_login_at"] : []), ...(state.staffAvatarsAvailable ? ["avatar_key"] : []), ...(state.staffPhotosAvailable ? ["avatar_url"] : [])];
+      rows = await rest("profiles", `${baseQuery}&select=${[baseColumns, ...finalColumns].join(",")}&order=name.asc`);
     }
   }
   state.staffUsers = rows.map(row => ({
@@ -1280,7 +1286,8 @@ async function loadStaffUsers() {
     createdAt: row.created_at,
     loginCount: Number(row.login_count || 0),
     lastLoginAt: row.last_login_at || null,
-    avatarKey: row.avatar_key || "initials"
+    avatarKey: row.avatar_key || "initials",
+    avatarUrl: row.avatar_url || ""
   }));
 }
 
@@ -2852,7 +2859,7 @@ async function initSettings() {
         const avatar = avatarPresentation(person.avatarKey, person.name);
         accountRows.append(create("tr", {}, [
         create("td", {}, create("div", { className: "staff-user-identity" }, [
-          create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}`, text: avatar.symbol, title: avatar.label, "aria-hidden": "true" }),
+          (() => { const node = create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}${person.avatarUrl ? " has-profile-photo" : ""}`, text: person.avatarUrl ? "" : avatar.symbol, title: avatar.label, "aria-hidden": "true" }); if (person.avatarUrl) node.style.backgroundImage = `url("${person.avatarUrl.replaceAll('"', '%22')}")`; return node; })(),
           create("span", { text: person.name })
         ])),
         create("td", { text: person.email }),
