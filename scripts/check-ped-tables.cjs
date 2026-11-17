@@ -19,6 +19,8 @@ let patchMode = 'success';
 const patches = [];
 let attachmentChecks = false;
 let uploadDenied = false;
+let signingDenied = false;
+const signedPaths = [];
 const uploads = [], deletedAttachments = [], formWrites = [];
 const userId = 'preview-user';
 const profile = () => ({ id: userId, name: 'Akaun Pratonton', email: 'preview@example.test',
@@ -50,7 +52,10 @@ const server = http.createServer((req, res) => {
         deletedAttachments.push(...JSON.parse(body).prefixes);
         res.end('[]');
       } else if (url.pathname.includes('/object/sign/')) {
-        res.end(JSON.stringify({ signedURL: '/object/sign/ped-correspondence/test.pdf?token=fixture' }));
+        assert.deepEqual(JSON.parse(body), { expiresIn: 300 });
+        signedPaths.push(url.pathname);
+        if (signingDenied) res.writeHead(403).end(JSON.stringify({ message: 'Akses lampiran ditolak untuk ujian.' }));
+        else setTimeout(() => res.end(JSON.stringify({ signedURL: url.pathname.slice('/storage/v1'.length) + '?token=fixture' })), 100);
       } else {
         uploads.push({ path: url.pathname.split('/ped-correspondence/')[1], type: req.headers['content-type'], body });
         if (uploadDenied) res.writeHead(400).end(JSON.stringify({ message: 'PDF MIME type not allowed (test).' }));
@@ -158,6 +163,15 @@ let browser;
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('Network.enable');
   await cdp.send('Network.setBlockedURLs', { urls: ['https://*'] });
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `sessionStorage.setItem('myfailpro_supabase_session',JSON.stringify({access_token:'preview',user:{id:'${userId}'}}));` });
+  if (process.argv.includes('--attachment-view-only')) {
+    attachmentChecks = true;
+    await require('./check-ped-attachment-view.cjs')({ assert, evaluate, cdp, base, record, userId, output,
+      setup(role, rows) { scenario = role; storedRecords = rows; },
+      denySigning(value) { signingDenied = value; }, signedPaths });
+    assert.equal(cdp.exceptions.length, 0, cdp.exceptions.join('\n'));
+    await cdp.send('Browser.close').catch(() => {}); cdp.ws.close();
+    return;
+  }
   for (const role of process.env.PED_INLINE_ONLY ? [] : ['office', 'agency', 'admin', 'school', 'paging']) {
     scenario = role;
     for (const width of role === 'paging' ? [1440] : [1440, 900, 390, 320]) {

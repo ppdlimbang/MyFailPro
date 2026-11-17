@@ -898,6 +898,30 @@ async function signedPedAttachmentUrl(path) {
   return `${config.url}/storage/v1${result.signedURL}`;
 }
 
+async function openPedAttachment(path, button) {
+  if (!path || button?.disabled) return;
+  // Open during the click so browsers allow the tab while the signed URL loads.
+  const popup = window.open("about:blank", "_blank");
+  if (popup) popup.opener = null;
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  }
+  try {
+    const url = await signedPedAttachmentUrl(path);
+    if (popup) popup.location.href = url;
+    else window.location.assign(url);
+  } catch (error) {
+    popup?.close();
+    toast("Lampiran tidak dapat dibuka", error.message, "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    }
+  }
+}
+
 async function loadRecipientUsers() {
   if (!currentUser || currentUser.role === "admin") { state.recipientUsers = []; return; }
   try {
@@ -3016,6 +3040,15 @@ async function initPed() {
   const workspaceAgencyType = String(workspaceProfile.agency_type || "").trim().toLocaleLowerCase("ms-MY");
   const schoolAccount = user.role !== "admin" && workspaceAgencyType === "sekolah";
   const officeAccount = user.role !== "admin" && workspaceAgencyType === "pejabat";
+  const attachmentAction = record => {
+    if (!record.attachmentPath || !(record.category === "outgoing" || (schoolAccount && record.category === "school_in"))) return null;
+    const button = create("button", {
+      className: "button secondary small ped-view-attachment", type: "button",
+      title: "Lihat lampiran", "aria-label": `Lihat lampiran ${record.reference || record.subject || "surat"} (tab baharu)`
+    }, createIcon("eye"));
+    button.addEventListener("click", () => openPedAttachment(record.attachmentPath, button));
+    return button;
+  };
   const canDeletePedRecord = record => {
     if (!record) return false;
     if (user.role === "admin") return record.category !== "school_received";
@@ -3665,6 +3698,7 @@ async function initPed() {
       sortButton.closest("th").setAttribute("aria-sort", stateForTable.dateAscending ? "ascending" : "descending");
       body.replaceChildren();
       body.closest("table").classList.remove("ped-table-has-receive");
+      body.closest("table").classList.remove("ped-table-has-attachment");
       if (!records.length) {
         const filtered = pedFiltersActive() || Boolean(tableSearchTerm(category));
         body.append(create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
@@ -3742,12 +3776,13 @@ async function initPed() {
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
           create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
           create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [
-            ...(receive ? [receive] : []), edit, ...(canDelete ? [remove] : [])
+            ...(receive ? [receive] : []), edit, attachmentAction(record), ...(canDelete ? [remove] : [])
           ]))
         ]));
       });
       // Class twin of table:has(.ped-receive-button) for browsers without :has().
       body.closest("table").classList.toggle("ped-table-has-receive", Boolean(body.querySelector(".ped-receive-button")));
+      body.closest("table").classList.toggle("ped-table-has-attachment", Boolean(body.querySelector(".ped-view-attachment")));
     });
     renderPedExtraViews();
   };
@@ -3959,19 +3994,7 @@ async function initPed() {
     viewAttachmentButton.classList.add("hidden");
     clearAttachmentButton.classList.add("hidden");
   });
-  viewAttachmentButton.addEventListener("click", async () => {
-    // "noopener" would make window.open return null and replace this PeD page instead.
-    const popup = window.open("about:blank", "_blank");
-    if (popup) popup.opener = null;
-    try {
-      const url = await signedPedAttachmentUrl(viewAttachmentButton.dataset.path);
-      if (popup) popup.location.href = url;
-      else window.location.assign(url);
-    } catch (error) {
-      popup?.close();
-      toast("Lampiran tidak dapat dibuka", error.message, "error");
-    }
-  });
+  viewAttachmentButton.addEventListener("click", () => openPedAttachment(viewAttachmentButton.dataset.path, viewAttachmentButton));
   const resetPages = () => {
     Object.values(tableState).forEach(table => { table.page = 0; });
     extraViewState.historyPage = 0;
@@ -4335,7 +4358,7 @@ async function initPed() {
       create("td", { className: "ped-cell-party", "data-label": pedPartyLabel(record.category) }, create("span", { className: "ped-party", text: pedPartyName(record) || "—" })),
       create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
       create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
-      create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, open))
+      create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [open, attachmentAction(record)]))
     ]);
   };
   const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage, localSearchActive = false }) => {
