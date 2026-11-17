@@ -198,6 +198,14 @@ body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .user-ava
   color: transparent;
   font-size: 0;
 }
+.profile-crop-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 20px; background: rgba(20, 17, 30, .58); }
+.profile-crop-dialog { width: min(100%, 380px); display: grid; justify-items: center; gap: 14px; padding: 24px; border-radius: 22px; color: #252033; background: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.24); }
+.profile-crop-dialog h2, .profile-crop-dialog p { margin: 0; text-align: center; }
+.profile-crop-dialog p { color: #77839a; font-size: .92rem; }
+.profile-crop-canvas { width: 280px; height: 280px; max-width: 72vw; max-height: 72vw; border-radius: 50%; touch-action: none; cursor: grab; background: #f4f1f8; }
+.profile-crop-canvas:active { cursor: grabbing; }
+.profile-crop-dialog input[type="range"] { width: 100%; accent-color: #7040ee; }
+.profile-crop-actions { width: 100%; display: flex; justify-content: flex-end; gap: 10px; }
 body:not([data-page="login"]) .topbar .user-avatar::after {
   z-index: 2;
   max-width: min(280px, calc(100vw - 110px));

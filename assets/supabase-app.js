@@ -27,6 +27,27 @@ function avatarPresentation(key, name) {
   return { key: resolvedKey, label: option.label, symbol: option.symbol || initials, emoji: Boolean(option.symbol) };
 }
 
+function cropProfilePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image(); image.onload = () => {
+      const size = 280, canvas = create("canvas", { className: "profile-crop-canvas", width: size, height: size });
+      const context = canvas.getContext("2d"); let zoom = 1, dx = 0, dy = 0, drag = null;
+      const base = Math.max(size / image.naturalWidth, size / image.naturalHeight);
+      const draw = () => { const scale = base * zoom, w = image.naturalWidth * scale, h = image.naturalHeight * scale; dx = Math.min(0, Math.max(size - w, dx)); dy = Math.min(0, Math.max(size - h, dy)); context.clearRect(0,0,size,size); context.save(); context.beginPath(); context.arc(size/2,size/2,size/2,0,Math.PI*2); context.clip(); context.drawImage(image,dx,dy,w,h); context.restore(); };
+      const slider = create("input", { type: "range", min: "1", max: "3", step: "0.01", value: "1", "aria-label": "Zum gambar" });
+      const dialog = create("div", { className: "profile-crop-backdrop", role: "presentation" });
+      const panel = create("section", { className: "profile-crop-dialog", role: "dialog", "aria-modal": "true", "aria-label": "Laraskan gambar profil" }, [create("h2", { text: "Laraskan gambar profil" }), create("p", { text: "Seret gambar untuk mengubah posisi dan laraskan zum." }), canvas, slider, create("div", { className: "profile-crop-actions" }, [create("button", { type: "button", className: "button-secondary", text: "Batal", onclick: () => finish(null) }), create("button", { type: "button", className: "button-primary", text: "Gunakan gambar", onclick: () => canvas.toBlob(blob => finish(blob), "image/jpeg", .9) })])]);
+      dialog.append(panel); document.body.append(dialog); draw();
+      slider.addEventListener("input", () => { zoom = Number(slider.value); draw(); });
+      canvas.addEventListener("pointerdown", e => { drag = { x:e.clientX, y:e.clientY, dx, dy }; canvas.setPointerCapture(e.pointerId); });
+      canvas.addEventListener("pointermove", e => { if (!drag) return; dx=drag.dx+e.clientX-drag.x; dy=drag.dy+e.clientY-drag.y; draw(); });
+      canvas.addEventListener("pointerup", () => { drag=null; });
+      function finish(blob) { dialog.remove(); URL.revokeObjectURL(url); resolve(blob); }
+    }; image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Gambar tidak dapat dibuka.")); }; image.src = url;
+  });
+}
+
 function sortClassificationSettings(settings) {
   classificationKeys.forEach(key => settings[key].sort((first, second) => classificationCollator.compare(first, second)));
   return settings;
@@ -430,8 +451,9 @@ function renderShell(user) {
       if (file.size > 5 * 1024 * 1024) { alert("Saiz gambar maksimum ialah 5 MB."); input.value = ""; return; }
       if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { alert("Pilih gambar JPG, PNG atau WebP."); input.value = ""; return; }
       try {
-        const path = `${user.id}/profile.${file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"}`;
-        const response = await fetch(`${config.url}/storage/v1/object/profile-avatars/${path}`, { method: "POST", headers: { apikey: config.publishableKey, authorization: `Bearer ${session.access_token}`, "content-type": file.type, "x-upsert": "true" }, body: file });
+        const cropped = await cropProfilePhoto(file); if (!cropped) return;
+        const path = `${user.id}/profile.jpg`;
+        const response = await fetch(`${config.url}/storage/v1/object/profile-avatars/${path}`, { method: "POST", headers: { apikey: config.publishableKey, authorization: `Bearer ${session.access_token}`, "content-type": "image/jpeg", "x-upsert": "true" }, body: cropped });
         if (!response.ok) throw await responseError(response, "Gagal memuat naik gambar profil.");
         const url = `${config.url}/storage/v1/object/public/profile-avatars/${path}?v=${Date.now()}`;
         await rest("profiles", `id=eq.${encodeURIComponent(user.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ avatar_url: url }) });
