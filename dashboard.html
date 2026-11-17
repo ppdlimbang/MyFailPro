@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Papan pemuka pengurusan fail MyFailPro">
-  <title>Laman Utama · MyFailPro</title>
+  <title>Laman Utama Â· MyFailPro</title>
   <link rel="icon" type="image/png" href="file.png?v=20260914-03">
-<link rel="stylesheet" href="assets/styles.css?v=20261102-01"><link rel="stylesheet" href="assets/navigation.css?v=20261113-04">
+<link rel="stylesheet" href="assets/styles.css?v=20261102-01"><link rel="stylesheet" href="assets/navigation.css?v=20261117-profile-crop-02">
   <link rel="stylesheet" href="assets/dashboard-tables.css?v=20261105-03">
   <link rel="stylesheet" href="assets/dashboard-traffic.css?v=20261116-pdf-01">
   <script src="assets/runtime-config.js?v=20260904-14" defer></script>
-<script src="assets/supabase-app.js?v=20261116-pdf-01" defer></script>
+<script src="assets/supabase-app.js?v=20261117-profile-crop-02" defer></script>
 <link rel="stylesheet" href="assets/icons.css?v=20261115-02">
 </head>
 <body data-page="dashboard">
@@ -28,9 +28,9 @@
       <div class="traffic-compact" id="loginTraffic" role="group" aria-labelledby="trafficTitle" aria-busy="true">
         <img src="assets/icons/users.svg?v=20261115-01" width="21" height="21" alt="">
         <span id="trafficTitle">Jumlah Log Masuk</span>
-        <strong data-traffic="total_logins" aria-live="polite">—</strong>
+        <strong data-traffic="total_logins" aria-live="polite">â€”</strong>
         <button class="traffic-refresh" type="button" id="refreshTraffic" aria-label="Muat semula jumlah log masuk" title="Muat semula"><img src="assets/icons/history.svg?v=20261115-01" width="20" height="20" alt=""></button>
-        <span class="sr-only" id="trafficUpdated" role="status">Memuatkan jumlah log masuk…</span>
+        <span class="sr-only" id="trafficUpdated" role="status">Memuatkan jumlah log masukâ€¦</span>
         <span class="sr-only hidden" id="trafficMessage" role="status"></span>
       </div>
     </div>
@@ -60,7 +60,7 @@
           <div class="panel-title"><div class="file-panel-title"><h2 id="activeFilesTitle">Senarai Fail Terkini</h2><span class="file-count" id="activeFileCount" aria-live="polite">0 rekod</span></div><p>Urus fail aktif dan semak keberadaan terkini.</p></div>
         </div>
         <div class="toolbar">
-          <label class="file-search" for="searchFile"><span class="sr-only">Cari fail</span><svg class="icon-3d " viewBox="0 0 64 64" aria-hidden="true" focusable="false" data-icon="search"><image href="assets/icons/search.svg?v=20261115-01" width="64" height="64"/></svg><input class="input" id="searchFile" type="search" placeholder="Cari kod, tajuk atau pemegang…"></label>
+          <label class="file-search" for="searchFile"><span class="sr-only">Cari fail</span><svg class="icon-3d " viewBox="0 0 64 64" aria-hidden="true" focusable="false" data-icon="search"><image href="assets/icons/search.svg?v=20261115-01" width="64" height="64"/></svg><input class="input" id="searchFile" type="search" placeholder="Cari kod, tajuk atau pemegangâ€¦"></label>
           <select class="input" id="filterFungsi" aria-label="Tapis fungsi"></select>
         </div>
       </div>
@@ -76,7 +76,7 @@
           <div class="panel-title"><div class="file-panel-title"><h2 id="archiveFilesTitle">Arkib Fail Ditutup</h2><span class="file-count" id="archiveCount" aria-live="polite">0 rekod</span></div><p>Rekod ditutup, tersusun untuk rujukan.</p></div>
         </div>
         <div class="toolbar archive-toolbar">
-          <label class="file-search" for="searchArchive"><span class="sr-only">Cari arkib fail</span><svg class="icon-3d " viewBox="0 0 64 64" aria-hidden="true" focusable="false" data-icon="search"><image href="assets/icons/search.svg?v=20261115-01" width="64" height="64"/></svg><input class="input" id="searchArchive" type="search" placeholder="Cari kod, tajuk atau pemegang…"></label>
+          <label class="file-search" for="searchArchive"><span class="sr-only">Cari arkib fail</span><svg class="icon-3d " viewBox="0 0 64 64" aria-hidden="true" focusable="false" data-icon="search"><image href="assets/icons/search.svg?v=20261115-01" width="64" height="64"/></svg><input class="input" id="searchArchive" type="search" placeholder="Cari kod, tajuk atau pemegangâ€¦"></label>
         </div>
       </div>
       <p class="table-scroll-hint">Leret jadual ke kiri atau kanan untuk melihat semua maklumat.</p>
@@ -86,9 +86,9 @@
     </section>
   </main>
 </div>
-<form class="modal hidden" id="movementModal" role="dialog" aria-modal="true" aria-labelledby="movementTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="movementTitle">Pindah Keberadaan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><div class="field"><label for="recipient">Keberadaan fail</label><select class="input" id="recipient" required></select></div><div class="field"><label for="movementDate">Tarikh dan masa diserah</label><input class="input" id="movementDate" type="datetime-local" required></div><div class="field"><label for="movementNote">Catatan</label><textarea class="input" id="movementNote" rows="3" placeholder="Masukkan catatan jika perlu"></textarea></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Pergerakan</button></div></section></form>
-<form class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="editTitle">Kemaskini Tarikh</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><div class="field"><label for="editOpenDate">Tarikh buka</label><input class="input" id="editOpenDate" type="date" required></div><div class="field"><label for="editCloseDate">Tarikh tutup</label><input class="input" id="editCloseDate" type="date"></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Perubahan</button></div></section></form>
-<div class="modal hidden" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="historyTitle">Log Pergerakan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><ol class="history" id="historyList"></ol></section></div>
-<div class="modal hidden" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle"><section class="modal-card delete-modal-card"><div class="modal-head"><div><h2 id="deleteTitle">Padam Rekod Fail?</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">×</button></div><p class="delete-warning">Tindakan ini akan memadam rekod fail dan semua log pergerakannya secara kekal. Pastikan fail ini benar-benar tersilap didaftarkan.</p><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button danger delete-confirm-button" type="button" data-confirm-delete>Ya, Padam Fail</button></div></section></div>
+<form class="modal hidden" id="movementModal" role="dialog" aria-modal="true" aria-labelledby="movementTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="movementTitle">Pindah Keberadaan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">Ã—</button></div><div class="field"><label for="recipient">Keberadaan fail</label><select class="input" id="recipient" required></select></div><div class="field"><label for="movementDate">Tarikh dan masa diserah</label><input class="input" id="movementDate" type="datetime-local" required></div><div class="field"><label for="movementNote">Catatan</label><textarea class="input" id="movementNote" rows="3" placeholder="Masukkan catatan jika perlu"></textarea></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Pergerakan</button></div></section></form>
+<form class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="editTitle">Kemaskini Tarikh</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">Ã—</button></div><div class="field"><label for="editOpenDate">Tarikh buka</label><input class="input" id="editOpenDate" type="date" required></div><div class="field"><label for="editCloseDate">Tarikh tutup</label><input class="input" id="editCloseDate" type="date"></div><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button" type="submit">Simpan Perubahan</button></div></section></form>
+<div class="modal hidden" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyTitle"><section class="modal-card"><div class="modal-head"><div><h2 id="historyTitle">Log Pergerakan</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">Ã—</button></div><ol class="history" id="historyList"></ol></section></div>
+<div class="modal hidden" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle"><section class="modal-card delete-modal-card"><div class="modal-head"><div><h2 id="deleteTitle">Padam Rekod Fail?</h2><p data-file-reference></p></div><button class="icon-button" type="button" data-close aria-label="Tutup">Ã—</button></div><p class="delete-warning">Tindakan ini akan memadam rekod fail dan semua log pergerakannya secara kekal. Pastikan fail ini benar-benar tersilap didaftarkan.</p><div class="form-actions"><button class="button secondary" type="button" data-close>Batal</button><button class="button danger delete-confirm-button" type="button" data-confirm-delete>Ya, Padam Fail</button></div></section></div>
 </body>
 </html>
