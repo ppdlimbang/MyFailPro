@@ -4751,6 +4751,38 @@ async function initAdmin() {
   if (!await initShell(true)) return;
   markReady();
   await loadAgencies();
+  const globalPasswordForm = document.querySelector("#globalPasswordResetForm");
+  const globalPasswordUser = document.querySelector("#globalPasswordUser");
+  const allUsers = await rest("profiles", "select=id,email,name,role,agency_type&order=name.asc");
+  globalPasswordUser.replaceChildren(
+    create("option", { value: "", text: "Pilih pengguna..." }),
+    ...allUsers.map(user => {
+      const role = user.role === "admin" ? "Admin utama" : `${user.agency_type || "Pengguna"}`;
+      return create("option", {
+        value: user.id,
+        text: `${user.name || "Tanpa nama"} — ${user.email || "Tiada emel"} (${role})`,
+        ...(user.id === currentUser.id ? { selected: "selected" } : {})
+      });
+    })
+  );
+  globalPasswordForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const submit = globalPasswordForm.querySelector("button[type=submit]");
+    const userId = globalPasswordForm.elements.user_id.value;
+    const password = globalPasswordForm.elements.password.value;
+    const selectedUser = allUsers.find(user => user.id === userId);
+    if (!selectedUser) return toast("Pilih pengguna", "Pilih akaun yang kata laluannya hendak ditukar.", "error");
+    if (userId === currentUser.id && !confirm("Anda akan menukar kata laluan akaun admin yang sedang digunakan. Teruskan?")) return;
+    setBusy(submit, true, "Menukar...");
+    try {
+      await callAdminFunction("admin-reset-user-password", { id: userId, password });
+      globalPasswordForm.reset();
+      globalPasswordUser.value = currentUser.id;
+      toast("Kata laluan ditukar", `Kata laluan ${selectedUser.name || selectedUser.email} telah ditukar.`);
+    } catch (error) {
+      toast("Tidak berjaya", error.message, "error");
+    } finally { setBusy(submit, false); }
+  });
   const form = document.querySelector("#agencyForm");
   const body = document.querySelector("#agencyRows");
   const agencyType = document.querySelector("#agencyType");
