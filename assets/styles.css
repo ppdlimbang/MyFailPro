@@ -872,6 +872,7 @@ body[data-page="admin"] .main > .panel {
   border: 2px solid #7bd7cf;
   box-shadow: 0 16px 38px rgba(14, 170, 152, .10);
 }
+body[data-page="admin"] .main > .panel + .panel { margin-top: 22px; }
 body[data-page="admin"] .main > .panel .panel-head {
   background: linear-gradient(90deg, #eafbf8, #ffffff 62%);
 }
