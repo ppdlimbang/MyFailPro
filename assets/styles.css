@@ -4126,7 +4126,8 @@ body[data-page="settings"] :is(.avatar-choice, .staff-avatar).avatar-emoji {
   box-shadow: none;
   font-size: 1.45rem;
 }
-body[data-page="settings"] .staff-avatar.has-profile-photo { background-position: center; background-size: cover; box-shadow: 0 0 0 1px rgba(60,45,90,.12); }
+body[data-page="settings"] .staff-avatar.has-profile-photo { overflow: hidden; background: #f0edff; box-shadow: 0 0 0 1px rgba(60,45,90,.12); }
+body[data-page="settings"] .staff-avatar.has-profile-photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
 
 body[data-page="settings"] .staff-user-identity {
   display: flex;

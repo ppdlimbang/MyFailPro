@@ -2859,7 +2859,15 @@ async function initSettings() {
         const avatar = avatarPresentation(person.avatarKey, person.name);
         accountRows.append(create("tr", {}, [
         create("td", {}, create("div", { className: "staff-user-identity" }, [
-          (() => { const node = create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}${person.avatarUrl ? " has-profile-photo" : ""}`, text: person.avatarUrl ? "" : avatar.symbol, title: avatar.label, "aria-hidden": "true" }); if (person.avatarUrl) node.style.backgroundImage = `url("${person.avatarUrl.replaceAll('"', '%22')}")`; return node; })(),
+          (() => {
+            const node = create("span", { className: `staff-avatar${avatar.emoji ? " avatar-emoji" : ""}${person.avatarUrl ? " has-profile-photo" : ""}`, text: person.avatarUrl ? "" : avatar.symbol, title: avatar.label, "aria-hidden": "true" });
+            if (person.avatarUrl) {
+              const photo = create("img", { src: person.avatarUrl, alt: "", loading: "lazy" });
+              photo.addEventListener("error", () => { node.classList.remove("has-profile-photo"); node.textContent = avatar.symbol; });
+              node.append(photo);
+            }
+            return node;
+          })(),
           create("span", { text: person.name })
         ])),
         create("td", { text: person.email }),
