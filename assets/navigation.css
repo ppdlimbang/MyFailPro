@@ -190,6 +190,13 @@ body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .user-ava
   color: #6735bb;
   background: linear-gradient(145deg, #ede5ff, #e0d4f7);
   box-shadow: 0 0 0 1px #e4dbee, 0 3px 8px rgba(87, 53, 126, .07);
+  cursor: pointer;
+  background-position: center;
+  background-size: cover;
+}
+body:not([data-page="login"]) .topbar .topbar-inner > .topbar-user-box .user-avatar.has-profile-photo {
+  color: transparent;
+  font-size: 0;
 }
 body:not([data-page="login"]) .topbar .user-avatar::after {
   z-index: 2;

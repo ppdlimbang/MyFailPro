@@ -335,9 +335,9 @@ async function deleteMovement(record) {
 async function loadProfile(userId) {
   let rows;
   try {
-    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id,avatar_key,ped_office_id`);
+    rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id,avatar_key,avatar_url,ped_office_id`);
   } catch (error) {
-    if (!/agency_id|avatar_key|ped_office_id/i.test(error.message)) throw error;
+    if (!/agency_id|avatar_key|avatar_url|ped_office_id/i.test(error.message)) throw error;
     try {
       rows = await rest("profiles", `id=eq.${encodeURIComponent(userId)}&select=id,email,name,agency_type,role,agency_id`);
     } catch (fallbackError) {
@@ -357,6 +357,7 @@ async function loadProfile(userId) {
       nama: profile.name,
       jenis: profile.agency_type,
       avatarKey: profile.avatar_key || "initials",
+      avatarUrl: profile.avatar_url || "",
       pedOfficeId: profile.ped_office_id || null
     }
   };
@@ -403,6 +404,8 @@ function renderShell(user) {
   const selectedAvatar = avatarPresentation(user.data?.avatarKey, displayName);
   document.querySelectorAll("[data-user-avatar]").forEach(el => {
     el.textContent = selectedAvatar.symbol;
+    el.style.backgroundImage = user.data?.avatarUrl ? `url("${user.data.avatarUrl.replaceAll('"', '%22')}")` : "";
+    el.classList.toggle("has-profile-photo", Boolean(user.data?.avatarUrl));
     el.classList.toggle("avatar-emoji", selectedAvatar.emoji);
     el.dataset.avatar = selectedAvatar.key;
     el.dataset.userTooltip = `${displayName} · ${roleLabel}`;
@@ -411,7 +414,33 @@ function renderShell(user) {
     el.removeAttribute("aria-hidden");
     el.setAttribute("role", "img");
     el.setAttribute("aria-label", `${displayName}, ${roleLabel}`);
+    if (!el.dataset.profileUploadReady) {
+      el.dataset.profileUploadReady = "true";
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", "Tukar gambar profil");
+      el.title = "Tukar gambar profil";
+      el.addEventListener("click", () => document.querySelector("#profile-photo-input")?.click());
+      el.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); el.click(); } });
+    }
   });
+  if (!document.querySelector("#profile-photo-input")) {
+    const input = create("input", { id: "profile-photo-input", type: "file", accept: "image/jpeg,image/png,image/webp", className: "hidden", "aria-label": "Pilih gambar profil" });
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0]; if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { alert("Saiz gambar maksimum ialah 5 MB."); input.value = ""; return; }
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { alert("Pilih gambar JPG, PNG atau WebP."); input.value = ""; return; }
+      try {
+        const path = `${user.id}/profile.${file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"}`;
+        const response = await fetch(`${config.url}/storage/v1/object/profile-avatars/${path}`, { method: "POST", headers: { apikey: config.publishableKey, authorization: `Bearer ${session.access_token}`, "content-type": file.type, "x-upsert": "true" }, body: file });
+        if (!response.ok) throw await responseError(response, "Gagal memuat naik gambar profil.");
+        const url = `${config.url}/storage/v1/object/public/profile-avatars/${path}?v=${Date.now()}`;
+        await rest("profiles", `id=eq.${encodeURIComponent(user.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ avatar_url: url }) });
+        user.data.avatarUrl = url; sessionStorage.setItem(PROFILE_KEY, JSON.stringify(user)); renderShell(user);
+      } catch (error) { alert(error.message); }
+      finally { input.value = ""; }
+    });
+    document.body.append(input);
+  }
   const date = document.querySelector("[data-current-date]");
   if (date) date.textContent = new Intl.DateTimeFormat("ms-MY", { dateStyle: "full" }).format(new Date());
 }
