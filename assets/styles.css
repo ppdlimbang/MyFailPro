@@ -2025,7 +2025,7 @@ body:not([data-page="login"]) .brand-symbol {
   height: 48px;
   border-radius: 0;
   background-color: transparent;
-  background-image: url("../file.png?v=20260914-03");
+  background-image: url("brand-logo.png?v=20261117-brand-01");
   /* Frame the artwork within this PNG's transparent canvas without stretching it. */
   background-position: center 30.5%;
   background-repeat: no-repeat;

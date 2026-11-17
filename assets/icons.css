@@ -4,7 +4,7 @@
 
 body:not([data-page="login"]) .topbar .brand-symbol {
   /* Preserve the original brand artwork; add depth without redrawing it. */
-  background-image: url("../file.png?v=20260914-03");
+  background-image: url("brand-logo.png?v=20261117-brand-01");
   background-position: center 30.5%;
   background-repeat: no-repeat;
   background-size: 320% auto;
