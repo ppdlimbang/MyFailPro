@@ -30,4 +30,4 @@ jobs:
           version: latest
 
       - name: Deploy Edge Functions
-        run: supabase functions deploy --project-ref ucneczznmwkyeemkdoxw --use-api
+        run: supabase functions deploy --project-ref ucneczznmwkyeemkdoxw --use-api --yes
