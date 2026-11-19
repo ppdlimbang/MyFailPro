@@ -4453,14 +4453,14 @@ async function initPed() {
       || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
     return ascending ? compared : -compared;
   };
-  const pedEmptyRow = (title, message) => create("tr", { className: "ped-empty-row" }, create("td", { colspan: "6" },
+  const pedEmptyRow = (title, message, colspan = 6) => create("tr", { className: "ped-empty-row" }, create("td", { colspan: String(colspan) },
     create("div", { className: "ped-empty-state" }, [
       createIcon("document"),
       create("strong", { text: title }),
       create("span", { text: message })
     ])
   ));
-  const pedOverviewRow = record => {
+  const pedOverviewRow = (record, creatorName = null) => {
     const locked = schoolAccount && record.category === "school_in"
       && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
     const reference = pedReferenceText(record);
@@ -4474,17 +4474,18 @@ async function initPed() {
       create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" }, create("strong", { className: "ped-reference", text: reference || "—" })),
       create("td", { className: "ped-cell-party", "data-label": pedPartyLabel(record.category) }, create("span", { className: "ped-party", text: pedPartyName(record) || "—" })),
       create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
+      ...(creatorName !== null ? [create("td", { className: "ped-cell-creator", "data-label": "Ditambah oleh" }, create("span", { text: creatorName || "" }))] : []),
       create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
       create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [open, attachmentAction(record)]))
     ]);
   };
-  const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage, localSearchActive = false }) => {
+  const renderPagedRecords = ({ body, info, pager, records, page, emptyTitle, emptyMessage, localSearchActive = false, rowRenderer = pedOverviewRow, emptyColspan = 6 }) => {
     const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
     const current = Math.min(Math.max(page, 0), totalPages - 1);
     const start = current * pageSize;
     body.replaceChildren(...(records.length
-      ? records.slice(start, start + pageSize).map(pedOverviewRow)
-      : [pedFiltersActive() || localSearchActive ? pedEmptyRow("Tiada padanan ditemui", "Cuba carian lain atau kosongkan tapisan.") : pedEmptyRow(emptyTitle, emptyMessage)]));
+      ? records.slice(start, start + pageSize).map(rowRenderer)
+      : [pedFiltersActive() || localSearchActive ? pedEmptyRow("Tiada padanan ditemui", "Cuba carian lain atau kosongkan tapisan.", emptyColspan) : pedEmptyRow(emptyTitle, emptyMessage, emptyColspan)]));
     info.textContent = records.length
       ? `Paparan ${start + 1}–${Math.min(start + pageSize, records.length)} daripada ${records.length} · halaman ${current + 1}/${totalPages}`
       : "0 rekod";
@@ -4502,7 +4503,13 @@ async function initPed() {
   // Sejarah: every visible letter type in one date-ordered list.
   const historyRows = document.querySelector("#pedHistoryRows");
   const historySort = document.querySelector("#pedHistorySort");
+  const historyCreatorHeading = document.querySelector("#pedHistoryCreatorHeading");
+  const historyCreatorNames = new Map();
+  const historyCreatorIds = new Set();
+  let historyCreatorsLoading = false;
   historySort.closest("table").querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
+  historyCreatorHeading.classList.toggle("hidden", schoolAccount);
+  if (schoolAccount) historyRows.querySelector("td")?.setAttribute("colspan", "6");
   if (schoolAccount) document.querySelector("#pedHistoryDescription").textContent = "Surat Masuk sekolah dan Surat Keluar kepada Pejabat dalam satu senarai mengikut tarikh.";
   const historyRecords = () => visiblePedRecords().filter(pedRecordMatcher()).filter(tableRecordMatcher("history")).sort(byPedDate(extraViewState.historyAscending));
   const renderHistory = () => {
@@ -4513,8 +4520,19 @@ async function initPed() {
       body: historyRows, info: document.querySelector("#pedHistoryPageInfo"),
       pager: historyRows.closest(".ped-panel").querySelector(".ped-pagination"), records, page: extraViewState.historyPage,
       emptyTitle: "Belum ada rekod surat", emptyMessage: "Surat yang didaftarkan akan dipaparkan di sini.",
-      localSearchActive: Boolean(tableSearchTerm("history"))
+      localSearchActive: Boolean(tableSearchTerm("history")),
+      emptyColspan: schoolAccount ? 6 : 7,
+      rowRenderer: record => pedOverviewRow(record, schoolAccount ? null : historyCreatorNames.get(record.id) || "")
     });
+    const missingCreatorIds = schoolAccount ? [] : records.map(record => record.id).filter(id => !historyCreatorIds.has(id));
+    if (missingCreatorIds.length && !historyCreatorsLoading) {
+      historyCreatorsLoading = true;
+      Promise.all(Array.from({ length: Math.ceil(missingCreatorIds.length / 500) }, (_, index) =>
+        rpc("ped_correspondence_creators", { p_correspondence_ids: missingCreatorIds.slice(index * 500, (index + 1) * 500) })
+      )).then(results => results.flat().forEach(row => historyCreatorNames.set(row.correspondence_id, row.creator_name)))
+        .catch(error => console.warn("Nama akaun pencipta surat tidak dapat dimuatkan.", error))
+        .finally(() => { missingCreatorIds.forEach(id => historyCreatorIds.add(id)); historyCreatorsLoading = false; renderHistory(); });
+    }
   };
   historySort.addEventListener("click", () => {
     extraViewState.historyAscending = !extraViewState.historyAscending;
