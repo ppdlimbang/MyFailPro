@@ -806,6 +806,7 @@ function mapPedRecord(row) {
     sender: row.sender || "",
     schoolName: row.school_name || "",
     recipient: row.recipient || "",
+    recipientType: row.recipient_type || "",
     departmentSectors: row.department_sectors || [],
     assignedOfficers: row.assigned_officers || [],
     schoolSector: row.school_sector || "",
@@ -826,8 +827,8 @@ function mapPedRecord(row) {
 }
 
 async function loadPedRecords() {
-  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,office_reference_letter_number,office_personal_file_number,registry_file_number,registry_file_letter_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
-  const legacyColumns = columns.replace("office_personal_file_number,", "").replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
+  const columns = "id,owner_id,school_id,office_id,category,correspondence_date,reference_number,correspondent,sender,school_name,recipient,recipient_type,department_sectors,assigned_officers,school_sector,assigned_to,office_reference_file,office_reference_letter_number,office_personal_file_number,registry_file_number,registry_file_letter_number,origin_sector,delivery_methods,subject,status,notes,attachment_path,created_at";
+  const legacyColumns = columns.replace("recipient_type,", "").replace("office_personal_file_number,", "").replace("office_reference_letter_number,", "").replace("registry_file_letter_number,", "");
   const fetchSize = 1000;
   const rows = [];
   let offset = 0;
@@ -837,7 +838,7 @@ async function loadPedRecords() {
     try {
       page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
     } catch (error) {
-      if (selectedColumns !== columns || !/office_personal_file_number|office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
+      if (selectedColumns !== columns || !/recipient_type|office_personal_file_number|office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) throw error;
       selectedColumns = legacyColumns;
       page = await rest("ped_correspondence", `select=${selectedColumns}&order=id.asc&limit=${fetchSize}&offset=${offset}`);
     }
@@ -3271,6 +3272,10 @@ async function initPed() {
   const printRecordButton = document.querySelector("#pedPrintRecord");
   const partyTextField = document.querySelector("#pedPartyTextField");
   const partyInput = document.querySelector("#pedCorrespondent");
+  const outgoingRecipientTypeField = document.querySelector("#pedOutgoingRecipientTypeField");
+  const outgoingRecipientTypeSelect = document.querySelector("#pedOutgoingRecipientType");
+  const outgoingSchoolField = document.querySelector("#pedOutgoingSchoolField");
+  const outgoingSchoolSelect = document.querySelector("#pedOutgoingSchool");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
   const referenceTextField = document.querySelector("#pedReferenceTextField");
   const referenceInput = document.querySelector("#pedReference");
@@ -3323,6 +3328,10 @@ async function initPed() {
       ...assignedSchools.map(school => create("option", { value: school.id, text: school.name }))
     );
   } else fillSelect(schoolNameSelect, pedFormOptions.schools, "Pilih sekolah");
+  outgoingSchoolSelect.replaceChildren(
+    create("option", { value: "", text: "Pilih sekolah" }),
+    ...assignedSchools.map(school => create("option", { value: school.id, text: school.name }))
+  );
   fillSelect(document.querySelector("#pedSchoolSector"), pedFormOptions.schoolSectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedOriginSector"), pedFormOptions.sectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedAssignedTo"), recipientDirectoryNames, "Pilih pegawai");
@@ -3932,6 +3941,23 @@ async function initPed() {
       .forEach(value => select.append(create("option", { value, text: value, selected: "selected" })));
   };
   const selectedValues = selector => [...document.querySelector(selector).selectedOptions].map(option => option.value);
+  const syncOutgoingRecipient = () => {
+    const isOfficeOutgoing = officeAccount && form.elements.category.value === "outgoing";
+    const isSchoolRecipient = isOfficeOutgoing && outgoingRecipientTypeSelect.value === "school";
+    outgoingRecipientTypeField.classList.toggle("hidden", !isOfficeOutgoing);
+    outgoingRecipientTypeSelect.disabled = !isOfficeOutgoing;
+    outgoingRecipientTypeSelect.required = isOfficeOutgoing;
+    outgoingSchoolField.classList.toggle("hidden", !isSchoolRecipient);
+    outgoingSchoolSelect.disabled = !isSchoolRecipient;
+    outgoingSchoolSelect.required = isSchoolRecipient;
+    partyTextField.classList.toggle("hidden", isSchoolRecipient || (form.elements.category.value === "school_in" && !schoolAccount));
+    if (isOfficeOutgoing) {
+      partyInput.disabled = isSchoolRecipient;
+      partyInput.required = !isSchoolRecipient;
+    }
+  };
+  outgoingRecipientTypeSelect.addEventListener("change", syncOutgoingRecipient);
+
   const openEditor = (category, record = null) => {
     const meta = pedCategoryMeta[category];
     const schoolOutgoing = schoolAccount && category === "school_in";
@@ -3943,6 +3969,14 @@ async function initPed() {
     form.reset();
     form.elements.id.value = record?.id || "";
     form.elements.category.value = category;
+    outgoingRecipientTypeSelect.value = category === "outgoing" ? record?.recipientType || (record ? "external" : "") : "";
+    const outgoingSchoolName = record?.recipient || record?.correspondent || "";
+    outgoingSchoolSelect.querySelector('option[value="previous-recipient"]')?.remove();
+    const matchedOutgoingSchool = assignedSchools.find(school => normalizeRecipientName(school.name) === normalizeRecipientName(outgoingSchoolName));
+    if (category === "outgoing" && record?.recipientType === "school" && outgoingSchoolName && !matchedOutgoingSchool) {
+      outgoingSchoolSelect.append(create("option", { value: "previous-recipient", text: outgoingSchoolName }));
+    }
+    outgoingSchoolSelect.value = category === "outgoing" ? matchedOutgoingSchool?.id || (record?.recipientType === "school" && outgoingSchoolName ? "previous-recipient" : "") : "";
     form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
     referenceInput.value = outgoingForm ? "" : record?.reference || "";
     const outgoingReference = splitPedOutgoingReference(record?.reference);
@@ -3972,6 +4006,7 @@ async function initPed() {
     partyTextField.classList.toggle("hidden", category === "school_in" && !schoolOutgoing);
     partyInput.disabled = category === "school_in" && !schoolOutgoing;
     partyInput.required = category !== "school_in";
+    syncOutgoingRecipient();
     form.elements.correspondence_date.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     referenceInput.readOnly = Boolean(officeProcessingSchoolLetter);
     syncReferenceMode();
@@ -4161,9 +4196,22 @@ async function initPed() {
     const outgoingForm = category === "outgoing" || (schoolAccount && category === "school_in");
     const manualMode = schoolAccount && category === "school_in" && schoolUsesManualReference();
     const referenceFile = manualMode ? manualReferenceInput.value.trim() : outgoingReferenceSelect.value;
+    const outgoingRecipientType = officeAccount && category === "outgoing" ? outgoingRecipientTypeSelect.value : "";
+    if (officeAccount && category === "outgoing" && !outgoingRecipientType) {
+      toast("Pilih jenis penerima", "Pilih Sekolah atau Agensi/Jabatan Luar.", "error");
+      outgoingRecipientTypeSelect.focus();
+      return;
+    }
+    if (officeAccount && category === "outgoing" && outgoingRecipientType === "school" && !outgoingSchoolSelect.value) {
+      toast("Pilih sekolah", "Pilih sekolah penerima surat.", "error");
+      outgoingSchoolSelect.focus();
+      return;
+    }
     const correspondent = category === "school_in"
       ? schoolAccount ? workspaceProfile.name : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
-      : partyInput.value.trim();
+      : officeAccount && category === "outgoing" && outgoingRecipientType === "school"
+        ? outgoingSchoolSelect.selectedOptions[0]?.textContent || ""
+        : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
     const deliveryMethods = category === "outgoing" ? selectedValues("#pedDeliveryMethods").map(method =>
       method === pedOtherDeliveryMethod ? `${pedOtherDeliveryPrefix}${otherDeliveryMethodInput.value.trim()}` : method) : [];
@@ -4218,6 +4266,7 @@ async function initPed() {
       sender: category === "agency_in" || category === "school_received" ? correspondent : "",
       school_name: category === "school_in" ? correspondent : "",
       recipient: category === "outgoing" ? correspondent : "",
+      recipient_type: category === "outgoing" ? (officeAccount ? outgoingRecipientType : existingRecord?.recipientType || null) : null,
       department_sectors: category === "agency_in" ? selectedValues("#pedDepartmentSectors") : [],
       assigned_officers: category === "agency_in" ? selectedValues("#pedAssignedOfficers") : [],
       school_sector: category === "school_in" && !schoolAccount ? document.querySelector("#pedSchoolSector").value
@@ -4741,7 +4790,8 @@ async function initPed() {
     if (category === "school_in" && !schoolAccount) fields.push(["Sektor", record.schoolSector], ["Untuk Tindakan / Nama Pegawai", record.assignedTo],
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Fail Peribadi", record.officePersonalFileNumber],
       ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
-    if (category === "outgoing") fields.push(["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
+    if (category === "outgoing") fields.push(["Jenis Penerima", record.recipientType === "school" ? "Sekolah" : record.recipientType === "external" ? "Agensi/Jabatan Luar" : ""],
+      ["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
       ["No. Fail Peribadi", record.officePersonalFileNumber], ["Catatan", record.notes],
       ["Lampiran PDF / Gambar", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
     if (category === "school_in") fields.push(["Lampiran PDF / Gambar", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
