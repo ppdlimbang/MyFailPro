@@ -560,6 +560,10 @@ function normalizeRecipientName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ms");
 }
 
+function splitPedOutgoingRecipients(value) {
+  return String(value || "").split(/[;\r\n]+/).map(name => name.trim()).filter(Boolean);
+}
+
 function uniqueRecipientNames(values) {
   const seen = new Set();
   return values.reduce((names, value) => {
@@ -3276,6 +3280,10 @@ async function initPed() {
   const outgoingRecipientTypeSelect = document.querySelector("#pedOutgoingRecipientType");
   const outgoingSchoolField = document.querySelector("#pedOutgoingSchoolField");
   const outgoingSchoolSelect = document.querySelector("#pedOutgoingSchool");
+  const outgoingOtherSchoolsField = document.querySelector("#pedOutgoingOtherSchoolsField");
+  const outgoingOtherSchoolsInput = document.querySelector("#pedOutgoingOtherSchools");
+  const outgoingSchoolSelectAllButton = document.querySelector("#pedOutgoingSchoolSelectAll");
+  const outgoingSchoolClearButton = document.querySelector("#pedOutgoingSchoolClear");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
   const referenceTextField = document.querySelector("#pedReferenceTextField");
   const referenceInput = document.querySelector("#pedReference");
@@ -3328,10 +3336,7 @@ async function initPed() {
       ...assignedSchools.map(school => create("option", { value: school.id, text: school.name }))
     );
   } else fillSelect(schoolNameSelect, pedFormOptions.schools, "Pilih sekolah");
-  outgoingSchoolSelect.replaceChildren(
-    create("option", { value: "", text: "Pilih sekolah" }),
-    ...assignedSchools.map(school => create("option", { value: school.id, text: school.name }))
-  );
+  outgoingSchoolSelect.replaceChildren(...assignedSchools.map(school => create("option", { value: school.id, text: school.name })));
   fillSelect(document.querySelector("#pedSchoolSector"), pedFormOptions.schoolSectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedOriginSector"), pedFormOptions.sectors, "Pilih sektor");
   fillSelect(document.querySelector("#pedAssignedTo"), recipientDirectoryNames, "Pilih pegawai");
@@ -3644,13 +3649,23 @@ async function initPed() {
     fillFilterChoices("#pedFilterOfficers", [...recipientDirectoryNames, ...records.flatMap(recordOfficers)]);
     fillFilterChoices("#pedFilterSchools", [
       ...(officeAccount ? assignedSchools.map(school => school.name) : pedFormOptions.schools),
-      ...records.filter(record => record.category === "school_in").map(record => record.schoolName || record.correspondent)
+      ...records.filter(record => record.category === "school_in").map(record => record.schoolName || record.correspondent),
+      ...records.filter(record => record.category === "outgoing" && record.recipientType === "school")
+        .flatMap(record => splitPedOutgoingRecipients(record.recipient || record.correspondent))
     ]);
     fillFilterChoices("#pedFilterDeliveryMethods", [...pedFormOptions.deliveryMethods, ...records.flatMap(record => record.deliveryMethods.map(pedDeliveryFilterValue))]);
   };
   refreshAdvancedChoices();
   document.querySelectorAll('[data-ped-filter-scope="office"]').forEach(field => field.classList.toggle("hidden", schoolAccount));
-  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedDeliveryMethods, #pedStatus, #pedFilterSectors, #pedFilterOfficers, #pedFilterSchools, #pedFilterDeliveryMethods").forEach(mountPedPicker);
+  document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedOutgoingSchool, #pedDeliveryMethods, #pedStatus, #pedFilterSectors, #pedFilterOfficers, #pedFilterSchools, #pedFilterDeliveryMethods").forEach(mountPedPicker);
+  outgoingSchoolSelectAllButton.addEventListener("click", () => {
+    [...outgoingSchoolSelect.options].forEach(option => { option.selected = true; });
+    refreshPedPicker(outgoingSchoolSelect);
+  });
+  outgoingSchoolClearButton.addEventListener("click", () => {
+    [...outgoingSchoolSelect.options].forEach(option => { option.selected = false; });
+    refreshPedPicker(outgoingSchoolSelect);
+  });
   const syncOtherDeliveryMethod = () => {
     const visible = form.elements.category.value === "outgoing"
       && [...deliveryMethodsSelect.selectedOptions].some(option => option.value === pedOtherDeliveryMethod);
@@ -3764,7 +3779,7 @@ async function initPed() {
       && anyMatches(recordSectors(record), filters.sectors)
       && anyMatches(recordOfficers(record), filters.officers)
       && anyMatches(record.category === "school_in" ? [record.schoolName || record.correspondent]
-        : record.category === "outgoing" ? [record.recipient || record.correspondent] : [], filters.schools)
+        : record.category === "outgoing" ? splitPedOutgoingRecipients(record.recipient || record.correspondent) : [], filters.schools)
       && anyMatches(record.deliveryMethods.map(pedDeliveryFilterValue), filters.deliveryMethods)
       && (!filters.fileNumber || [record.officeReferenceFile, record.registryFileNumber]
         .some(value => normalizeRecipientName(value).includes(filters.fileNumber)))
@@ -3949,7 +3964,10 @@ async function initPed() {
     outgoingRecipientTypeSelect.required = isOfficeOutgoing;
     outgoingSchoolField.classList.toggle("hidden", !isSchoolRecipient);
     outgoingSchoolSelect.disabled = !isSchoolRecipient;
-    outgoingSchoolSelect.required = isSchoolRecipient;
+    outgoingOtherSchoolsField.classList.toggle("hidden", !isSchoolRecipient);
+    outgoingOtherSchoolsInput.disabled = !isSchoolRecipient;
+    outgoingSchoolSelectAllButton.disabled = !isSchoolRecipient || !outgoingSchoolSelect.options.length;
+    outgoingSchoolClearButton.disabled = !isSchoolRecipient;
     partyTextField.classList.toggle("hidden", isSchoolRecipient || (form.elements.category.value === "school_in" && !schoolAccount));
     if (isOfficeOutgoing) {
       partyInput.disabled = isSchoolRecipient;
@@ -3970,13 +3988,15 @@ async function initPed() {
     form.elements.id.value = record?.id || "";
     form.elements.category.value = category;
     outgoingRecipientTypeSelect.value = category === "outgoing" ? record?.recipientType || (record ? "external" : "") : "";
-    const outgoingSchoolName = record?.recipient || record?.correspondent || "";
-    outgoingSchoolSelect.querySelector('option[value="previous-recipient"]')?.remove();
-    const matchedOutgoingSchool = assignedSchools.find(school => normalizeRecipientName(school.name) === normalizeRecipientName(outgoingSchoolName));
-    if (category === "outgoing" && record?.recipientType === "school" && outgoingSchoolName && !matchedOutgoingSchool) {
-      outgoingSchoolSelect.append(create("option", { value: "previous-recipient", text: outgoingSchoolName }));
-    }
-    outgoingSchoolSelect.value = category === "outgoing" ? matchedOutgoingSchool?.id || (record?.recipientType === "school" && outgoingSchoolName ? "previous-recipient" : "") : "";
+    const outgoingSchoolNames = category === "outgoing"
+      ? splitPedOutgoingRecipients(record?.recipient || record?.correspondent)
+      : [];
+    const knownOutgoingSchoolNames = new Set(assignedSchools.map(school => normalizeRecipientName(school.name)));
+    outgoingSchoolSelect.querySelectorAll("option").forEach(option => {
+      option.selected = outgoingSchoolNames.some(name => normalizeRecipientName(name) === normalizeRecipientName(option.textContent));
+    });
+    outgoingOtherSchoolsInput.value = outgoingSchoolNames
+      .filter(name => !knownOutgoingSchoolNames.has(normalizeRecipientName(name))).join("\n");
     form.elements.correspondence_date.value = record?.date || new Date().toISOString().slice(0, 10);
     referenceInput.value = outgoingForm ? "" : record?.reference || "";
     const outgoingReference = splitPedOutgoingReference(record?.reference);
@@ -4007,6 +4027,7 @@ async function initPed() {
     partyInput.disabled = category === "school_in" && !schoolOutgoing;
     partyInput.required = category !== "school_in";
     syncOutgoingRecipient();
+    refreshPedPicker(outgoingSchoolSelect);
     form.elements.correspondence_date.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     referenceInput.readOnly = Boolean(officeProcessingSchoolLetter);
     syncReferenceMode();
@@ -4197,20 +4218,26 @@ async function initPed() {
     const manualMode = schoolAccount && category === "school_in" && schoolUsesManualReference();
     const referenceFile = manualMode ? manualReferenceInput.value.trim() : outgoingReferenceSelect.value;
     const outgoingRecipientType = officeAccount && category === "outgoing" ? outgoingRecipientTypeSelect.value : "";
+    const outgoingSchoolRecipientNames = officeAccount && category === "outgoing" && outgoingRecipientType === "school"
+      ? uniqueRecipientNames([
+        ...[...outgoingSchoolSelect.selectedOptions].map(option => option.textContent),
+        ...splitPedOutgoingRecipients(outgoingOtherSchoolsInput.value)
+      ])
+      : [];
     if (officeAccount && category === "outgoing" && !outgoingRecipientType) {
       toast("Pilih jenis penerima", "Pilih Sekolah atau Agensi/Jabatan Luar.", "error");
       outgoingRecipientTypeSelect.focus();
       return;
     }
-    if (officeAccount && category === "outgoing" && outgoingRecipientType === "school" && !outgoingSchoolSelect.value) {
+    if (officeAccount && category === "outgoing" && outgoingRecipientType === "school" && !outgoingSchoolRecipientNames.length) {
       toast("Pilih sekolah", "Pilih sekolah penerima surat.", "error");
-      outgoingSchoolSelect.focus();
+      pedPickerStates.get(outgoingSchoolSelect).input.focus();
       return;
     }
     const correspondent = category === "school_in"
       ? schoolAccount ? workspaceProfile.name : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
       : officeAccount && category === "outgoing" && outgoingRecipientType === "school"
-        ? outgoingSchoolSelect.selectedOptions[0]?.textContent || ""
+        ? outgoingSchoolRecipientNames.join("; ")
         : partyInput.value.trim();
     const existingRecord = recordId ? state.pedRecords.find(record => record.id === recordId) : null;
     const deliveryMethods = category === "outgoing" ? selectedValues("#pedDeliveryMethods").map(method =>
@@ -4612,11 +4639,14 @@ async function initPed() {
     if (officeAccount) assignedSchools.forEach(school => add(school.name, school.id));
     else pedFormOptions.schools.forEach(name => add(name));
     state.pedRecords.filter(record => record.category === "school_in").forEach(record => add(record.schoolName || record.correspondent, record.schoolId));
+    state.pedRecords.filter(record => record.category === "outgoing" && record.recipientType === "school").forEach(record =>
+      splitPedOutgoingRecipients(record.recipient || record.correspondent).forEach(name => add(name)));
     return [...entries.values()].sort((first, second) => first.name.localeCompare(second.name, "ms"));
   };
   const recordBelongsToSchool = (record, school) => record.category === "school_in"
     ? Boolean(school.id && record.schoolId === school.id) || normalizeRecipientName(record.schoolName || record.correspondent) === normalizeRecipientName(school.name)
-    : record.category === "outgoing" && normalizeRecipientName(record.recipient || record.correspondent) === normalizeRecipientName(school.name);
+    : record.category === "outgoing" && splitPedOutgoingRecipients(record.recipient || record.correspondent)
+      .some(name => normalizeRecipientName(name) === normalizeRecipientName(school.name));
   const recordsForSchool = school => visiblePedRecords().filter(record => recordBelongsToSchool(record, school));
   const schoolCard = ({ school, matching, filtered }) => {
     const awaiting = matching.filter(record => record.category === "school_in" && ["Dihantar", "Dihantar Semula"].includes(record.status)).length;
