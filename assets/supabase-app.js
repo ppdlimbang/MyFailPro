@@ -3912,7 +3912,10 @@ async function initPed() {
       pageRecords.forEach(record => {
         const schoolLetterLocked = schoolAccount && (record.category === "outgoing" || (record.category === "school_in"
           && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status))));
-        const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
+        const schoolOutgoingLetter = schoolAccount && record.category === "outgoing";
+        const edit = create("button", { className: "button secondary small", type: "button",
+          "aria-label": `${schoolOutgoingLetter ? "Kemas kini status" : schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`,
+          text: schoolOutgoingLetter ? "Kemas kini" : schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const referenceText = record.reference || "surat tanpa nombor rujukan";
         const canMarkReceived = (officeAccount && category === "school_in"
@@ -3924,7 +3927,7 @@ async function initPed() {
           type: "button",
           "data-ped-status-record": record.id,
           "aria-label": `Tandakan ${referenceText} sebagai sudah diterima`,
-          text: schoolAccount && record.category === "outgoing" ? "Terima" : "Sudah Terima"
+          text: "Sudah Terima"
         }) : null;
         if (receive) receive.disabled = pendingStatusUpdates.has(record.id);
         receive?.addEventListener("click", async () => {
@@ -3942,17 +3945,28 @@ async function initPed() {
         const remove = create("button", { className: "button danger small ped-delete", type: "button", "aria-label": `Padam ${referenceText}`, title: "Padam rekod" },
           createIcon("delete"));
         remove.addEventListener("click", async () => {
-          if (!confirm(`Padam rekod ${referenceText}?`)) return;
+          const removeFromSchoolInbox = schoolAccount && record.category === "outgoing";
+          const confirmation = removeFromSchoolInbox
+            ? `Buang ${referenceText} daripada Peti Masuk sekolah? Surat asal Pejabat tidak akan dipadam.`
+            : `Padam rekod ${referenceText}?`;
+          if (!confirm(confirmation)) return;
           remove.disabled = true;
           remove.setAttribute("aria-busy", "true");
           try {
-            await deletePedRecord(record);
+            if (removeFromSchoolInbox) {
+              await rpc("ped_school_remove_outgoing_recipient", { p_correspondence_id: record.id });
+              state.pedRecipientRows = state.pedRecipientRows.filter(item => item.correspondence_id !== record.id
+                || item.school_id !== workspaceOwnerId());
+            } else {
+              await deletePedRecord(record);
+            }
             state.pedRecords = state.pedRecords.filter(item => item.id !== record.id);
-            if (record.attachmentPath) {
+            if (record.attachmentPath && !removeFromSchoolInbox) {
               await deletePedAttachment(record.attachmentPath).catch(error => console.warn("Lampiran rekod PeD tidak dapat dipadam.", error));
             }
             render();
-            toast("Rekod dipadam", "Rekod surat telah dikeluarkan daripada PeD.");
+            toast(removeFromSchoolInbox ? "Surat dibuang daripada peti masuk" : "Rekod dipadam",
+              removeFromSchoolInbox ? "Surat asal di Pejabat dan peti masuk sekolah lain tidak berubah." : "Rekod surat telah dikeluarkan daripada PeD.");
           } catch (error) {
             toast("Tidak berjaya", error.message, "error");
             remove.disabled = false;
@@ -3960,6 +3974,7 @@ async function initPed() {
           }
         });
         const canDelete = canDeletePedRecord(record);
+        const canRemoveFromSchoolInbox = schoolAccount && record.category === "outgoing" && Boolean(record.schoolRecipientStatus);
         const party = schoolAccount && record.category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
           : schoolAccount && record.category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat" : record.correspondent;
@@ -3979,7 +3994,7 @@ async function initPed() {
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
           create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
           create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [
-            ...(receive ? [receive] : []), edit, attachmentAction(record), ...(canDelete ? [remove] : [])
+            ...(receive ? [receive] : []), edit, attachmentAction(record), ...(canDelete || canRemoveFromSchoolInbox ? [remove] : [])
           ]))
         ]));
       });
@@ -4103,9 +4118,10 @@ async function initPed() {
     );
     statusSelect.value = schoolOutgoing && record?.status === "Dikembalikan"
       ? "Dihantar Semula" : schoolAccount && category === "outgoing" ? record?.schoolRecipientStatus || "Dihantar" : record?.status || "";
-    statusSelect.disabled = Boolean(viewOnly);
+    const recipientStatusOnly = schoolAccount && category === "outgoing" && Boolean(record);
+    statusSelect.disabled = Boolean(viewOnly && !recipientStatusOnly);
     refreshPedPicker(statusSelect);
-    pedPickerStates.get(statusSelect).input.disabled = Boolean(viewOnly);
+    pedPickerStates.get(statusSelect).input.disabled = Boolean(viewOnly && !recipientStatusOnly);
     setPedPickerRequired(statusSelect, true);
     if (schoolOutgoing && !record) {
       statusSelect.selectedIndex = 0;
@@ -4162,14 +4178,20 @@ async function initPed() {
     clearAttachmentButton.dataset.path = record?.attachmentPath || "";
     refreshAttachmentName();
 
+    if (recipientStatusOnly) {
+      form.querySelectorAll("input, select, textarea").forEach(control => {
+        if (control !== statusSelect && control !== pedPickerStates.get(statusSelect).input) control.disabled = true;
+      });
+    }
     const title = schoolOutgoing ? "Surat Keluar" : meta.title;
-    modalTitle.textContent = viewOnly ? `Lihat ${title}` : record ? `Kemas Kini ${title}` : `Tambah ${title}`;
+    modalTitle.textContent = recipientStatusOnly ? "Kemas Kini Status Surat"
+      : viewOnly ? `Lihat ${title}` : record ? `Kemas Kini ${title}` : `Tambah ${title}`;
     referenceLabel.textContent = meta.referenceLabel;
     partyLabel.textContent = schoolAccount && category === "outgoing" ? "Daripada" : category === "outgoing" || schoolOutgoing ? "Kepada" : "Daripada";
     partyInput.placeholder = category === "outgoing" ? "Nama penerima" : "Nama pengirim";
     dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
-    submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
-    submitButton.classList.toggle("hidden", Boolean(viewOnly));
+    submitButton.textContent = recipientStatusOnly ? "Simpan Status" : record ? "Simpan Perubahan" : "Simpan Rekod";
+    submitButton.classList.toggle("hidden", Boolean(viewOnly && !recipientStatusOnly));
     deleteRecordButton.classList.toggle("hidden", !canDeletePedRecord(record));
     printRecordButton.classList.toggle("hidden", !record);
     showModal("#pedModal");
@@ -4274,7 +4296,27 @@ async function initPed() {
   }));
   form.addEventListener("submit", async event => {
     event.preventDefault();
-    if (submitButton.disabled || referenceViewOnly) return;
+    if (submitButton.disabled) return;
+    if (schoolAccount && form.elements.category.value === "outgoing" && form.elements.id.value) {
+      const record = state.pedRecords.find(item => item.id === form.elements.id.value);
+      if (!record) return;
+      setBusy(submitButton, true, "Menyimpan...");
+      try {
+        if (await saveInlineStatus(record, statusSelect.value)) {
+          closeModal(modal);
+          render();
+          toast("Status dikemas kini", `${record.reference || "Surat"}: ${statusSelect.value}.`);
+        } else {
+          closeModal(modal);
+        }
+      } catch (error) {
+        toast("Status tidak dapat dikemas kini", error.message, "error");
+      } finally {
+        setBusy(submitButton, false);
+      }
+      return;
+    }
+    if (referenceViewOnly) return;
     const data = Object.fromEntries(new FormData(form));
     const recordId = data.id;
     const category = data.category;
