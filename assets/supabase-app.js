@@ -3787,7 +3787,8 @@ async function initPed() {
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
     table.querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
     table.querySelector("thead th:nth-child(2)").textContent = "No. Fail Rujukan";
-    table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada" : meta.party;
+    table.querySelector("thead th:nth-child(3)").textContent = schoolAccount && category === "school_in" ? "Kepada"
+      : schoolAccount && category === "outgoing" ? "Daripada" : meta.party;
   });
 
   const advancedFileInput = document.querySelector("#pedFilterFileNumber");
