@@ -3212,22 +3212,20 @@ async function initPed() {
     }
   };
   const activeCategories = schoolAccount ? ["school_received", "school_in", "outgoing"] : ["agency_in", "school_in", "outgoing"];
+  const tableCategories = schoolAccount ? ["school_received", "school_in"] : activeCategories;
   document.querySelectorAll("[data-ped-section]").forEach(section => {
-    section.classList.toggle("hidden", !activeCategories.includes(section.dataset.pedSection));
+    section.classList.toggle("hidden", !tableCategories.includes(section.dataset.pedSection));
   });
   if (schoolAccount) {
     document.querySelector(".ped-stats").classList.add("ped-stats-school");
     document.querySelector(".ped-table-stack").classList.add("ped-table-stack-school");
-    document.querySelector("#pedIntro").textContent = "Urus Surat Masuk sekolah, Surat Keluar kepada Pejabat dan surat daripada Pejabat.";
+    document.querySelector("#pedIntro").textContent = "Urus Surat Masuk sekolah, termasuk surat daripada Pejabat, dan Surat Keluar kepada Pejabat.";
     document.querySelector('[data-ped-title="school_in"]').textContent = "Surat Keluar";
     document.querySelector('[data-ped-section="school_in"] .ped-stat-value > span').textContent = "surat dihantar";
     document.querySelector("#pedSchoolTitle").textContent = "Surat Keluar";
     document.querySelector("#pedSchoolDescription").textContent = "Surat sekolah yang dihantar kepada Pejabat. Rekod yang sama dipaparkan sebagai Surat Masuk Sekolah di Pejabat.";
-    document.querySelector("#pedOutgoingTitle").textContent = "Surat daripada Pejabat";
-    document.querySelector('[data-ped-section="outgoing"] .panel-title p').textContent = "Surat yang dihantar oleh Pejabat kepada sekolah ini.";
-    document.querySelector('[data-ped-section="outgoing"] .table-wrap').setAttribute("aria-label", "Jadual surat daripada Pejabat");
-    document.querySelector('[data-ped-section="outgoing"] thead th:nth-child(3)').textContent = "Daripada";
-    document.querySelector('[data-add-ped="outgoing"]').classList.add("hidden");
+    document.querySelector('[data-ped-section="school_received"] .panel-title p').textContent = "Surat yang didaftarkan sekolah serta surat yang dihantar oleh Pejabat.";
+    document.querySelector('[data-ped-section="school_received"] .table-wrap').setAttribute("aria-label", "Jadual surat masuk PeD sekolah");
     document.querySelector('[data-ped-section="school_in"] .table-wrap').setAttribute("aria-label", "Jadual surat keluar sekolah");
     document.querySelector('[data-ped-pagination="school_in"]').setAttribute("aria-label", "Halaman surat keluar sekolah");
   }
@@ -3293,7 +3291,7 @@ async function initPed() {
   const dateFrom = document.querySelector("#pedDateFrom");
   const dateTo = document.querySelector("#pedDateTo");
   const pageSize = 10;
-  const tableState = Object.fromEntries(activeCategories.map(category => [category, { page: 0, dateAscending: false }]));
+  const tableState = Object.fromEntries(tableCategories.map(category => [category, { page: 0, dateAscending: false }]));
   const form = document.querySelector("#pedForm");
   const modal = document.querySelector("#pedModal");
   const modalTitle = document.querySelector("#pedModalTitle");
@@ -3782,7 +3780,7 @@ async function initPed() {
   document.addEventListener("pointerdown", event => {
     pedPickerStates.forEach(picker => { if (picker.open && !picker.input.closest(".ped-picker").contains(event.target)) picker.close(); });
   });
-  activeCategories.forEach(category => {
+  tableCategories.forEach(category => {
     const meta = pedCategoryMeta[category];
     const table = document.querySelector(`[data-ped-rows="${category}"]`).closest("table");
     table.querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
@@ -3853,10 +3851,11 @@ async function initPed() {
     const pedRecordMatches = pedRecordMatcher();
     const totalLetters = state.pedRecords.filter(record => activeCategories.includes(record.category)).length;
     const shareFormat = new Intl.NumberFormat("ms-MY", { style: "percent", maximumFractionDigits: 1 });
-    activeCategories.forEach(category => {
+    tableCategories.forEach(category => {
       const body = document.querySelector(`[data-ped-rows="${category}"]`);
       const count = document.querySelector(`[data-ped-count="${category}"]`);
-      const categoryRecords = state.pedRecords.filter(record => record.category === category);
+      const categoryRecords = state.pedRecords.filter(record => record.category === category
+        || (schoolAccount && category === "school_received" && record.category === "outgoing"));
       const statCount = document.querySelector(`[data-ped-stat-count="${category}"]`);
       if (statCount) statCount.textContent = String(categoryRecords.length);
       const share = totalLetters ? categoryRecords.length / totalLetters : 0;
@@ -3890,9 +3889,9 @@ async function initPed() {
       next.disabled = stateForTable.page >= totalPages - 1;
       pagination.classList.remove("hidden");
       previous.parentElement.classList.toggle("hidden", totalPages <= 1);
-      const tableDateLabel = schoolAccount && (category === "school_in" || category === "outgoing") ? "Tarikh Surat" : pedCategoryMeta[category].date;
-      const tablePartyLabel = schoolAccount && category === "school_in" ? "Kepada"
-        : schoolAccount && category === "outgoing" ? "Daripada" : pedCategoryMeta[category].party;
+      const tableDateLabel = schoolAccount && category === "school_received" ? "Tarikh Surat"
+        : schoolAccount && category === "school_in" ? "Tarikh Surat" : pedCategoryMeta[category].date;
+      const tablePartyLabel = schoolAccount && category === "school_in" ? "Kepada" : pedCategoryMeta[category].party;
       sortButton.textContent = `${tableDateLabel} ${stateForTable.dateAscending ? "↑" : "↓"}`;
       sortButton.closest("th").setAttribute("aria-sort", stateForTable.dateAscending ? "ascending" : "descending");
       body.replaceChildren();
@@ -3911,7 +3910,7 @@ async function initPed() {
       }
 
       pageRecords.forEach(record => {
-        const schoolLetterLocked = schoolAccount && (category === "outgoing" || (category === "school_in"
+        const schoolLetterLocked = schoolAccount && (record.category === "outgoing" || (record.category === "school_in"
           && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status))));
         const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
@@ -3919,13 +3918,13 @@ async function initPed() {
         const canMarkReceived = (officeAccount && category === "school_in"
           && record.ownerId !== pedOwnerId && record.officeId === pedOwnerId
           && ["Dihantar", "Dihantar Semula"].includes(record.status))
-          || (schoolAccount && category === "outgoing" && recordStatus(record) === "Dihantar");
+          || (schoolAccount && record.category === "outgoing" && recordStatus(record) === "Dihantar");
         const receive = canMarkReceived ? create("button", {
           className: "button small ped-receive-button",
           type: "button",
           "data-ped-status-record": record.id,
           "aria-label": `Tandakan ${referenceText} sebagai sudah diterima`,
-          text: schoolAccount && category === "outgoing" ? "Terima" : "Sudah Terima"
+          text: schoolAccount && record.category === "outgoing" ? "Terima" : "Sudah Terima"
         }) : null;
         if (receive) receive.disabled = pendingStatusUpdates.has(record.id);
         receive?.addEventListener("click", async () => {
@@ -3961,9 +3960,9 @@ async function initPed() {
           }
         });
         const canDelete = canDeletePedRecord(record);
-        const party = schoolAccount && category === "school_in"
+        const party = schoolAccount && record.category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
-          : schoolAccount && category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat" : record.correspondent;
+          : schoolAccount && record.category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat" : record.correspondent;
         const referenceParts = splitPedOutgoingReference(record.reference);
         const referenceDisplay = referenceParts.letterNumber
           ? `${referenceParts.fileReference} (${referenceParts.letterNumber})`
@@ -3974,7 +3973,7 @@ async function initPed() {
             create("strong", { className: "ped-reference", text: referenceDisplay })),
           create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, [
             create("span", { className: "ped-party", text: party || "—" }),
-            ...(!schoolAccount && category === "outgoing" ? record.schoolRecipients.map(recipient =>
+            ...(!schoolAccount && record.category === "outgoing" ? record.schoolRecipients.map(recipient =>
               create("small", { className: "ped-party-status", text: `${recipient.school_name}: ${recipient.status}` })) : [])
           ]),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
@@ -4877,7 +4876,8 @@ async function initPed() {
   document.querySelectorAll("[data-print-ped]").forEach(button => button.addEventListener("click", () => {
     const category = button.dataset.printPed;
     if (!activeCategories.includes(category)) return;
-    const records = state.pedRecords.filter(record => record.category === category).filter(pedRecordMatcher())
+    const records = state.pedRecords.filter(record => record.category === category
+      || (schoolAccount && category === "school_received" && record.category === "outgoing")).filter(pedRecordMatcher())
       .sort(byPedDate(tableState[category].dateAscending));
     printLogSections(button, `Rekod ${pedCategoryLabel(category)}`, [pedLogSection(category, records)]);
   }));
