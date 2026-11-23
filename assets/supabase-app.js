@@ -3274,8 +3274,7 @@ async function initPed() {
   if (schoolsResult.status === "fulfilled") assignedSchools = schoolsResult.value || [];
   else if (officeAccount) pedLoadWarnings.push(`Senarai sekolah: ${schoolsResult.reason?.message || "tidak dapat dimuatkan"}`);
   if (officeAccount && !assignedSchools.length) {
-    document.querySelector('[data-add-ped="school_in"]').disabled = true;
-    document.querySelector("#pedSchoolDescription").textContent = "Admin sistem perlu menetapkan sekurang-kurangnya satu sekolah kepada Pejabat ini sebelum rekod baharu boleh ditambah.";
+    document.querySelector("#pedSchoolDescription").textContent = "Tiada sekolah dalam senarai pilihan. Anda masih boleh taip nama sekolah semasa merekod surat.";
   }
   if (schoolAccount && !assignedOffice) {
     document.querySelector('[data-add-ped="school_in"]').disabled = true;
@@ -3311,6 +3310,7 @@ async function initPed() {
   const outgoingSchoolSelectAllButton = document.querySelector("#pedOutgoingSchoolSelectAll");
   const outgoingSchoolClearButton = document.querySelector("#pedOutgoingSchoolClear");
   const schoolNameSelect = document.querySelector("#pedSchoolName");
+  const schoolNameManualInput = document.querySelector("#pedSchoolNameManual");
   const referenceTextField = document.querySelector("#pedReferenceTextField");
   const referenceInput = document.querySelector("#pedReference");
   const referenceLabel = document.querySelector("#pedReferenceLabel");
@@ -3714,6 +3714,14 @@ async function initPed() {
   refreshAdvancedChoices();
   document.querySelectorAll('[data-ped-filter-scope="office"]').forEach(field => field.classList.toggle("hidden", schoolAccount));
   document.querySelectorAll("#pedStatusFilter, #pedSchoolName, #pedSchoolSector, #pedAssignedTo, #pedSchoolReceivedOfficer, #pedOriginSector, #pedDepartmentSectors, #pedAssignedOfficers, #pedOfficeReferenceFile, #pedRegistryFileNumber, #pedOutgoingReference, #pedOutgoingSchool, #pedDeliveryMethods, #pedStatus, #pedFilterSectors, #pedFilterOfficers, #pedFilterSchools, #pedFilterDeliveryMethods").forEach(mountPedPicker);
+  schoolNameSelect.addEventListener("change", () => {
+    if (schoolNameSelect.value) schoolNameManualInput.value = "";
+  });
+  schoolNameManualInput.addEventListener("input", () => {
+    if (!schoolNameManualInput.value.trim() || !schoolNameSelect.value) return;
+    schoolNameSelect.value = "";
+    refreshPedPicker(schoolNameSelect);
+  });
   outgoingSchoolSelectAllButton.addEventListener("click", () => {
     [...outgoingSchoolSelect.options].forEach(option => { option.selected = true; });
     refreshPedPicker(outgoingSchoolSelect);
@@ -4099,9 +4107,17 @@ async function initPed() {
       : schoolAccount && category === "outgoing" ? assignedOffice?.name || "Pejabat" : record?.correspondent || "";
     partyInput.readOnly = Boolean(schoolOutgoing || officeProcessingSchoolLetter || viewOnly);
     schoolNameSelect.disabled = category !== "school_in" || schoolOutgoing || officeProcessingSchoolLetter;
-    setPedPickerRequired(schoolNameSelect, category === "school_in" && !schoolOutgoing && !officeProcessingSchoolLetter);
+    const storedSchoolName = record?.schoolName || record?.correspondent || "";
+    const assignedSchool = officeAccount
+      ? assignedSchools.find(school => school.id === record?.schoolId
+        || normalizeRecipientName(school.name) === normalizeRecipientName(storedSchoolName))
+      : null;
+    const typedSchoolName = officeAccount && category === "school_in" && record && !assignedSchool;
+    schoolNameManualInput.value = typedSchoolName ? storedSchoolName : "";
+    schoolNameManualInput.disabled = !officeAccount || category !== "school_in" || schoolOutgoing || officeProcessingSchoolLetter;
+    setPedPickerRequired(schoolNameSelect, category === "school_in" && !schoolOutgoing && !officeProcessingSchoolLetter && !officeAccount);
     pedPickerStates.get(schoolNameSelect).input.disabled = schoolNameSelect.disabled;
-    setSelectValue(schoolNameSelect, officeAccount ? record?.schoolId || record?.schoolName || "" : record?.schoolName || "");
+    setSelectValue(schoolNameSelect, officeAccount ? assignedSchool?.id || "" : record?.schoolName || "");
     partyTextField.classList.toggle("hidden", category === "school_in" && !schoolOutgoing);
     partyInput.disabled = category === "school_in" && !schoolOutgoing;
     partyInput.required = category !== "school_in";
@@ -4345,8 +4361,15 @@ async function initPed() {
       pedPickerStates.get(outgoingSchoolSelect).input.focus();
       return;
     }
+    if (officeAccount && category === "school_in" && !schoolNameSelect.value && !schoolNameManualInput.value.trim()) {
+      toast("Masukkan nama sekolah", "Pilih sekolah daripada senarai atau taip nama sekolah secara manual.", "error");
+      schoolNameManualInput.focus();
+      return;
+    }
     const correspondent = category === "school_in"
-      ? schoolAccount ? workspaceProfile.name : officeAccount ? schoolNameSelect.selectedOptions[0]?.textContent || "" : schoolNameSelect.value
+      ? schoolAccount ? workspaceProfile.name : officeAccount
+        ? schoolNameManualInput.value.trim() || schoolNameSelect.selectedOptions[0]?.textContent.trim() || ""
+        : schoolNameSelect.value
       : officeAccount && category === "outgoing" && outgoingRecipientType === "school"
         ? outgoingSchoolRecipientNames.join("; ")
         : partyInput.value.trim();
@@ -4395,7 +4418,9 @@ async function initPed() {
     const payload = {
       category,
       school_id: category === "school_in"
-        ? schoolAccount ? pedOwnerId : officeAccount ? assignedSchools.find(school => school.id === schoolNameSelect.value)?.id || existingRecord?.schoolId || null : null
+        ? schoolAccount ? pedOwnerId : officeAccount
+          ? schoolNameManualInput.value.trim() ? null : assignedSchools.find(school => school.id === schoolNameSelect.value)?.id || existingRecord?.schoolId || null
+          : null
         : category === "school_received" ? pedOwnerId : null,
       office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? pedOwnerId : null
         : officeAccount && category === "outgoing" && outgoingRecipientType === "school" ? pedOwnerId : null,
