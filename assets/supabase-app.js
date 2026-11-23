@@ -3376,7 +3376,7 @@ async function initPed() {
   });
   // Only statuses that can occur in this account's own tables are offered.
   const allStatuses = [...new Set(activeCategories.flatMap(category => pedCategoryMeta[category].statuses)
-    .concat(schoolAccount ? ["Dihantar", "Diterima", "Dalam proses", "Selesai"] : []))];
+    .concat(schoolAccount ? ["Dihantar", "Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"] : []))];
   fillSelect(statusFilter, allStatuses, "Semua status");
 
   const pedStatusVisuals = {
@@ -3401,8 +3401,8 @@ async function initPed() {
   const statusChoices = (category, record = null) => {
     if (schoolAccount && category === "outgoing") {
       return recordStatus(record) === "Dihantar"
-        ? ["Dihantar", "Diterima"]
-        : ["Diterima", "Dalam proses", "Selesai"];
+        ? ["Dihantar"]
+        : ["Belum diminit", "Dalam proses", "Sudah diminit", "Selesai"];
     }
     if (schoolAccount && category === "school_in") {
       return [record && ["Dikembalikan", "Dihantar Semula"].includes(record.status) ? "Dihantar Semula" : "Dihantar"];
@@ -3426,10 +3426,12 @@ async function initPed() {
   };
   const saveInlineStatus = async (record, status) => {
     if (pendingStatusUpdates.has(record.id)) return false;
-    if (!canChangeStatus(record) || !statusChoices(record.category, record).includes(status)) {
+    const currentStatus = recordStatus(record);
+    const acknowledgingOfficeLetter = schoolAccount && record.category === "outgoing"
+      && currentStatus === "Dihantar" && status === "Belum diminit";
+    if (!canChangeStatus(record) || (!statusChoices(record.category, record).includes(status) && !acknowledgingOfficeLetter)) {
       throw new Error("Status ini tidak boleh ditetapkan oleh akaun anda.");
     }
-    const currentStatus = recordStatus(record);
     if (status === currentStatus) return false;
     pendingStatusUpdates.add(record.id);
     syncStatusBusy(record.id);
@@ -3934,7 +3936,7 @@ async function initPed() {
           if (pendingStatusUpdates.has(record.id)) return;
           setBusy(receive, true, "Menyimpan…");
           try {
-            if (!await saveInlineStatus(record, "Diterima")) return;
+            if (!await saveInlineStatus(record, "Belum diminit")) return;
             render();
             toast("Surat diterima", `${referenceText} telah ditandakan sebagai diterima.`);
           } catch (error) {
@@ -4111,7 +4113,7 @@ async function initPed() {
     form.elements.subject.readOnly = Boolean(officeProcessingSchoolLetter || viewOnly);
     form.elements.subject.value = record?.subject || "";
     const statuses = statusChoices(category, record);
-    if (record?.status && !statuses.includes(record.status) && (!schoolOutgoing || viewOnly)) statuses.push(record.status);
+    if (record?.status && !statuses.includes(record.status) && category !== "outgoing" && (!schoolOutgoing || viewOnly)) statuses.push(record.status);
     statusSelect.replaceChildren(
       ...(schoolOutgoing && !record ? [create("option", { value: "", text: "Pilih status sebelum hantar" })] : []),
       ...statuses.map(status => create("option", { value: status, text: status }))
