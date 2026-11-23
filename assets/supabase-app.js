@@ -69,6 +69,7 @@ const state = {
   staffAvatarsAvailable: true,
   staffPhotosAvailable: true,
   pedRecords: [],
+  pedRecipientRows: [],
   settings: null
 };
 const workspaceOwnerId = () => currentUser?.ownerId || currentUser?.id;
@@ -851,7 +852,29 @@ async function loadPedRecords() {
     if (page.length < fetchSize) break;
     offset += page.length;
   }
-  state.pedRecords = rows.map(mapPedRecord);
+  try {
+    state.pedRecipientRows = await rest("ped_correspondence_school_recipients", "select=correspondence_id,office_id,office_name,school_id,school_name,status,received_at,updated_at");
+  } catch (error) {
+    if (!/(could not find the table .*ped_correspondence_school_recipients.*schema cache|relation .*ped_correspondence_school_recipients.*does not exist)/i.test(error.message || "")) throw error;
+    // Keep existing PeD usable while an administrator applies the migration.
+    state.pedRecipientRows = [];
+  }
+  const recipientRowsByCorrespondence = new Map();
+  state.pedRecipientRows.forEach(recipient => {
+    const recipients = recipientRowsByCorrespondence.get(recipient.correspondence_id) || [];
+    recipients.push(recipient);
+    recipientRowsByCorrespondence.set(recipient.correspondence_id, recipients);
+  });
+  const recipientSchoolId = workspaceOwnerId();
+  state.pedRecords = rows.map(row => {
+    const record = mapPedRecord(row);
+    record.schoolRecipients = recipientRowsByCorrespondence.get(record.id) || [];
+    const ownRecipient = record.schoolRecipients.find(recipient => recipient.school_id === recipientSchoolId);
+    record.schoolRecipientStatus = ownRecipient?.status || "";
+    record.schoolRecipientReceivedAt = ownRecipient?.received_at || null;
+    record.schoolOfficeName = ownRecipient?.office_name || "";
+    return record;
+  });
 }
 
 async function pedStorageRequest(path, options = {}) {
@@ -3188,18 +3211,23 @@ async function initPed() {
       throw new Error("Surat ini tidak dipadam kerana pangkalan data menolak akses atau surat telah tiada. Muat semula halaman PeD dan cuba lagi.");
     }
   };
-  const activeCategories = schoolAccount ? ["school_received", "school_in"] : ["agency_in", "school_in", "outgoing"];
+  const activeCategories = schoolAccount ? ["school_received", "school_in", "outgoing"] : ["agency_in", "school_in", "outgoing"];
   document.querySelectorAll("[data-ped-section]").forEach(section => {
     section.classList.toggle("hidden", !activeCategories.includes(section.dataset.pedSection));
   });
   if (schoolAccount) {
     document.querySelector(".ped-stats").classList.add("ped-stats-school");
     document.querySelector(".ped-table-stack").classList.add("ped-table-stack-school");
-    document.querySelector("#pedIntro").textContent = "Urus Surat Masuk sekolah dan Surat Keluar kepada Pejabat yang ditetapkan.";
+    document.querySelector("#pedIntro").textContent = "Urus Surat Masuk sekolah, Surat Keluar kepada Pejabat dan surat daripada Pejabat.";
     document.querySelector('[data-ped-title="school_in"]').textContent = "Surat Keluar";
     document.querySelector('[data-ped-section="school_in"] .ped-stat-value > span').textContent = "surat dihantar";
     document.querySelector("#pedSchoolTitle").textContent = "Surat Keluar";
     document.querySelector("#pedSchoolDescription").textContent = "Surat sekolah yang dihantar kepada Pejabat. Rekod yang sama dipaparkan sebagai Surat Masuk Sekolah di Pejabat.";
+    document.querySelector("#pedOutgoingTitle").textContent = "Surat daripada Pejabat";
+    document.querySelector('[data-ped-section="outgoing"] .panel-title p').textContent = "Surat yang dihantar oleh Pejabat kepada sekolah ini.";
+    document.querySelector('[data-ped-section="outgoing"] .table-wrap').setAttribute("aria-label", "Jadual surat daripada Pejabat");
+    document.querySelector('[data-ped-section="outgoing"] thead th:nth-child(3)').textContent = "Daripada";
+    document.querySelector('[data-add-ped="outgoing"]').classList.add("hidden");
     document.querySelector('[data-ped-section="school_in"] .table-wrap').setAttribute("aria-label", "Jadual surat keluar sekolah");
     document.querySelector('[data-ped-pagination="school_in"]').setAttribute("aria-label", "Halaman surat keluar sekolah");
   }
@@ -3349,7 +3377,8 @@ async function initPed() {
     document.querySelector(selector).replaceChildren(...values.map(value => create("option", { value, text: value })));
   });
   // Only statuses that can occur in this account's own tables are offered.
-  const allStatuses = [...new Set(activeCategories.flatMap(category => pedCategoryMeta[category].statuses))];
+  const allStatuses = [...new Set(activeCategories.flatMap(category => pedCategoryMeta[category].statuses)
+    .concat(schoolAccount ? ["Dihantar", "Diterima", "Dalam proses", "Selesai"] : []))];
   fillSelect(statusFilter, allStatuses, "Semua status");
 
   const pedStatusVisuals = {
@@ -3369,17 +3398,26 @@ async function initPed() {
     return pedStatusVisuals[key] || pedStatusVisuals.baru;
   };
   const pedStatusIcon = status => createIcon(pedStatusVisual(status).icon, "ped-status-icon");
+  const recordStatus = record => schoolAccount && record.category === "outgoing"
+    ? record.schoolRecipientStatus || "Dihantar" : record.status;
   const statusChoices = (category, record = null) => {
+    if (schoolAccount && category === "outgoing") {
+      return recordStatus(record) === "Dihantar"
+        ? ["Dihantar", "Diterima"]
+        : ["Diterima", "Dalam proses", "Selesai"];
+    }
     if (schoolAccount && category === "school_in") {
       return [record && ["Dikembalikan", "Dihantar Semula"].includes(record.status) ? "Dihantar Semula" : "Dihantar"];
     }
     return pedCategoryMeta[category].statuses.filter(status =>
       !(officeAccount && category === "school_in" && status === "Dihantar Semula"));
   };
-  const canChangeStatus = record => canDeletePedRecord(record)
-    && (!schoolAccount || record.category === "school_received"
-      || (record.category === "school_in" && assignedOffice && record.ownerId === pedOwnerId
-        && ["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status)));
+  const canChangeStatus = record => schoolAccount && record.category === "outgoing"
+    ? Boolean(record.schoolRecipientStatus)
+    : canDeletePedRecord(record)
+      && (!schoolAccount || record.category === "school_received"
+        || (record.category === "school_in" && assignedOffice && record.ownerId === pedOwnerId
+          && ["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status)));
   const pendingStatusUpdates = new Set();
   const syncStatusBusy = id => {
     document.querySelectorAll("[data-ped-status-record]").forEach(control => {
@@ -3393,20 +3431,37 @@ async function initPed() {
     if (!canChangeStatus(record) || !statusChoices(record.category, record).includes(status)) {
       throw new Error("Status ini tidak boleh ditetapkan oleh akaun anda.");
     }
-    if (status === record.status) return false;
+    const currentStatus = recordStatus(record);
+    if (status === currentStatus) return false;
     pendingStatusUpdates.add(record.id);
     syncStatusBusy(record.id);
     try {
-      // Match the last known status too, so another user's update is not overwritten.
-      const rows = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}&status=eq.${encodeURIComponent(record.status)}`, {
-        method: "PATCH", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ status })
-      });
-      if (!rows?.[0] || rows[0].id !== record.id || rows[0].status !== status) {
-        throw new Error("Status tidak disimpan. Rekod mungkin telah berubah atau akses ditolak. Muat semula halaman dan cuba lagi.");
+      if (schoolAccount && record.category === "outgoing") {
+        const savedRecipient = await rpc("ped_school_update_outgoing_recipient_status", {
+          p_correspondence_id: record.id,
+          p_status: status
+        });
+        if (!savedRecipient?.correspondence_id || savedRecipient.correspondence_id !== record.id || savedRecipient.status !== status) {
+          throw new Error("Status penerimaan tidak disimpan. Muat semula halaman dan cuba lagi.");
+        }
+        state.pedRecipientRows = state.pedRecipientRows.map(item => item.correspondence_id === record.id
+          && item.school_id === workspaceOwnerId() ? savedRecipient : item);
+        state.pedRecords = state.pedRecords.map(item => item.id === record.id
+          ? { ...item, schoolRecipientStatus: savedRecipient.status, schoolRecipientReceivedAt: savedRecipient.received_at,
+            schoolRecipients: item.schoolRecipients.map(recipient => recipient.school_id === workspaceOwnerId() ? savedRecipient : recipient) }
+          : item);
+      } else {
+        // Match the last known status too, so another user's update is not overwritten.
+        const rows = await rest("ped_correspondence", `id=eq.${encodeURIComponent(record.id)}&status=eq.${encodeURIComponent(record.status)}`, {
+          method: "PATCH", headers: { Prefer: "return=representation" },
+          body: JSON.stringify({ status })
+        });
+        if (!rows?.[0] || rows[0].id !== record.id || rows[0].status !== status) {
+          throw new Error("Status tidak disimpan. Rekod mungkin telah berubah atau akses ditolak. Muat semula halaman dan cuba lagi.");
+        }
+        const saved = mapPedRecord(rows[0]);
+        state.pedRecords = state.pedRecords.map(item => item.id === saved.id ? saved : item);
       }
-      const saved = mapPedRecord(rows[0]);
-      state.pedRecords = state.pedRecords.map(item => item.id === saved.id ? saved : item);
       return true;
     } finally {
       pendingStatusUpdates.delete(record.id);
@@ -3415,10 +3470,11 @@ async function initPed() {
   };
   const inlineStatus = record => {
     const choices = statusChoices(record.category, record);
-    const editable = canChangeStatus(record) && choices.some(status => status !== record.status);
-    const badge = create("span", { className: `ped-status ped-tone-${pedStatusVisual(record.status).tone}` }, pedStatusIcon(record.status));
+    const currentStatus = recordStatus(record);
+    const editable = canChangeStatus(record) && choices.some(status => status !== currentStatus);
+    const badge = create("span", { className: `ped-status ped-tone-${pedStatusVisual(currentStatus).tone}` }, pedStatusIcon(currentStatus));
     if (!editable) {
-      badge.append(create("span", { text: record.status }));
+      badge.append(create("span", { text: currentStatus }));
       badge.title = "Status ini dikawal oleh aliran kerja atau kebenaran akaun.";
       return badge;
     }
@@ -3427,13 +3483,13 @@ async function initPed() {
       className: "ped-inline-status-select", "data-ped-status-record": record.id,
       "aria-label": `Ubah status ${record.reference || record.subject || "surat"}`,
       title: `${record.status} — pilih status untuk simpan terus`
-    }, [...new Set([record.status, ...choices])].map(status => create("option", { value: status, text: status })));
-    select.value = record.status;
+    }, [...new Set([currentStatus, ...choices])].map(status => create("option", { value: status, text: status })));
+    select.value = currentStatus;
     select.disabled = pendingStatusUpdates.has(record.id);
     select.setAttribute("aria-busy", String(select.disabled));
     select.addEventListener("change", async () => {
       const nextStatus = select.value;
-      if (pendingStatusUpdates.has(record.id) || nextStatus === record.status) return;
+      if (pendingStatusUpdates.has(record.id) || nextStatus === currentStatus) return;
       const tableBody = select.closest("tbody");
       try {
         if (await saveInlineStatus(record, nextStatus)) {
@@ -3758,7 +3814,7 @@ async function initPed() {
       text = [record.reference, record.officeReferenceFile, record.officeReferenceLetterNumber,
         record.officePersonalFileNumber, record.registryFileNumber, record.registryFileLetterNumber,
         record.correspondent, record.sender, record.recipient, record.schoolName, record.subject,
-        record.schoolSector, record.assignedTo, record.notes, record.status, record.date]
+        record.schoolSector, record.assignedTo, record.notes, recordStatus(record), record.date, record.schoolOfficeName]
         .map(value => String(value || "").toLocaleLowerCase("ms-MY")).join("\u0000");
       pedSearchText.set(record, text);
     }
@@ -3773,7 +3829,7 @@ async function initPed() {
     const to = dateTo.value;
     const filters = advancedFilters();
     return record => (!term || recordSearchText(record).includes(term))
-      && (!status || record.status === status)
+      && (!status || recordStatus(record) === status)
       && (!from || record.date >= from)
       && (!to || record.date <= to)
       && anyMatches(recordSectors(record), filters.sectors)
@@ -3833,8 +3889,9 @@ async function initPed() {
       next.disabled = stateForTable.page >= totalPages - 1;
       pagination.classList.remove("hidden");
       previous.parentElement.classList.toggle("hidden", totalPages <= 1);
-      const tableDateLabel = schoolAccount && category === "school_in" ? "Tarikh Surat" : pedCategoryMeta[category].date;
-      const tablePartyLabel = schoolAccount && category === "school_in" ? "Kepada" : pedCategoryMeta[category].party;
+      const tableDateLabel = schoolAccount && (category === "school_in" || category === "outgoing") ? "Tarikh Surat" : pedCategoryMeta[category].date;
+      const tablePartyLabel = schoolAccount && category === "school_in" ? "Kepada"
+        : schoolAccount && category === "outgoing" ? "Daripada" : pedCategoryMeta[category].party;
       sortButton.textContent = `${tableDateLabel} ${stateForTable.dateAscending ? "↑" : "↓"}`;
       sortButton.closest("th").setAttribute("aria-sort", stateForTable.dateAscending ? "ascending" : "descending");
       body.replaceChildren();
@@ -3853,20 +3910,21 @@ async function initPed() {
       }
 
       pageRecords.forEach(record => {
-        const schoolLetterLocked = schoolAccount && category === "school_in"
-          && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+        const schoolLetterLocked = schoolAccount && (category === "outgoing" || (category === "school_in"
+          && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status))));
         const edit = create("button", { className: "button secondary small", type: "button", "aria-label": `${schoolLetterLocked ? "Lihat" : "Kemas kini"} ${record.reference || "surat"}`, text: schoolLetterLocked ? "Lihat" : "Kemas kini" });
         edit.addEventListener("click", () => openEditor(record.category, record));
         const referenceText = record.reference || "surat tanpa nombor rujukan";
-        const canMarkReceived = officeAccount && category === "school_in"
+        const canMarkReceived = (officeAccount && category === "school_in"
           && record.ownerId !== pedOwnerId && record.officeId === pedOwnerId
-          && ["Dihantar", "Dihantar Semula"].includes(record.status);
+          && ["Dihantar", "Dihantar Semula"].includes(record.status))
+          || (schoolAccount && category === "outgoing" && recordStatus(record) === "Dihantar");
         const receive = canMarkReceived ? create("button", {
           className: "button small ped-receive-button",
           type: "button",
           "data-ped-status-record": record.id,
           "aria-label": `Tandakan ${referenceText} sebagai sudah diterima`,
-          text: "Sudah Terima"
+          text: schoolAccount && category === "outgoing" ? "Terima" : "Sudah Terima"
         }) : null;
         if (receive) receive.disabled = pendingStatusUpdates.has(record.id);
         receive?.addEventListener("click", async () => {
@@ -3904,7 +3962,7 @@ async function initPed() {
         const canDelete = canDeletePedRecord(record);
         const party = schoolAccount && category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
-          : record.correspondent;
+          : schoolAccount && category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat" : record.correspondent;
         const referenceParts = splitPedOutgoingReference(record.reference);
         const referenceDisplay = referenceParts.letterNumber
           ? `${referenceParts.fileReference} (${referenceParts.letterNumber})`
@@ -3913,7 +3971,11 @@ async function initPed() {
           create("td", { className: "ped-cell-date", "data-label": tableDateLabel }, create("time", { datetime: record.date, text: formatDate(record.date) })),
           create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" },
             create("strong", { className: "ped-reference", text: referenceDisplay })),
-          create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, create("span", { className: "ped-party", text: party || "—" })),
+          create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, [
+            create("span", { className: "ped-party", text: party || "—" }),
+            ...(!schoolAccount && category === "outgoing" ? record.schoolRecipients.map(recipient =>
+              create("small", { className: "ped-party-status", text: `${recipient.school_name}: ${recipient.status}` })) : [])
+          ]),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
           create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
           create("td", { className: "ped-cell-actions", "data-label": "Tindakan" }, create("div", { className: "actions ped-row-actions" }, [
@@ -3981,8 +4043,8 @@ async function initPed() {
     const schoolOutgoing = schoolAccount && category === "school_in";
     const outgoingForm = category === "outgoing" || schoolOutgoing;
     const officeProcessingSchoolLetter = officeAccount && category === "school_in" && record && record.ownerId !== pedOwnerId;
-    const viewOnly = schoolOutgoing && record
-      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+    const viewOnly = (schoolAccount && category === "outgoing") || (schoolOutgoing && record
+      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status)));
     referenceViewOnly = Boolean(viewOnly);
     form.reset();
     form.elements.id.value = record?.id || "";
@@ -4017,7 +4079,7 @@ async function initPed() {
     referenceInput.disabled = outgoingForm;
     partyInput.value = schoolOutgoing
       ? record && record.officeId !== assignedOffice?.id ? "Pejabat terdahulu" : assignedOffice?.name || "Pejabat"
-      : record?.correspondent || "";
+      : schoolAccount && category === "outgoing" ? assignedOffice?.name || "Pejabat" : record?.correspondent || "";
     partyInput.readOnly = Boolean(schoolOutgoing || officeProcessingSchoolLetter || viewOnly);
     schoolNameSelect.disabled = category !== "school_in" || schoolOutgoing || officeProcessingSchoolLetter;
     setPedPickerRequired(schoolNameSelect, category === "school_in" && !schoolOutgoing && !officeProcessingSchoolLetter);
@@ -4040,8 +4102,10 @@ async function initPed() {
       ...statuses.map(status => create("option", { value: status, text: status }))
     );
     statusSelect.value = schoolOutgoing && record?.status === "Dikembalikan"
-      ? "Dihantar Semula" : record?.status || "";
+      ? "Dihantar Semula" : schoolAccount && category === "outgoing" ? record?.schoolRecipientStatus || "Dihantar" : record?.status || "";
+    statusSelect.disabled = Boolean(viewOnly);
     refreshPedPicker(statusSelect);
+    pedPickerStates.get(statusSelect).input.disabled = Boolean(viewOnly);
     setPedPickerRequired(statusSelect, true);
     if (schoolOutgoing && !record) {
       statusSelect.selectedIndex = 0;
@@ -4101,7 +4165,7 @@ async function initPed() {
     const title = schoolOutgoing ? "Surat Keluar" : meta.title;
     modalTitle.textContent = viewOnly ? `Lihat ${title}` : record ? `Kemas Kini ${title}` : `Tambah ${title}`;
     referenceLabel.textContent = meta.referenceLabel;
-    partyLabel.textContent = category === "outgoing" || schoolOutgoing ? "Kepada" : "Daripada";
+    partyLabel.textContent = schoolAccount && category === "outgoing" ? "Daripada" : category === "outgoing" || schoolOutgoing ? "Kepada" : "Daripada";
     partyInput.placeholder = category === "outgoing" ? "Nama penerima" : "Nama pengirim";
     dateLabel.textContent = outgoingForm ? "Tarikh Surat" : meta.date;
     submitButton.textContent = record ? "Simpan Perubahan" : "Simpan Rekod";
@@ -4224,6 +4288,9 @@ async function initPed() {
         ...splitPedOutgoingRecipients(outgoingOtherSchoolsInput.value)
       ])
       : [];
+    const outgoingSchoolRecipientIds = officeAccount && category === "outgoing" && outgoingRecipientType === "school"
+      ? [...outgoingSchoolSelect.selectedOptions].map(option => option.value)
+      : [];
     if (officeAccount && category === "outgoing" && !outgoingRecipientType) {
       toast("Pilih jenis penerima", "Pilih Sekolah atau Agensi/Jabatan Luar.", "error");
       outgoingRecipientTypeSelect.focus();
@@ -4286,7 +4353,8 @@ async function initPed() {
       school_id: category === "school_in"
         ? schoolAccount ? pedOwnerId : officeAccount ? assignedSchools.find(school => school.id === schoolNameSelect.value)?.id || existingRecord?.schoolId || null : null
         : category === "school_received" ? pedOwnerId : null,
-      office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? pedOwnerId : null : null,
+      office_id: category === "school_in" ? schoolAccount ? assignedOffice?.id || null : officeAccount ? pedOwnerId : null
+        : officeAccount && category === "outgoing" && outgoingRecipientType === "school" ? pedOwnerId : null,
       correspondence_date: data.correspondence_date,
       reference_number: referenceNumber,
       correspondent,
@@ -4420,12 +4488,29 @@ async function initPed() {
         throw new Error("Lampiran tidak disahkan oleh pelayan. Sila cuba lagi.");
       }
       attachmentCommitted = true;
+      let recipientSyncError = null;
+      let savedSchoolRecipients = existingRecord?.schoolRecipients || [];
+      if (officeAccount && category === "outgoing") {
+        try {
+          savedSchoolRecipients = await rpc("sync_ped_outgoing_school_recipients", {
+            p_correspondence_id: saved.id,
+            p_school_ids: outgoingSchoolRecipientIds,
+            p_recipient_names: outgoingSchoolRecipientNames
+          });
+          if (!Array.isArray(savedSchoolRecipients)) savedSchoolRecipients = [];
+          state.pedRecipientRows = state.pedRecipientRows.filter(recipient => recipient.correspondence_id !== saved.id)
+            .concat(savedSchoolRecipients);
+        } catch (error) {
+          recipientSyncError = error;
+        }
+      }
+      const savedWithRecipients = { ...saved, schoolRecipients: savedSchoolRecipients };
       if (existingRecord?.attachmentPath && existingRecord.attachmentPath !== saved.attachmentPath) {
         await deletePedAttachment(existingRecord.attachmentPath).catch(error => console.warn("Lampiran lama PeD tidak dapat dipadam.", error));
       }
       state.pedRecords = recordId
-        ? state.pedRecords.map(record => record.id === saved.id ? saved : record)
-        : [saved, ...state.pedRecords];
+        ? state.pedRecords.map(record => record.id === saved.id ? savedWithRecipients : record)
+        : [savedWithRecipients, ...state.pedRecords];
       let movementError = null;
       let assignmentMovementRecorded = false;
       if (assignedMovementFile && (movementReturnRequired || (movementAssignmentSelected && (
@@ -4457,7 +4542,9 @@ async function initPed() {
       }
       closeModal(modal);
       render();
-      if (movementError) {
+      if (recipientSyncError) {
+        toast("Surat disimpan, perkongsian sekolah gagal", `Rekod surat telah disimpan tetapi belum muncul kepada sekolah. Cuba kemas kini surat sekali lagi. ${recipientSyncError.message}`, "error");
+      } else if (movementError) {
         const failureMessage = movementAssignmentCleared
           ? `Surat telah disimpan tetapi fail belum dapat dipulangkan kepada ${movementTarget}. ${movementError.message}`
           : `Surat telah disimpan tetapi fail belum bergerak kepada ${movementRecipient}. ${movementError.message}`;
@@ -4515,10 +4602,13 @@ async function initPed() {
   const extraViewState = { view: "list", historyPage: 0, historyAscending: false, schoolPage: 0, schoolAscending: false, school: null, choicesSource: null };
   const isOutgoingCategory = category => category === "outgoing" || (schoolAccount && category === "school_in");
   const pedCategoryLabel = category => schoolAccount && category === "school_in" ? "Surat Keluar"
-    : category === "school_received" ? "Surat Masuk" : pedCategoryMeta[category].title;
-  const pedPartyLabel = category => isOutgoingCategory(category) ? "Kepada" : category === "school_in" ? "Nama Sekolah" : "Daripada";
-  const pedPartyName = record => schoolAccount && record.category === "school_in"
-    ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
+    : schoolAccount && category === "outgoing" ? "Surat daripada Pejabat"
+      : category === "school_received" ? "Surat Masuk" : pedCategoryMeta[category].title;
+  const pedPartyLabel = category => schoolAccount && category === "outgoing" ? "Daripada"
+    : isOutgoingCategory(category) ? "Kepada" : category === "school_in" ? "Nama Sekolah" : "Daripada";
+  const pedPartyName = record => schoolAccount && (record.category === "school_in" || record.category === "outgoing")
+    ? record.category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat"
+      : record.officeId === assignedOffice?.id ? assignedOffice?.name || "Pejabat" : "Pejabat terdahulu"
     : record.correspondent;
   const pedReferenceText = record => {
     const parts = splitPedOutgoingReference(record.reference);
@@ -4537,8 +4627,8 @@ async function initPed() {
     ])
   ));
   const pedOverviewRow = (record, creatorName = null) => {
-    const locked = schoolAccount && record.category === "school_in"
-      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status));
+    const locked = schoolAccount && (record.category === "outgoing" || (record.category === "school_in"
+      && (record.ownerId !== pedOwnerId || !["Dihantar", "Dihantar Semula", "Dikembalikan"].includes(record.status))));
     const reference = pedReferenceText(record);
     const open = create("button", { className: "button secondary small", type: "button", "aria-label": `${locked ? "Lihat" : "Kemas kini"} ${reference || "surat"}`, text: locked ? "Lihat" : "Kemas kini" });
     open.addEventListener("click", () => openEditor(record.category, record));
@@ -4821,6 +4911,7 @@ async function initPed() {
       ["No. Fail Rujukan", record.registryFileNumber], ["No. Fail Peribadi", record.officePersonalFileNumber],
       ["No. Surat", record.registryFileLetterNumber], ["Catatan PPD", record.notes]);
     if (category === "outgoing") fields.push(["Jenis Penerima", record.recipientType === "school" ? "Sekolah" : record.recipientType === "external" ? "Agensi/Jabatan Luar" : ""],
+      ...(!schoolAccount && record.schoolRecipients.length ? [["Penerimaan Sekolah", record.schoolRecipients.map(recipient => `${recipient.school_name}: ${recipient.status}`).join("; ")]] : []),
       ["Daripada Sektor", record.originSector], ["Kaedah Penghantaran Surat", record.deliveryMethods.join(", ")],
       ["No. Fail Peribadi", record.officePersonalFileNumber], ["Catatan", record.notes],
       ["Lampiran PDF / Gambar", record.attachmentPath ? "Dilampirkan dalam MyFailPro" : "Tiada"]);
@@ -4835,7 +4926,7 @@ async function initPed() {
     const record = state.pedRecords.find(item => item.id === form.elements.id.value);
     if (!record) return;
     runPrint(printRecordButton, `Butiran Surat ${pedReferenceText(record) || record.subject}`, pedDetailSheetHtml({
-      category: pedCategoryLabel(record.category), status: record.status, subject: record.subject, fields: pedDetailFields(record)
+      category: pedCategoryLabel(record.category), status: recordStatus(record), subject: record.subject, fields: pedDetailFields(record)
     }));
   });
 
