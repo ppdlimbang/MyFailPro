@@ -992,7 +992,7 @@ function loadPedPdfJs() {
   return pedPdfJsPromise;
 }
 
-const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", pdfState: null, downloadBlob: null, filename: "", mediaUrl: null };
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, pdfState: null, downloadBlob: null, filename: "", mediaUrl: null };
 
 function releasePedAttachmentPreview(content) {
   content.replaceChildren();
@@ -1129,7 +1129,7 @@ async function openPedAttachment(path, button) {
       pedAttachmentPreview.requestId++;
       releasePedAttachmentPreview(content);
       downloadButton.disabled = true;
-      document.body.style.overflow = pedAttachmentPreview.overflow;
+      syncModalBodyScrollLock();
       if (pedAttachmentPreview.opener?.isConnected) pedAttachmentPreview.opener.focus({ preventScroll: true });
     });
     dialog.addEventListener("click", event => {
@@ -1149,9 +1149,8 @@ async function openPedAttachment(path, button) {
   status.classList.remove("hidden", "error");
   if (!dialog.open) {
     pedAttachmentPreview.opener = button || document.activeElement;
-    pedAttachmentPreview.overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     dialog.showModal();
+    syncModalBodyScrollLock();
     close.focus();
   }
   if (button) {
@@ -2169,10 +2168,13 @@ async function initMovementLog() {
   markReady();
 }
 
-function showModal(id) { document.querySelector(id).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+function syncModalBodyScrollLock() {
+  document.body.style.overflow = document.querySelector(".modal:not(.hidden), dialog[open]") ? "hidden" : "";
+}
+function showModal(id) { document.querySelector(id).classList.remove("hidden"); syncModalBodyScrollLock(); }
 function closeModal(modal) {
   modal.classList.add("hidden");
-  if (!document.querySelector(".modal:not(.hidden)")) document.body.style.overflow = "";
+  syncModalBodyScrollLock();
 }
 function wireModal(modal) {
   modal.querySelectorAll("[data-close]").forEach(el => el.addEventListener("click", () => closeModal(modal)));
