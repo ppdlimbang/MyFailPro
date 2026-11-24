@@ -1149,8 +1149,8 @@ async function openPedAttachment(path, button) {
   status.classList.remove("hidden", "error");
   if (!dialog.open) {
     pedAttachmentPreview.opener = button || document.activeElement;
-    dialog.showModal();
     syncModalBodyScrollLock();
+    dialog.showModal();
     close.focus();
   }
   if (button) {
@@ -2169,7 +2169,7 @@ async function initMovementLog() {
 }
 
 function syncModalBodyScrollLock() {
-  document.body.style.overflow = document.querySelector(".modal:not(.hidden), dialog[open]") ? "hidden" : "";
+  document.body.style.overflow = document.querySelector(".modal:not(.hidden)") ? "hidden" : "";
 }
 function showModal(id) { document.querySelector(id).classList.remove("hidden"); syncModalBodyScrollLock(); }
 function closeModal(modal) {
