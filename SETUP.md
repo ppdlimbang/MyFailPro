@@ -54,6 +54,14 @@ without an attachment remains valid. Replacing/removing a saved attachment takes
 effect only after the record saves successfully. The old file is kept if saving
 fails, and a newly uploaded file is cleaned up if the record write fails.
 
+### PeD outgoing letters to schools
+
+After applying `20261123000000_add_ped_outgoing_recipient_type.sql` and
+`20261123100000_add_ped_office_to_school_delivery.sql`, apply
+`20261124100000_fix_ped_recipient_office_id_ambiguity.sql` to fix recipient
+synchronization for office users. Existing letters remain saved; edit and save
+one again to rebuild its school links.
+
 ## 2. Allow GitHub to deploy Edge Functions
 
 1. In Supabase, open **Account > Access Tokens** and generate an access token.

@@ -3988,6 +3988,22 @@ async function initPed() {
         const party = schoolAccount && record.category === "school_in"
           ? record.officeId === assignedOffice?.id ? assignedOffice.name : "Pejabat terdahulu"
           : schoolAccount && record.category === "outgoing" ? record.schoolOfficeName || assignedOffice?.name || "Pejabat" : record.correspondent;
+        const officeSchoolOutgoing = !schoolAccount && record.category === "outgoing" && record.recipientType === "school";
+        const outgoingSchoolNames = officeSchoolOutgoing
+          ? splitPedOutgoingRecipients(record.recipient || record.correspondent) : [];
+        const linkedSchoolRecipient = name => record.schoolRecipients.find(recipient =>
+          normalizeRecipientName(recipient.school_name) === normalizeRecipientName(name));
+        const recipientDetails = officeSchoolOutgoing && outgoingSchoolNames.length
+          ? create("details", { className: "ped-recipient-details" }, [
+            create("summary", { text: "Lihat nama dan status" }),
+            create("ul", { className: "ped-recipient-list" }, outgoingSchoolNames.map(name => {
+              const recipient = linkedSchoolRecipient(name);
+              return create("li", {}, [
+                create("span", { text: name }),
+                create("small", { text: recipient?.status || "Tiada akaun berdaftar" })
+              ]);
+            }))
+          ]) : null;
         const referenceParts = splitPedOutgoingReference(record.reference);
         const referenceDisplay = referenceParts.letterNumber
           ? `${referenceParts.fileReference} (${referenceParts.letterNumber})`
@@ -3997,9 +4013,8 @@ async function initPed() {
           create("td", { className: "ped-cell-reference", "data-label": "No. Fail Rujukan" },
             create("strong", { className: "ped-reference", text: referenceDisplay })),
           create("td", { className: "ped-cell-party", "data-label": tablePartyLabel }, [
-            create("span", { className: "ped-party", text: party || "—" }),
-            ...(!schoolAccount && record.category === "outgoing" ? record.schoolRecipients.map(recipient =>
-              create("small", { className: "ped-party-status", text: `${recipient.school_name}: ${recipient.status}` })) : [])
+            create("span", { className: "ped-party", text: officeSchoolOutgoing ? `${outgoingSchoolNames.length} sekolah penerima` : party || "—" }),
+            recipientDetails
           ]),
           create("td", { className: "ped-cell-subject", "data-label": "Perkara" }, create("span", { className: "ped-subject", text: record.subject })),
           create("td", { className: "ped-cell-status", "data-label": "Status" }, inlineStatus(record)),
@@ -4612,7 +4627,11 @@ async function initPed() {
       closeModal(modal);
       render();
       if (recipientSyncError) {
-        toast("Surat disimpan, perkongsian sekolah gagal", `Rekod surat telah disimpan tetapi belum muncul kepada sekolah. Cuba kemas kini surat sekali lagi. ${recipientSyncError.message}`, "error");
+        if (/column reference ["']office_id["'] is ambiguous/i.test(recipientSyncError.message || "")) {
+          toast("Migrasi Supabase diperlukan", "Rekod surat telah disimpan. Jalankan migrasi 20261124100000_fix_ped_recipient_office_id_ambiguity.sql supaya pautan sekolah dapat dikemas kini.", "error");
+        } else {
+          toast("Surat disimpan, perkongsian sekolah gagal", `Rekod surat telah disimpan tetapi belum muncul kepada sekolah. Cuba kemas kini surat sekali lagi. ${recipientSyncError.message}`, "error");
+        }
       } else if (movementError) {
         const failureMessage = movementAssignmentCleared
           ? `Surat telah disimpan tetapi fail belum dapat dipulangkan kepada ${movementTarget}. ${movementError.message}`
@@ -4630,7 +4649,9 @@ async function initPed() {
       }
     } catch (error) {
       if (uploadedAttachmentPath && !attachmentCommitted) await deletePedAttachment(uploadedAttachmentPath).catch(() => {});
-      if (/office_personal_file_number/i.test(error.message || "")) {
+      if (/(recipient_type.*(column|schema cache|does not exist)|(column|schema cache).*recipient_type|ped_correspondence_school_recipients.*(relation|table|schema cache|does not exist)|(relation|table|schema cache).*ped_correspondence_school_recipients|sync_ped_outgoing_school_recipients.*(function|schema cache|does not exist)|(function|schema cache).*sync_ped_outgoing_school_recipients)/i.test(error.message || "")) {
+        toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261123000000_add_ped_outgoing_recipient_type.sql, 20261123100000_add_ped_office_to_school_delivery.sql dan 20261123110000_repair_ped_school_delivery_links.sql mengikut turutan sebelum menyimpan Surat Keluar Pejabat.", "error");
+      } else if (/office_personal_file_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261113030000_allow_office_personal_file_numbers.sql sebelum menyimpan No. Fail Peribadi.", "error");
       } else if (/office_reference_letter_number|registry_file_letter_number/i.test(error.message || "")) {
         toast("Migrasi Supabase diperlukan", "Jalankan migrasi 20261105020000_add_ped_reference_letter_numbers.sql sebelum menyimpan nombor surat bagi fail rujukan.", "error");

@@ -86,7 +86,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  office_id uuid := (select public.current_workspace_owner());
+  v_office_id uuid := (select public.current_workspace_owner());
   recipient_ids uuid[];
 begin
   if not (select public.can_access_ped()) or not (select public.ped_is_office()) then
@@ -96,7 +96,7 @@ begin
   if not exists (
     select 1 from public.ped_correspondence as letter
      where letter.id = p_correspondence_id
-       and letter.owner_id = office_id
+       and letter.owner_id = v_office_id
        and letter.category = 'outgoing'
        and letter.recipient_type in ('school', 'external')
   ) then
@@ -144,7 +144,7 @@ begin
   select p_correspondence_id, sending_office.id, sending_office.name, school.id, school.name
     from public.profiles as sending_office
     cross join public.profiles as school
-   where sending_office.id = office_id
+   where sending_office.id = v_office_id
      and school.id = any(recipient_ids)
   on conflict (correspondence_id, school_id) do update
     set office_id = excluded.office_id,
