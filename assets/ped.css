@@ -423,6 +423,7 @@ body[data-page="ped"] .ped-panel .ped-empty-row td { padding: 30px 24px; text-al
 .ped-attachment-preview-layout { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .ped-attachment-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e6e0f3; }
 .ped-attachment-preview-head > div { min-width: 0; }
+.ped-attachment-preview-head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
 .ped-attachment-preview-head h2 { margin: 0; font-size: 1.05rem; }
 .ped-attachment-preview-head p { margin: 4px 0 0; color: #747087; font-size: .75rem; overflow-wrap: anywhere; }
 .ped-attachment-preview-head button { flex-shrink: 0; min-height: 40px; }
@@ -442,7 +443,8 @@ body[data-page="ped"] .ped-panel .ped-empty-row td { padding: 30px 24px; text-al
 @media (max-width: 640px) {
   .ped-attachment-preview { width: calc(100% - 16px); height: calc(100vh - 16px); height: calc(100dvh - 16px); border-radius: 14px; }
   .ped-attachment-preview-head { gap: 8px; padding: 12px; }
-  .ped-attachment-preview-head button { padding-inline: 12px; }
+  .ped-attachment-preview-head-actions { gap: 5px; }
+  .ped-attachment-preview-head-actions button { padding-inline: 8px; font-size: .7rem; }
   .ped-pdf-toolbar { gap: 5px; padding: 8px 5px; }
   .ped-pdf-toolbar .button { padding-inline: 7px; }
   .ped-pdf-page-label, .ped-pdf-zoom-label { min-width: 52px; font-size: .68rem; }

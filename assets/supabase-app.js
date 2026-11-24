@@ -992,11 +992,15 @@ function loadPedPdfJs() {
   return pedPdfJsPromise;
 }
 
-const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", pdfState: null };
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", pdfState: null, downloadBlob: null, filename: "", mediaUrl: null };
 
 function releasePedAttachmentPreview(content) {
   content.replaceChildren();
   content.classList.remove("ped-attachment-pdf-content");
+  if (pedAttachmentPreview.mediaUrl) URL.revokeObjectURL(pedAttachmentPreview.mediaUrl);
+  pedAttachmentPreview.mediaUrl = null;
+  pedAttachmentPreview.downloadBlob = null;
+  pedAttachmentPreview.filename = "";
   const state = pedAttachmentPreview.pdfState;
   pedAttachmentPreview.pdfState = null;
   if (state?.renderTask) state.renderTask.cancel();
@@ -1011,6 +1015,9 @@ async function renderPedPdf(url, filename, requestId, dialog, content, status) {
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (!isCurrent()) return;
   if (!bytes.length) throw new Error("Fail PDF kosong.");
+  pedAttachmentPreview.downloadBlob = new Blob([bytes], { type: "application/pdf" });
+  const downloadButton = dialog.querySelector("[data-download-attachment]");
+  downloadButton.disabled = false;
   const header = new TextDecoder().decode(bytes.subarray(0, 1024));
   if (!header.includes("%PDF-")) throw new Error("Fail yang diterima bukan dokumen PDF yang sah.");
 
@@ -1103,13 +1110,25 @@ async function openPedAttachment(path, button) {
   const content = dialog.querySelector(".ped-attachment-preview-content");
   const status = dialog.querySelector(".ped-attachment-preview-status");
   const close = dialog.querySelector("[data-close-preview]");
+  const downloadButton = dialog.querySelector("[data-download-attachment]");
   if (pedAttachmentPreview.dialog !== dialog) {
     pedAttachmentPreview.dialog = dialog;
     close.addEventListener("click", () => dialog.close());
+    downloadButton.addEventListener("click", () => {
+      const blob = pedAttachmentPreview.downloadBlob;
+      if (!blob || !pedAttachmentPreview.filename) return;
+      const url = URL.createObjectURL(blob);
+      const link = create("a", { href: url, download: pedAttachmentPreview.filename, "aria-hidden": "true", tabindex: "-1" });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    });
     dialog.addEventListener("close", () => {
       // Ignore any signed URL still arriving after the user closes the preview.
       pedAttachmentPreview.requestId++;
       releasePedAttachmentPreview(content);
+      downloadButton.disabled = true;
       document.body.style.overflow = pedAttachmentPreview.overflow;
       if (pedAttachmentPreview.opener?.isConnected) pedAttachmentPreview.opener.focus({ preventScroll: true });
     });
@@ -1122,8 +1141,10 @@ async function openPedAttachment(path, button) {
   const requestId = ++pedAttachmentPreview.requestId;
   const isCurrent = () => dialog.open && requestId === pedAttachmentPreview.requestId;
   const filename = path.split("/").pop();
+  downloadButton.disabled = true;
   dialog.querySelector("#pedAttachmentPreviewName").textContent = filename;
   releasePedAttachmentPreview(content);
+  pedAttachmentPreview.filename = filename;
   status.textContent = "Memuatkan lampiran…";
   status.classList.remove("hidden", "error");
   if (!dialog.open) {
@@ -1145,7 +1166,15 @@ async function openPedAttachment(path, button) {
       await renderPedPdf(url, filename, requestId, dialog, content, status);
       return;
     }
-    const media = create("img", { alt: `Lampiran ${filename}`, src: url });
+    const response = await fetch(url);
+    if (!response.ok) throw await responseError(response, "Lampiran tidak dapat dimuat turun.");
+    const blob = await response.blob();
+    if (!isCurrent()) return;
+    pedAttachmentPreview.downloadBlob = blob;
+    downloadButton.disabled = false;
+    const mediaUrl = URL.createObjectURL(blob);
+    pedAttachmentPreview.mediaUrl = mediaUrl;
+    const media = create("img", { alt: `Lampiran ${filename}`, src: mediaUrl });
     media.addEventListener("load", () => { if (isCurrent()) status.classList.add("hidden"); });
     media.addEventListener("error", () => {
       if (!isCurrent()) return;
