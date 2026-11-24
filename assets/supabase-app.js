@@ -978,12 +978,11 @@ async function signedPedAttachmentUrl(path) {
   return `${config.url}/storage/v1${result.signedURL}`;
 }
 
-const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", objectUrl: null };
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "" };
 
 function releasePedAttachmentPreview(content) {
   content.replaceChildren();
-  if (pedAttachmentPreview.objectUrl) URL.revokeObjectURL(pedAttachmentPreview.objectUrl);
-  pedAttachmentPreview.objectUrl = null;
+  content.classList.remove("ped-attachment-link-only");
 }
 
 async function openPedAttachment(path, button) {
@@ -1031,35 +1030,25 @@ async function openPedAttachment(path, button) {
     const url = await signedPedAttachmentUrl(path);
     if (!isCurrent()) return;
     const pdf = /\.pdf$/i.test(path);
-    let mediaUrl = url;
-    if (pdf) {
-      const response = await fetch(url);
-      if (!response.ok) throw await responseError(response, "PDF tidak dapat dimuat turun.");
-      const file = await response.blob();
-      if (!file.size) throw new Error("Fail PDF kosong.");
-      const header = await file.slice(0, 1024).text();
-      if (!header.includes("%PDF-")) throw new Error("Fail yang diterima bukan dokumen PDF yang sah.");
-      const pdfFile = file.type === "application/pdf" ? file : new Blob([file], { type: "application/pdf" });
-      mediaUrl = URL.createObjectURL(pdfFile);
-      if (!isCurrent()) {
-        URL.revokeObjectURL(mediaUrl);
-        return;
-      }
-      pedAttachmentPreview.objectUrl = mediaUrl;
-    }
     const media = pdf
-      ? create("iframe", { title: `Pratonton PDF: ${filename}`, src: `${mediaUrl}#view=FitH` })
-      : create("img", { alt: `Lampiran ${filename}`, src: mediaUrl });
-    media.addEventListener("load", () => {
-      if (isCurrent()) status.classList.add("hidden");
-    });
-    media.addEventListener("error", () => {
-      if (!isCurrent()) return;
-      media.remove();
-      status.textContent = "Lampiran tidak dapat dipaparkan. Tutup dan cuba buka semula.";
-      status.classList.add("error");
-      status.classList.remove("hidden");
-    });
+      ? create("a", { className: "button ped-attachment-open", href: url, target: "_blank", rel: "noopener", text: "Buka PDF pada tab baharu" })
+      : create("img", { alt: `Lampiran ${filename}`, src: url });
+    if (pdf) {
+      content.classList.add("ped-attachment-link-only");
+      status.textContent = "Buka PDF pada tab baharu untuk melihat dokumen.";
+      status.classList.add("hidden");
+    } else {
+      media.addEventListener("load", () => {
+        if (isCurrent()) status.classList.add("hidden");
+      });
+      media.addEventListener("error", () => {
+        if (!isCurrent()) return;
+        media.remove();
+        status.textContent = "Lampiran tidak dapat dipaparkan. Tutup dan cuba buka semula.";
+        status.classList.add("error");
+        status.classList.remove("hidden");
+      });
+    }
     content.replaceChildren(media);
   } catch (error) {
     if (isCurrent()) {
