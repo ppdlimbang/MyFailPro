@@ -978,7 +978,13 @@ async function signedPedAttachmentUrl(path) {
   return `${config.url}/storage/v1${result.signedURL}`;
 }
 
-const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "" };
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", objectUrl: null };
+
+function releasePedAttachmentPreview(content) {
+  content.replaceChildren();
+  if (pedAttachmentPreview.objectUrl) URL.revokeObjectURL(pedAttachmentPreview.objectUrl);
+  pedAttachmentPreview.objectUrl = null;
+}
 
 async function openPedAttachment(path, button) {
   if (!path || button?.disabled) return;
@@ -993,7 +999,7 @@ async function openPedAttachment(path, button) {
     dialog.addEventListener("close", () => {
       // Ignore any signed URL still arriving after the user closes the preview.
       pedAttachmentPreview.requestId++;
-      content.replaceChildren();
+      releasePedAttachmentPreview(content);
       document.body.style.overflow = pedAttachmentPreview.overflow;
       if (pedAttachmentPreview.opener?.isConnected) pedAttachmentPreview.opener.focus({ preventScroll: true });
     });
@@ -1007,7 +1013,7 @@ async function openPedAttachment(path, button) {
   const isCurrent = () => dialog.open && requestId === pedAttachmentPreview.requestId;
   const filename = path.split("/").pop();
   dialog.querySelector("#pedAttachmentPreviewName").textContent = filename;
-  content.replaceChildren();
+  releasePedAttachmentPreview(content);
   status.textContent = "Memuatkan lampiran…";
   status.classList.remove("hidden", "error");
   if (!dialog.open) {
@@ -1025,9 +1031,25 @@ async function openPedAttachment(path, button) {
     const url = await signedPedAttachmentUrl(path);
     if (!isCurrent()) return;
     const pdf = /\.pdf$/i.test(path);
+    let mediaUrl = url;
+    if (pdf) {
+      const response = await fetch(url);
+      if (!response.ok) throw await responseError(response, "PDF tidak dapat dimuat turun.");
+      const file = await response.blob();
+      if (!file.size) throw new Error("Fail PDF kosong.");
+      const header = await file.slice(0, 1024).text();
+      if (!header.includes("%PDF-")) throw new Error("Fail yang diterima bukan dokumen PDF yang sah.");
+      const pdfFile = file.type === "application/pdf" ? file : new Blob([file], { type: "application/pdf" });
+      mediaUrl = URL.createObjectURL(pdfFile);
+      if (!isCurrent()) {
+        URL.revokeObjectURL(mediaUrl);
+        return;
+      }
+      pedAttachmentPreview.objectUrl = mediaUrl;
+    }
     const media = pdf
-      ? create("iframe", { title: `Pratonton PDF: ${filename}`, src: `${url}#view=FitH` })
-      : create("img", { alt: `Lampiran ${filename}`, src: url });
+      ? create("iframe", { title: `Pratonton PDF: ${filename}`, src: `${mediaUrl}#view=FitH` })
+      : create("img", { alt: `Lampiran ${filename}`, src: mediaUrl });
     media.addEventListener("load", () => {
       if (isCurrent()) status.classList.add("hidden");
     });
