@@ -978,11 +978,122 @@ async function signedPedAttachmentUrl(path) {
   return `${config.url}/storage/v1${result.signedURL}`;
 }
 
-const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "" };
+let pedPdfJsPromise = null;
+function loadPedPdfJs() {
+  if (!pedPdfJsPromise) {
+    pedPdfJsPromise = import("https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.mjs").then(pdfjs => {
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.worker.mjs";
+      return pdfjs;
+    }).catch(error => {
+      pedPdfJsPromise = null;
+      throw error;
+    });
+  }
+  return pedPdfJsPromise;
+}
+
+const pedAttachmentPreview = { dialog: null, requestId: 0, opener: null, overflow: "", pdfState: null };
 
 function releasePedAttachmentPreview(content) {
   content.replaceChildren();
-  content.classList.remove("ped-attachment-link-only");
+  content.classList.remove("ped-attachment-pdf-content");
+  const state = pedAttachmentPreview.pdfState;
+  pedAttachmentPreview.pdfState = null;
+  if (state?.renderTask) state.renderTask.cancel();
+  state?.loadingTask?.destroy().catch(() => {});
+  state?.document?.destroy().catch(() => {});
+}
+
+async function renderPedPdf(url, filename, requestId, dialog, content, status) {
+  const isCurrent = () => dialog.open && requestId === pedAttachmentPreview.requestId;
+  const response = await fetch(url);
+  if (!response.ok) throw await responseError(response, "PDF tidak dapat dimuat turun.");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!isCurrent()) return;
+  if (!bytes.length) throw new Error("Fail PDF kosong.");
+  const header = new TextDecoder().decode(bytes.subarray(0, 1024));
+  if (!header.includes("%PDF-")) throw new Error("Fail yang diterima bukan dokumen PDF yang sah.");
+
+  const pdfjs = await loadPedPdfJs();
+  if (!isCurrent()) return;
+  const loadingTask = pdfjs.getDocument({ data: bytes, isEvalSupported: false, enableXfa: false });
+  const state = { loadingTask, document: null, renderTask: null, page: 1, scale: 0 };
+  pedAttachmentPreview.pdfState = state;
+  const pdf = await loadingTask.promise;
+  if (!isCurrent() || pedAttachmentPreview.pdfState !== state) return;
+  state.document = pdf;
+
+  const toolbar = create("div", { className: "ped-pdf-toolbar" });
+  const previous = create("button", { className: "button secondary small", type: "button", text: "‹", title: "Halaman sebelumnya", "aria-label": "Halaman sebelumnya" });
+  const pageLabel = create("span", { className: "ped-pdf-page-label" });
+  const next = create("button", { className: "button secondary small", type: "button", text: "›", title: "Halaman seterusnya", "aria-label": "Halaman seterusnya" });
+  const zoomOut = create("button", { className: "button secondary small", type: "button", text: "−", "aria-label": "Kecilkan paparan" });
+  const zoomLabel = create("span", { className: "ped-pdf-zoom-label", text: "Muat" });
+  const zoomIn = create("button", { className: "button secondary small", type: "button", text: "+", "aria-label": "Besarkan paparan" });
+  toolbar.append(previous, pageLabel, next, zoomOut, zoomLabel, zoomIn);
+  const viewer = create("div", { className: "ped-pdf-viewer" }, [
+    toolbar,
+    create("div", { className: "ped-pdf-page-wrap" }, create("canvas", { className: "ped-pdf-canvas", "aria-label": filename }))
+  ]);
+  content.classList.add("ped-attachment-pdf-content");
+  content.replaceChildren(viewer);
+  const pageWrap = viewer.querySelector(".ped-pdf-page-wrap");
+  const canvas = viewer.querySelector("canvas");
+  const context = canvas.getContext("2d", { alpha: false });
+  const renderPage = async () => {
+    if (state.renderTask) {
+      const oldRender = state.renderTask;
+      oldRender.cancel();
+      await oldRender.promise.catch(() => {});
+      if (!isCurrent() || pedAttachmentPreview.pdfState !== state) return;
+    }
+    const page = await pdf.getPage(state.page);
+    if (!isCurrent() || pedAttachmentPreview.pdfState !== state) return;
+    const naturalViewport = page.getViewport({ scale: 1 });
+    if (!state.scale) state.scale = Math.min(1.5, Math.max(0.5, (pageWrap.clientWidth - 32) / naturalViewport.width));
+    const viewport = page.getViewport({ scale: state.scale });
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.ceil(viewport.width * pixelRatio);
+    canvas.height = Math.ceil(viewport.height * pixelRatio);
+    canvas.style.width = `${viewport.width}px`;
+    canvas.style.height = `${viewport.height}px`;
+    const renderTask = page.render({ canvasContext: context, viewport, transform: pixelRatio === 1 ? null : [pixelRatio, 0, 0, pixelRatio, 0, 0] });
+    state.renderTask = renderTask;
+    await renderTask.promise;
+    if (!isCurrent() || pedAttachmentPreview.pdfState !== state) return;
+    state.renderTask = null;
+    pageLabel.textContent = `Halaman ${state.page} / ${pdf.numPages}`;
+    zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+    previous.disabled = state.page <= 1;
+    next.disabled = state.page >= pdf.numPages;
+    status.classList.add("hidden");
+  };
+  previous.addEventListener("click", () => {
+    if (state.page <= 1) return;
+    state.page--;
+    renderPage().catch(error => showPedPdfRenderError(error, status, isCurrent));
+  });
+  next.addEventListener("click", () => {
+    if (state.page >= pdf.numPages) return;
+    state.page++;
+    renderPage().catch(error => showPedPdfRenderError(error, status, isCurrent));
+  });
+  zoomOut.addEventListener("click", () => {
+    state.scale = Math.max(0.5, state.scale / 1.2);
+    renderPage().catch(error => showPedPdfRenderError(error, status, isCurrent));
+  });
+  zoomIn.addEventListener("click", () => {
+    state.scale = Math.min(3, state.scale * 1.2);
+    renderPage().catch(error => showPedPdfRenderError(error, status, isCurrent));
+  });
+  await renderPage();
+}
+
+function showPedPdfRenderError(error, status, isCurrent) {
+  if (!isCurrent()) return;
+  status.textContent = `PDF tidak dapat dipaparkan: ${error.message}`;
+  status.classList.add("error");
+  status.classList.remove("hidden");
 }
 
 async function openPedAttachment(path, button) {
@@ -1030,25 +1141,19 @@ async function openPedAttachment(path, button) {
     const url = await signedPedAttachmentUrl(path);
     if (!isCurrent()) return;
     const pdf = /\.pdf$/i.test(path);
-    const media = pdf
-      ? create("a", { className: "button ped-attachment-open", href: url, target: "_blank", rel: "noopener", text: "Buka PDF pada tab baharu" })
-      : create("img", { alt: `Lampiran ${filename}`, src: url });
     if (pdf) {
-      content.classList.add("ped-attachment-link-only");
-      status.textContent = "Buka PDF pada tab baharu untuk melihat dokumen.";
-      status.classList.add("hidden");
-    } else {
-      media.addEventListener("load", () => {
-        if (isCurrent()) status.classList.add("hidden");
-      });
-      media.addEventListener("error", () => {
-        if (!isCurrent()) return;
-        media.remove();
-        status.textContent = "Lampiran tidak dapat dipaparkan. Tutup dan cuba buka semula.";
-        status.classList.add("error");
-        status.classList.remove("hidden");
-      });
+      await renderPedPdf(url, filename, requestId, dialog, content, status);
+      return;
     }
+    const media = create("img", { alt: `Lampiran ${filename}`, src: url });
+    media.addEventListener("load", () => { if (isCurrent()) status.classList.add("hidden"); });
+    media.addEventListener("error", () => {
+      if (!isCurrent()) return;
+      media.remove();
+      status.textContent = "Lampiran tidak dapat dipaparkan. Tutup dan cuba buka semula.";
+      status.classList.add("error");
+      status.classList.remove("hidden");
+    });
     content.replaceChildren(media);
   } catch (error) {
     if (isCurrent()) {
