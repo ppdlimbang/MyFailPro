@@ -69,8 +69,10 @@ Deno.serve(async request => {
       {
         method: "PATCH",
         headers: {
-          apikey: config.secretKey,
-          authorization: `Bearer ${config.secretKey}`,
+          // Preserve the verified admin identity so PeD triggers can authorize
+          // their office-side synchronization of existing school letters.
+          apikey: config.publicKey,
+          authorization: request.headers.get("authorization") || "",
           "content-type": "application/json",
           "prefer": "return=minimal"
         },
