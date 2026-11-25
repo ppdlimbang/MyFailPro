@@ -3382,7 +3382,14 @@ async function initPed() {
   const pedLoadWarnings = [];
   let assignedOffice = null;
   let assignedSchools = [];
-  const [recordsResult, settingsResult, filesResult, officeResult, schoolsResult] = await Promise.allSettled([
+  let registeredSchools = [];
+  const registeredSchoolsRequest = user.role === "admin"
+    ? rest("profiles", "role=eq.agency&select=id,name,agency_type&order=name.asc")
+      .then(rows => rows
+        .filter(row => String(row.agency_type || "").trim().toLocaleLowerCase("ms-MY") === "sekolah")
+        .map(row => ({ id: row.id, name: row.name })))
+    : Promise.resolve([]);
+  const [recordsResult, settingsResult, filesResult, officeResult, schoolsResult, registeredSchoolsResult] = await Promise.allSettled([
     loadPedRecords(), loadSettings(), loadFiles(),
     schoolAccount ? (async () => {
       const officeId = workspaceProfile.ped_office_id;
@@ -3395,7 +3402,8 @@ async function initPed() {
       // Never request account details or bypass an authorization failure.
       if (!/could not find the function.*ped_assigned_schools|function.*ped_assigned_schools.*does not exist/i.test(error.message)) throw error;
       return rest("profiles", `ped_office_id=eq.${encodeURIComponent(pedOwnerId)}&role=eq.agency&select=id,name&order=name.asc`);
-    }) : Promise.resolve([])
+    }) : Promise.resolve([]),
+    registeredSchoolsRequest
   ]);
   if (recordsResult.status === "rejected") {
     state.pedRecords = [];
@@ -3420,6 +3428,9 @@ async function initPed() {
   }
   if (schoolsResult.status === "fulfilled") assignedSchools = schoolsResult.value || [];
   else if (officeAccount) pedLoadWarnings.push(`Senarai sekolah: ${schoolsResult.reason?.message || "tidak dapat dimuatkan"}`);
+  if (user.role === "admin" && registeredSchoolsResult.status === "fulfilled") registeredSchools = registeredSchoolsResult.value || [];
+  else if (officeAccount) registeredSchools = assignedSchools;
+  else if (user.role === "admin") console.warn("Senarai akaun sekolah untuk ikon pengesahan tidak dapat dimuatkan.", registeredSchoolsResult.reason);
   if (officeAccount && !assignedSchools.length) {
     document.querySelector("#pedSchoolDescription").textContent = "Tiada sekolah dalam senarai pilihan. Anda masih boleh taip nama sekolah semasa merekod surat.";
   }
@@ -4953,6 +4964,8 @@ async function initPed() {
   const schoolDetail = document.querySelector("#pedSchoolDetail");
   const schoolRows = document.querySelector("#pedSchoolRows");
   const schoolSort = document.querySelector("#pedSchoolSort");
+  const registeredSchoolIds = new Set(registeredSchools.map(school => school.id).filter(Boolean));
+  const registeredSchoolNames = new Set(registeredSchools.map(school => normalizeRecipientName(school.name)).filter(Boolean));
   schoolSort.closest("table").querySelectorAll("thead th").forEach(header => header.setAttribute("scope", "col"));
   const schoolEntries = () => {
     const entries = new Map();
@@ -4977,10 +4990,17 @@ async function initPed() {
   const recordsForSchool = school => visiblePedRecords().filter(record => recordBelongsToSchool(record, school));
   const schoolCard = ({ school, matching, filtered }) => {
     const awaiting = matching.filter(record => record.category === "school_in" && ["Dihantar", "Dihantar Semula"].includes(record.status)).length;
-    const card = create("button", { className: "ped-school-card", type: "button", "aria-label": `${school.name}, ${matching.length} surat${awaiting ? `, ${awaiting} belum diterima` : ""}` }, [
+    const verified = Boolean(school.id && registeredSchoolIds.has(school.id)) || registeredSchoolNames.has(normalizeRecipientName(school.name));
+    const card = create("button", { className: "ped-school-card", type: "button", "aria-label": `${school.name}${verified ? ", sekolah berdaftar dalam MyFailPro" : ""}, ${matching.length} surat${awaiting ? `, ${awaiting} belum diterima` : ""}` }, [
       create("span", { className: "ped-school-card-icon", "aria-hidden": "true" }, createIcon("folder")),
       create("span", { className: "ped-school-card-copy" }, [
-        create("strong", { text: school.name }),
+        create("span", { className: "ped-school-card-name" }, [
+          create("strong", { text: school.name }),
+          verified ? create("span", { className: "ped-school-verified", title: "Sekolah berdaftar dalam MyFailPro", "aria-label": "Sekolah berdaftar dalam MyFailPro" }, create("svg", { viewBox: "0 0 20 20", focusable: "false", "aria-hidden": "true" }, [
+            create("circle", { cx: "10", cy: "10", r: "9", fill: "currentColor" }),
+            create("path", { d: "m5.8 10.2 2.7 2.6 5.7-5.6", fill: "none", stroke: "white", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round" })
+          ])) : null
+        ]),
         create("span", { text: `${matching.length} surat${filtered ? " sepadan" : ""}` })
       ]),
       awaiting ? create("span", { className: "ped-school-card-badge", text: `${awaiting} belum diterima` }) : null
