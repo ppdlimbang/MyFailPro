@@ -22,6 +22,12 @@ administrator page. Netlify is no longer required.
    - `supabase/migrations/20260908060000_title_case_staff_names.sql`
    - `supabase/migrations/20260908070000_manage_file_movement_logs.sql`
    - `supabase/migrations/20260909000000_link_schools_to_education_offices.sql`
+
+   For school accounts linked to a Pejabat Pendidikan, apply these migrations
+   in order before creating school users:
+
+   - `supabase/migrations/20261103000000_school_ped_workflows.sql`
+   - `supabase/migrations/20261103010000_sync_school_office_links.sql`
 3. In **Authentication > Users**, create the first administrator account.
 4. Promote it in SQL Editor:
 

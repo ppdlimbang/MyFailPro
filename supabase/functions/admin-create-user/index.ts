@@ -78,11 +78,20 @@ Deno.serve(async request => {
       }
     );
     if (!updateResponse.ok) {
+      const updateError = await updateResponse.json().catch(() => ({}));
       await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(result.id)}`, {
         method: "DELETE",
         headers: { apikey: config.secretKey, authorization: `Bearer ${config.secretKey}` }
       });
-      return json(request, { error: "Hubungan Pejabat Pendidikan gagal disimpan. Pastikan migrasi pangkalan data terkini telah dijalankan." }, 500);
+      const detail = [updateError.message, updateError.details, updateError.hint]
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .join(" ");
+      const migrationHint = /column .* does not exist|schema cache|function .* does not exist/i.test(detail)
+        ? " Pastikan semua migrasi PeD sekolah dan pautan Pejabat telah dijalankan."
+        : "";
+      return json(request, {
+        error: `Hubungan Pejabat Pendidikan gagal disimpan.${migrationHint}${detail ? ` Butiran pangkalan data: ${detail}` : ` Ralat HTTP ${updateResponse.status}.`}`
+      }, 500);
     }
   }
   return json(request, { id: result.id, email: result.email }, 201);
